@@ -1635,7 +1635,7 @@ export const getDiagnosis = async (req, res) => {
 
     // Fetch patient data from the existing API
     const { data } = await axios.get(
-      `http://localhost:3000/doctors/getPatientSuggestion/${patientId}`
+      `https://common.code2pdf.in/doctors/getPatientSuggestion/${patientId}`
     );
     console.log(data);
     // Extract necessary fields
