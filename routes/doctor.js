@@ -15,6 +15,7 @@ import {
   askQuestion,
   askQuestionAI,
   assignPatientToLab,
+  createInvestigation,
   deleteDiagnosis,
   deleteDoctorMedicine,
   deleteDoctorTreatment,
@@ -33,22 +34,32 @@ import {
   getAllDoctorsProfiles,
   getAllNurses,
   getAssignedPatients,
+  getCoOccurringSymptoms,
   getDiagnosis,
   getDischargedPatientsByDoctor,
   getDoctorAppointments,
   getDoctorConsulting,
+  getDoctorInvestigations,
   getDoctorMedicines,
   getDoctorProfile,
   getDoctorTreatment,
+  getLabReportsByAdmissionId,
+  getOutbreakDetection,
   getPatientHistory1,
   getPatients,
   getPatientsAssignedByDoctor,
   getPatientSuggestions,
+  getSeasonalSymptoms,
+  getSymptomAnalytics,
+  getSymptomDemographics,
+  getSymptomsByLocation,
+  getSymptomTrends,
   rescheduleAppointment,
   seeAllAttendees,
   suggestions,
   updateAppointmentStatus,
   updateConditionAtDischarge,
+  updateDoctorProfile,
   updateMedicine,
 } from "../controllers/doctorController.js";
 import { auth } from "../middleware/auth.js";
@@ -57,6 +68,8 @@ const doctorRouter = express.Router();
 
 doctorRouter.get("/getPatients", auth, getPatients);
 doctorRouter.get("/getDoctorProfile", auth, getDoctorProfile);
+doctorRouter.patch("/updateProfile", auth, updateDoctorProfile);
+
 doctorRouter.get("/getAllDoctorProfile", getAllDoctorsProfiles);
 doctorRouter.get("/getConsultant/:admissionId", fetchConsultant);
 doctorRouter.post("/addConsultant", addConsultant);
@@ -132,6 +145,20 @@ doctorRouter.delete(
   auth,
   deleteDoctorMedicine
 );
+doctorRouter.get("/getSymptomAnalytics", getSymptomAnalytics);
+doctorRouter.get("/getSymptomTrends", getSymptomTrends);
+doctorRouter.get("/getSymptomDemographics", getSymptomDemographics);
+doctorRouter.get("/getSeasonalSymptoms", getSeasonalSymptoms);
+doctorRouter.get("/getCoOccurringSymptoms", getCoOccurringSymptoms);
+doctorRouter.get("/getOutbreakDetection", getOutbreakDetection);
+doctorRouter.get("/getSymptomsByLocation", getSymptomsByLocation);
+doctorRouter.get(
+  "/getLabReportsByAdmissionId/:admissionId",
+  getLabReportsByAdmissionId
+);
+
+doctorRouter.post("/createInvestigation", auth, createInvestigation);
+doctorRouter.get("/getDoctorInvestigations", auth, getDoctorInvestigations);
 
 // userRouter.get("/profile", auth, getUserProfile);
 // userRouter.patch("/edit-profile", auth, upload.single("image"), editProfile);

@@ -16,6 +16,7 @@ import http from "http";
 import { socketHandler } from "./socketHandler.js";
 import fs from "fs";
 import adminRouter from "./routes/admin.js";
+import investigateRouter from "./routes/investigation.js";
 const port = 5001;
 //hello saideep v3
 const app = express();
@@ -31,10 +32,13 @@ app.use("/admin", adminRouter);
 app.use("/doctors", doctorRouter);
 app.use("/nurse", nurseRouter);
 app.use("/labs", labRouter);
+app.use("/investigate", investigateRouter);
 app.get("/patientHistory/:patientId", getPatientHistory);
 
 app.get("/", (req, res) => {
-  return res.status(200).json("Welcome to Ai in HealthCare common backend v3");
+  return res
+    .status(200)
+    .json("Welcome to Ai in HealthCare common backend v3.1");
 });
 app.post("/generateDischargeSummary", async (req, res) => {
   const patientData = req.body; // Patient details sent from Flutter

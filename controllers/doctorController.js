@@ -16,6 +16,7 @@ import axios from "axios";
 import Appointment from "../models/appointmentSchema.js";
 import PatientAppointment from "../models/appointmentSchema.js";
 import Medicine from "../models/doctorMedicines.js";
+import Investigation from "../models/investigationSchema.js";
 export const getPatients = async (req, res) => {
   console.log(req.usertype);
   try {
@@ -163,8 +164,107 @@ export const getDoctorProfile = async (req, res) => {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    // Return doctor profile
-    return res.status(200).json({ doctorProfile });
+    // Find patients assigned to this doctor (current admissions)
+    const assignedPatients = await patientSchema.aggregate([
+      // Unwind admission records to work with them individually
+      { $unwind: "$admissionRecords" },
+      // Match patients whose admission records reference this doctor
+      {
+        $match: {
+          "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          // Only include active admissions (not discharged)
+          "admissionRecords.dischargeDate": { $exists: false },
+        },
+      },
+      // Project only the needed fields
+      {
+        $project: {
+          _id: 1,
+          patientId: 1,
+          name: 1,
+          age: 1,
+          gender: 1,
+          contact: 1,
+          imageUrl: 1,
+          admissionId: "$admissionRecords._id",
+          admissionDate: "$admissionRecords.admissionDate",
+          reasonForAdmission: "$admissionRecords.reasonForAdmission",
+          initialDiagnosis: "$admissionRecords.initialDiagnosis",
+          bedNumber: "$admissionRecords.bedNumber",
+          section: "$admissionRecords.section",
+          status: "$admissionRecords.status",
+        },
+      },
+      // Sort by admission date (newest first)
+      { $sort: { admissionDate: -1 } },
+    ]);
+
+    // Find patients who have this doctor as a consultant
+    const consultingPatients = await patientSchema.aggregate([
+      // Unwind admission records to work with them individually
+      { $unwind: "$admissionRecords" },
+      // Match patients whose admission records have this doctor as a consultant
+      {
+        $match: {
+          "admissionRecords.doctorConsultant": doctorProfile.name,
+          // Only include active admissions (not discharged)
+          "admissionRecords.dischargeDate": { $exists: false },
+        },
+      },
+      // Project only the needed fields
+      {
+        $project: {
+          _id: 1,
+          patientId: 1,
+          name: 1,
+          age: 1,
+          gender: 1,
+          contact: 1,
+          imageUrl: 1,
+          admissionId: "$admissionRecords._id",
+          admissionDate: "$admissionRecords.admissionDate",
+          reasonForAdmission: "$admissionRecords.reasonForAdmission",
+          initialDiagnosis: "$admissionRecords.initialDiagnosis",
+          bedNumber: "$admissionRecords.bedNumber",
+          section: "$admissionRecords.section",
+          status: "$admissionRecords.status",
+          primaryDoctor: "$admissionRecords.doctor.name",
+          isConsultant: true,
+        },
+      },
+      // Sort by admission date (newest first)
+      { $sort: { admissionDate: -1 } },
+    ]);
+
+    // Get pending investigations ordered by this doctor
+    const pendingInvestigations = await Investigation.find({
+      doctorId: doctorId,
+      status: { $in: ["Ordered", "Scheduled"] },
+    })
+      .sort({ orderDate: -1 })
+      .populate("patientId", "name patientId")
+      .limit(10); // Limit to most recent 10 for performance
+
+    // Get investigation results that need review
+    const investigationResults = await Investigation.find({
+      doctorId: doctorId,
+      status: "Results Available",
+      "results.reviewedBy": { $exists: false }, // Results that haven't been reviewed
+    })
+      .sort({ completionDate: -1 })
+      .populate("patientId", "name patientId")
+      .limit(10); // Limit to most recent 10 for performance
+
+    // Return doctor profile along with patient data
+    return res.status(200).json({
+      doctorProfile,
+      patients: {
+        assigned: assignedPatients,
+        consulting: consultingPatients,
+      },
+      pendingInvestigations,
+      investigationResults,
+    });
   } catch (error) {
     console.error("Error fetching doctor profile:", error);
     return res
@@ -172,6 +272,70 @@ export const getDoctorProfile = async (req, res) => {
       .json({ message: "Error fetching doctor profile", error: error.message });
   }
 };
+export const updateDoctorProfile = async (req, res) => {
+  try {
+    const doctorId = req.userId; // Getting doctorId from authenticated user
+
+    if (!doctorId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    // Get updatable fields from request body
+    const {
+      doctorName,
+      speciality,
+      experience,
+      department,
+      phoneNumber,
+      imageUrl,
+      fcmToken,
+    } = req.body;
+
+    // Create an object with only the fields that are provided
+    const updateFields = {};
+
+    if (doctorName !== undefined) updateFields.doctorName = doctorName;
+    if (speciality !== undefined) updateFields.speciality = speciality;
+    if (experience !== undefined) updateFields.experience = experience;
+    if (department !== undefined) updateFields.department = department;
+    if (phoneNumber !== undefined) updateFields.phoneNumber = phoneNumber;
+    if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
+    if (fcmToken !== undefined) updateFields.fcmToken = fcmToken;
+
+    // Check if there are fields to update
+    if (Object.keys(updateFields).length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No valid fields provided for update" });
+    }
+
+    // Find the doctor by ID and update the profile
+    const updatedDoctor = await hospitalDoctors
+      .findByIdAndUpdate(
+        doctorId,
+        { $set: updateFields },
+        { new: true, runValidators: true } // Return the updated document and run schema validators
+      )
+      .select("-password"); // Exclude the password field from the response
+
+    if (!updatedDoctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
+    // Return success response with updated doctor profile
+    return res.status(200).json({
+      message: "Doctor profile updated successfully",
+      doctorProfile: updatedDoctor,
+    });
+  } catch (error) {
+    console.error("Error updating doctor profile:", error);
+    return res.status(500).json({
+      message: "Failed to update doctor profile",
+      error: error.message,
+    });
+  }
+};
+
 export const assignPatientToLab = async (req, res) => {
   const doctorId = req.userId;
   try {
@@ -334,26 +498,24 @@ export const getAdmittedPatientsByDoctor = async (req, res) => {
 };
 
 export const getPatientsAssignedByDoctor = async (req, res) => {
-  const doctorId = req.userId; // Get the doctorId from the request's user (assuming you're using authentication)
+  const doctorId = req.userId;
 
   try {
-    // Fetch lab reports where the doctorId matches the logged-in doctor and patientId is not null
     const labReports = await LabReport.find({
       doctorId,
       patientId: { $ne: null },
-    }) // Filter out records with null patientId
+    })
       .populate({
         path: "patientId",
-        match: { admissionRecords: { $exists: true, $not: { $size: 0 } } }, // Exclude patients with empty admissionRecords
-        select: "name age gender contact admissionRecords", // Select specific fields from the Patient schema
+        match: { admissionRecords: { $exists: true, $not: { $size: 0 } } },
+        select: "name age gender contact admissionRecords",
       })
       .populate({
         path: "doctorId",
-        select: "doctorName email", // Select specific fields from the Doctor schema
+        select: "doctorName email",
       })
-      .sort({ _id: -1 }); // Sort by _id in descending order (newest documents first)
+      .sort({ _id: -1 });
 
-    // Filter out lab reports where patientId is null after population
     const filteredLabReports = labReports.filter((report) => report.patientId);
 
     if (!filteredLabReports || filteredLabReports.length === 0) {
@@ -362,13 +524,15 @@ export const getPatientsAssignedByDoctor = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    // Add "return" here to ensure execution stops after sending response
+    return res.status(200).json({
       message: "Patients assigned by the doctor retrieved successfully",
       labReports: filteredLabReports,
     });
   } catch (error) {
     console.error("Error retrieving patients assigned by doctor:", error);
-    res
+    // Add "return" here as well
+    return res
       .status(500)
       .json({ message: "Error retrieving patients", error: error.message });
   }
@@ -2144,7 +2308,7 @@ export const updateAppointmentStatus = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    if (!["completed", "canceled"].includes(status)) {
+    if (!["completed", "canceled", "accepted"].includes(status)) {
       return res.status(400).json({ message: "Invalid status update" });
     }
 
@@ -2165,6 +2329,64 @@ export const updateAppointmentStatus = async (req, res) => {
       return res
         .status(404)
         .json({ message: "Appointment not found or unauthorized" });
+    }
+    if (status === "accepted") {
+      // Get appointment details
+      const appointment = patientRecord.appointments[appointmentIndex];
+
+      // Check if patient already exists in patientSchema
+      const existingPatient = await patientSchema.findOne({
+        patientId: patientRecord.patientId,
+      });
+
+      if (!existingPatient) {
+        // Create a new patient entry
+        const newPatient = new patientSchema({
+          patientId: patientRecord.patientId,
+          name: patientRecord.patientName,
+          // You might need to extract or calculate age from appointment data
+          age: 0, // Set a default value or extract from appointment if available
+          gender: "Other", // Set a default value or extract from appointment if available
+          contact: patientRecord.patientContact,
+          address: "",
+          admissionRecords: [
+            {
+              admissionDate: new Date(),
+              reasonForAdmission: appointment.symptoms,
+              symptoms: appointment.symptoms,
+              initialDiagnosis: "",
+              doctor: {
+                id: new mongoose.Types.ObjectId(appointment.doctorId),
+                name: appointment.doctorName,
+              },
+            },
+          ],
+        });
+
+        await newPatient.save();
+        res.status(201).json({
+          message: "Patient created and appointment accepted",
+          patient: newPatient,
+        });
+      } else {
+        // If patient exists, add a new admission record
+        existingPatient.admissionRecords.push({
+          admissionDate: new Date(),
+          reasonForAdmission: appointment.symptoms,
+          symptoms: appointment.symptoms,
+          initialDiagnosis: "",
+          doctor: {
+            id: new mongoose.Types.ObjectId(appointment.doctorId),
+            name: appointment.doctorName,
+          },
+        });
+
+        await existingPatient.save();
+        res.status(200).json({
+          message: "Appointment accepted and patient record updated",
+          patient: existingPatient,
+        });
+      }
     }
 
     if (status === "canceled") {
@@ -2309,5 +2531,1222 @@ export const updateMedicine = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error, please try again later." });
+  }
+};
+
+// Helper function to extract just the symptom name (without the timestamp)
+const extractSymptomName = (symptomWithTimestamp) => {
+  // Pattern to match symptom text before the timestamp format
+  const parts = symptomWithTimestamp.split(" - ");
+  if (parts.length > 0) {
+    return parts[0].trim();
+  }
+  return symptomWithTimestamp; // Return the original if no timestamp found
+};
+
+export const getSymptomAnalytics = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Object to store symptom counts
+    const symptomCountMap = {};
+    // Array to store all symptoms for unique symptoms list
+    const allSymptoms = [];
+
+    // Process each patient and their admission records (current patients)
+    patients.forEach((patient) => {
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            // Extract clean symptom name
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Count occurrences
+            if (symptomCountMap[symptomName]) {
+              symptomCountMap[symptomName]++;
+            } else {
+              symptomCountMap[symptomName] = 1;
+            }
+
+            // Add to all symptoms
+            allSymptoms.push(symptomName);
+          });
+        }
+      });
+    });
+
+    // Process historical records
+    patientHistories.forEach((patientHistory) => {
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            // Extract clean symptom name
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Count occurrences
+            if (symptomCountMap[symptomName]) {
+              symptomCountMap[symptomName]++;
+            } else {
+              symptomCountMap[symptomName] = 1;
+            }
+
+            // Add to all symptoms
+            allSymptoms.push(symptomName);
+          });
+        }
+      });
+    });
+
+    // Convert to array for sorting
+    const symptomCounts = Object.entries(symptomCountMap).map(
+      ([name, count]) => ({
+        name,
+        count,
+      })
+    );
+
+    // Sort by count (most frequent first)
+    symptomCounts.sort((a, b) => b.count - a.count);
+
+    // Get unique symptoms (those that appear exactly once)
+    const uniqueSymptoms = symptomCounts
+      .filter((item) => item.count === 1)
+      .map((item) => item.name);
+
+    // Format the response
+    const response = {
+      totalPatients: patients.length,
+      totalSymptomRecords: allSymptoms.length,
+      mostUsedSymptoms: symptomCounts.slice(0, 10), // Top 10 most common
+      uniqueSymptoms: uniqueSymptoms,
+      allSymptoms: symptomCounts, // Full list with counts
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    console.error("Error in getSymptomAnalytics:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving symptom analytics",
+      error: error.message,
+    });
+  }
+};
+
+// Get co-occurring symptoms (symptoms that frequently appear together)
+export const getCoOccurringSymptoms = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Track co-occurrences - using a Map for keys with multiple symptoms
+    const coOccurrenceMap = {};
+
+    // Function to process symptoms from a patient record
+    const processSymptoms = (symptoms) => {
+      if (!symptoms || symptoms.length < 2) return;
+
+      // Extract symptom names
+      const symptomNames = symptoms.map((symptomWithTimestamp) =>
+        extractSymptomName(symptomWithTimestamp)
+      );
+
+      // Generate all unique pairs of symptoms
+      for (let i = 0; i < symptomNames.length; i++) {
+        for (let j = i + 1; j < symptomNames.length; j++) {
+          // Sort to ensure consistent pairing regardless of order
+          const pair = [symptomNames[i], symptomNames[j]].sort().join("---");
+
+          if (!coOccurrenceMap[pair]) {
+            coOccurrenceMap[pair] = 1;
+          } else {
+            coOccurrenceMap[pair]++;
+          }
+        }
+      }
+    };
+
+    // Process current patients
+    patients.forEach((patient) => {
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          processSymptoms(record.symptomsByDoctor);
+        }
+      });
+    });
+
+    // Process historical records
+    patientHistories.forEach((patientHistory) => {
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          processSymptoms(record.symptomsByDoctor);
+        }
+      });
+    });
+
+    // Convert to array and format for response
+    const coOccurrences = Object.entries(coOccurrenceMap)
+      .map(([pairKey, count]) => {
+        const [symptom1, symptom2] = pairKey.split("---");
+        return {
+          pair: [symptom1, symptom2],
+          count,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        coOccurrences: coOccurrences.slice(0, 20), // Return top 20 co-occurring pairs
+        totalPairs: coOccurrences.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getCoOccurringSymptoms:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving co-occurring symptoms",
+      error: error.message,
+    });
+  }
+};
+
+// Get symptom trends over time
+export const getSymptomTrends = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    const timelineData = {};
+
+    // Process each current patient record to extract date-based trends
+    patients.forEach((patient) => {
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            // Example format: "cough - 2025-04-23 11:34:57 PM"
+            const parts = symptomWithTimestamp.split(" - ");
+            if (parts.length >= 2) {
+              const symptomName = parts[0].trim();
+
+              // Get date part only (YYYY-MM-DD)
+              const datePart = parts[1].split(" ")[0];
+
+              if (!timelineData[datePart]) {
+                timelineData[datePart] = {};
+              }
+
+              if (!timelineData[datePart][symptomName]) {
+                timelineData[datePart][symptomName] = 1;
+              } else {
+                timelineData[datePart][symptomName]++;
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Process historical records
+    patientHistories.forEach((patientHistory) => {
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            // Example format: "cough - 2025-04-23 11:34:57 PM"
+            const parts = symptomWithTimestamp.split(" - ");
+            if (parts.length >= 2) {
+              const symptomName = parts[0].trim();
+
+              // Get date part only (YYYY-MM-DD)
+              const datePart = parts[1].split(" ")[0];
+
+              if (!timelineData[datePart]) {
+                timelineData[datePart] = {};
+              }
+
+              if (!timelineData[datePart][symptomName]) {
+                timelineData[datePart][symptomName] = 1;
+              } else {
+                timelineData[datePart][symptomName]++;
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Convert to array format for easier consumption by frontend
+    const trendArray = Object.keys(timelineData).map((date) => {
+      const symptoms = timelineData[date];
+      return {
+        date,
+        symptoms: Object.keys(symptoms).map((name) => ({
+          name,
+          count: symptoms[name],
+        })),
+      };
+    });
+
+    // Sort by date ascending
+    trendArray.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    return res.status(200).json({
+      success: true,
+      data: trendArray,
+    });
+  } catch (error) {
+    console.error("Error in getSymptomTrends:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving symptom trends",
+      error: error.message,
+    });
+  }
+};
+
+// Get seasonal symptom patterns
+export const getSeasonalSymptoms = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Track symptom occurrences by month
+    const monthlySymptoms = {
+      1: {},
+      2: {},
+      3: {},
+      4: {},
+      5: {},
+      6: {},
+      7: {},
+      8: {},
+      9: {},
+      10: {},
+      11: {},
+      12: {},
+    };
+
+    // Process symptoms from current patients
+    patients.forEach((patient) => {
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const parts = symptomWithTimestamp.split(" - ");
+            if (parts.length >= 2) {
+              const symptomName = parts[0].trim();
+              const datePart = parts[1].split(" ")[0]; // "YYYY-MM-DD" format
+
+              // Extract month
+              const month = parseInt(datePart.split("-")[1]);
+
+              // Add to monthly counts
+              if (!monthlySymptoms[month][symptomName]) {
+                monthlySymptoms[month][symptomName] = 1;
+              } else {
+                monthlySymptoms[month][symptomName]++;
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Process symptoms from historical records
+    patientHistories.forEach((patientHistory) => {
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const parts = symptomWithTimestamp.split(" - ");
+            if (parts.length >= 2) {
+              const symptomName = parts[0].trim();
+              const datePart = parts[1].split(" ")[0]; // "YYYY-MM-DD" format
+
+              // Extract month
+              const month = parseInt(datePart.split("-")[1]);
+
+              // Add to monthly counts
+              if (!monthlySymptoms[month][symptomName]) {
+                monthlySymptoms[month][symptomName] = 1;
+              } else {
+                monthlySymptoms[month][symptomName]++;
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Format data for response
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const seasonalData = Object.keys(monthlySymptoms).map((month) => {
+      const monthIndex = parseInt(month) - 1;
+      const symptoms = Object.entries(monthlySymptoms[month])
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        month: monthIndex + 1,
+        monthName: monthNames[monthIndex],
+        symptoms: symptoms.slice(0, 5), // Top 5 symptoms for each month
+        totalSymptomCount: symptoms.reduce((sum, s) => sum + s.count, 0),
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: seasonalData,
+    });
+  } catch (error) {
+    console.error("Error in getSeasonalSymptoms:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving seasonal symptom patterns",
+      error: error.message,
+    });
+  }
+};
+
+// Get symptom comparison by patient demographics
+export const getSymptomDemographics = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Objects to store symptom distributions by demographics
+    const symptomsByGender = {
+      Male: {},
+      Female: {},
+      Other: {},
+    };
+
+    const symptomsByAgeRange = {
+      "Under 18": {},
+      "18-30": {},
+      "31-45": {},
+      "46-60": {},
+      "Over 60": {},
+    };
+
+    // Process each current patient
+    patients.forEach((patient) => {
+      // Determine age group
+      let ageGroup;
+      if (patient.age < 18) ageGroup = "Under 18";
+      else if (patient.age <= 30) ageGroup = "18-30";
+      else if (patient.age <= 45) ageGroup = "31-45";
+      else if (patient.age <= 60) ageGroup = "46-60";
+      else ageGroup = "Over 60";
+
+      // Process each symptom
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Add to gender-based counts
+            if (!symptomsByGender[patient.gender][symptomName]) {
+              symptomsByGender[patient.gender][symptomName] = 1;
+            } else {
+              symptomsByGender[patient.gender][symptomName]++;
+            }
+
+            // Add to age-based counts
+            if (!symptomsByAgeRange[ageGroup][symptomName]) {
+              symptomsByAgeRange[ageGroup][symptomName] = 1;
+            } else {
+              symptomsByAgeRange[ageGroup][symptomName]++;
+            }
+          });
+        }
+      });
+    });
+
+    // Process historical records
+    patientHistories.forEach((patientHistory) => {
+      // Determine age group - using age from history record
+      let ageGroup;
+      if (patientHistory.age < 18) ageGroup = "Under 18";
+      else if (patientHistory.age <= 30) ageGroup = "18-30";
+      else if (patientHistory.age <= 45) ageGroup = "31-45";
+      else if (patientHistory.age <= 60) ageGroup = "46-60";
+      else ageGroup = "Over 60";
+
+      // Process each historical record
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Add to gender-based counts
+            if (!symptomsByGender[patientHistory.gender][symptomName]) {
+              symptomsByGender[patientHistory.gender][symptomName] = 1;
+            } else {
+              symptomsByGender[patientHistory.gender][symptomName]++;
+            }
+
+            // Add to age-based counts
+            if (!symptomsByAgeRange[ageGroup][symptomName]) {
+              symptomsByAgeRange[ageGroup][symptomName] = 1;
+            } else {
+              symptomsByAgeRange[ageGroup][symptomName]++;
+            }
+          });
+        }
+      });
+    });
+
+    // Format the response
+    const formatDemographicData = (dataObj) => {
+      return Object.keys(dataObj).map((category) => {
+        const symptoms = Object.entries(dataObj[category])
+          .map(([name, count]) => ({
+            name,
+            count,
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        return {
+          category,
+          symptoms,
+          totalCount: symptoms.reduce((sum, item) => sum + item.count, 0),
+        };
+      });
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        byGender: formatDemographicData(symptomsByGender),
+        byAgeRange: formatDemographicData(symptomsByAgeRange),
+      },
+    });
+  } catch (error) {
+    console.error("Error in getSymptomDemographics:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving symptom demographics",
+      error: error.message,
+    });
+  }
+};
+// Get symptoms by geographical location
+export const getSymptomsByLocation = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Track symptoms by geographical regions
+    const symptomsByCity = {};
+    const symptomsByState = {};
+    const symptomsByCountry = {};
+
+    // Process current patients
+    patients.forEach((patient) => {
+      // Skip if location data is missing
+      if (!patient.city && !patient.state && !patient.country) return;
+
+      const city = patient.city || "Unknown";
+      const state = patient.state || "Unknown";
+      const country = patient.country || "Unknown";
+
+      // Initialize location objects if they don't exist
+      if (!symptomsByCity[city]) symptomsByCity[city] = {};
+      if (!symptomsByState[state]) symptomsByState[state] = {};
+      if (!symptomsByCountry[country]) symptomsByCountry[country] = {};
+
+      // Process each admission record for symptoms
+      patient.admissionRecords.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Add to city-based counts
+            if (!symptomsByCity[city][symptomName]) {
+              symptomsByCity[city][symptomName] = 1;
+            } else {
+              symptomsByCity[city][symptomName]++;
+            }
+
+            // Add to state-based counts
+            if (!symptomsByState[state][symptomName]) {
+              symptomsByState[state][symptomName] = 1;
+            } else {
+              symptomsByState[state][symptomName]++;
+            }
+
+            // Add to country-based counts
+            if (!symptomsByCountry[country][symptomName]) {
+              symptomsByCountry[country][symptomName] = 1;
+            } else {
+              symptomsByCountry[country][symptomName]++;
+            }
+          });
+        }
+      });
+    });
+
+    // Process historical records (if PatientHistory schema has location fields)
+    patientHistories.forEach((patientHistory) => {
+      // Assuming PatientHistory schema has been updated with location fields
+      // If not, you'll need to adjust this part accordingly
+      const city = patientHistory.city || "Unknown";
+      const state = patientHistory.state || "Unknown";
+      const country = patientHistory.country || "Unknown";
+
+      // Initialize location objects if they don't exist
+      if (!symptomsByCity[city]) symptomsByCity[city] = {};
+      if (!symptomsByState[state]) symptomsByState[state] = {};
+      if (!symptomsByCountry[country]) symptomsByCountry[country] = {};
+
+      patientHistory.history.forEach((record) => {
+        if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+          record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+            const symptomName = extractSymptomName(symptomWithTimestamp);
+
+            // Add to location-based counts
+            if (!symptomsByCity[city][symptomName]) {
+              symptomsByCity[city][symptomName] = 1;
+            } else {
+              symptomsByCity[city][symptomName]++;
+            }
+
+            if (!symptomsByState[state][symptomName]) {
+              symptomsByState[state][symptomName] = 1;
+            } else {
+              symptomsByState[state][symptomName]++;
+            }
+
+            if (!symptomsByCountry[country][symptomName]) {
+              symptomsByCountry[country][symptomName] = 1;
+            } else {
+              symptomsByCountry[country][symptomName]++;
+            }
+          });
+        }
+      });
+    });
+
+    // Format the response
+    const formatLocationData = (dataObj) => {
+      return Object.keys(dataObj).map((location) => {
+        const symptoms = Object.entries(dataObj[location])
+          .map(([name, count]) => ({
+            name,
+            count,
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        return {
+          location,
+          symptoms: symptoms.slice(0, 10), // Top 10 symptoms for each location
+          totalCount: symptoms.reduce((sum, item) => sum + item.count, 0),
+        };
+      });
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        byCity: formatLocationData(symptomsByCity),
+        byState: formatLocationData(symptomsByState),
+        byCountry: formatLocationData(symptomsByCountry),
+      },
+    });
+  } catch (error) {
+    console.error("Error in getSymptomsByLocation:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error retrieving symptom location data",
+      error: error.message,
+    });
+  }
+};
+// Get potential outbreak detection based on symptom clustering by location
+export const getOutbreakDetection = async (req, res) => {
+  try {
+    // Fetch data from both current and historical records
+    const [patients, patientHistories] = await Promise.all([
+      patientSchema.find({}),
+      PatientHistory.find({}),
+    ]);
+
+    // Track recent symptom frequencies by location and time period
+    const recentSymptomsByLocation = {};
+
+    // Define what "recent" means - for example, last 30 days
+    const recentCutoff = new Date();
+    recentCutoff.setDate(recentCutoff.getDate() - 30);
+
+    // Process current patients for recent admissions
+    patients.forEach((patient) => {
+      // Skip if location data is missing
+      if (!patient.city || !patient.state || !patient.country) return;
+
+      const locationKey = `${patient.city}, ${patient.state}, ${patient.country}`;
+      if (!recentSymptomsByLocation[locationKey]) {
+        recentSymptomsByLocation[locationKey] = {
+          city: patient.city,
+          state: patient.state,
+          country: patient.country,
+          symptoms: {},
+          recentAdmissionCount: 0,
+          totalPatients: 0,
+        };
+      }
+
+      recentSymptomsByLocation[locationKey].totalPatients++;
+
+      // Check each admission for recent date and symptoms
+      patient.admissionRecords.forEach((record) => {
+        const admissionDate = new Date(record.admissionDate);
+        // Only consider recent admissions
+        if (admissionDate >= recentCutoff) {
+          recentSymptomsByLocation[locationKey].recentAdmissionCount++;
+
+          if (record.symptomsByDoctor && record.symptomsByDoctor.length > 0) {
+            record.symptomsByDoctor.forEach((symptomWithTimestamp) => {
+              const symptomName = extractSymptomName(symptomWithTimestamp);
+
+              if (
+                !recentSymptomsByLocation[locationKey].symptoms[symptomName]
+              ) {
+                recentSymptomsByLocation[locationKey].symptoms[symptomName] = 1;
+              } else {
+                recentSymptomsByLocation[locationKey].symptoms[symptomName]++;
+              }
+            });
+          }
+        }
+      });
+    });
+
+    // Similar processing could be done for historical records if relevant
+    // ...
+
+    // Calculate outbreak potential
+    // This is a simple algorithm that could be improved with more sophisticated methods
+    const outbreakPotential = [];
+
+    Object.values(recentSymptomsByLocation).forEach((locationData) => {
+      // Skip locations with few patients
+      if (locationData.recentAdmissionCount < 3) return;
+
+      // Calculate the percentage of recent admissions compared to total patients
+      const recentAdmissionPercentage =
+        (locationData.recentAdmissionCount / locationData.totalPatients) * 100;
+
+      // Find dominant symptoms (symptoms that appear in a significant percentage of recent cases)
+      const dominantSymptoms = Object.entries(locationData.symptoms)
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: (count / locationData.recentAdmissionCount) * 100,
+        }))
+        .filter((symptom) => symptom.percentage >= 40) // Symptoms present in at least 40% of recent cases
+        .sort((a, b) => b.percentage - a.percentage);
+
+      // If there are dominant symptoms and a significant percentage of recent admissions
+      if (dominantSymptoms.length > 0 && recentAdmissionPercentage >= 30) {
+        outbreakPotential.push({
+          location: {
+            city: locationData.city,
+            state: locationData.state,
+            country: locationData.country,
+          },
+          recentAdmissions: locationData.recentAdmissionCount,
+          totalPatients: locationData.totalPatients,
+          recentPercentage: recentAdmissionPercentage.toFixed(2),
+          dominantSymptoms,
+          alertLevel: recentAdmissionPercentage >= 60 ? "High" : "Medium",
+        });
+      }
+    });
+
+    // Sort by alert level and recent percentage
+    outbreakPotential.sort((a, b) => {
+      if (a.alertLevel === b.alertLevel) {
+        return parseFloat(b.recentPercentage) - parseFloat(a.recentPercentage);
+      }
+      return a.alertLevel === "High" ? -1 : 1;
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        outbreakAlerts: outbreakPotential,
+        alertCount: outbreakPotential.length,
+        lastUpdated: new Date(),
+      },
+    });
+  } catch (error) {
+    console.error("Error in getOutbreakDetection:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error analyzing potential outbreaks",
+      error: error.message,
+    });
+  }
+};
+export const createInvestigation = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      patientId,
+      admissionId,
+      investigationType,
+      otherInvestigationType,
+      reasonForInvestigation,
+      priority,
+      scheduledDate,
+      clinicalHistory,
+      investigationDetails,
+      tags,
+    } = req.body;
+
+    const doctorId = req.userId; // Extracted from auth middleware
+
+    // Validate required fields
+    if (!patientId || !investigationType || !reasonForInvestigation) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: patientId, investigationType, and reasonForInvestigation are required",
+      });
+    }
+
+    // Verify patient exists - Using patientId field instead of _id
+    const patient = await patientSchema.findOne({ patientId: patientId });
+    if (!patient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
+    }
+
+    // Get doctor information to include doctor name
+    const doctor = await hospitalDoctors.findById(doctorId);
+    if (!doctor) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Doctor not found" });
+    }
+
+    // If admissionId is provided, verify it exists for this patient
+    if (admissionId) {
+      const admissionExists = patient.admissionRecords.some(
+        (record) => record._id.toString() === admissionId
+      );
+
+      if (!admissionExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Admission record not found for this patient",
+        });
+      }
+    }
+
+    // Create new investigation
+    const investigation = new Investigation({
+      patientId: patient._id, // Use MongoDB _id for reference
+      patientIdNumber: patientId, // Store the string patientId as well for reference
+      doctorId,
+      doctorName: doctor.doctorName, // Store doctor name for easier reference
+      investigationType,
+      admissionRecordId: admissionId || null,
+      reasonForInvestigation,
+      status: "Ordered",
+      orderDate: new Date(),
+      priority: priority || "Routine",
+    });
+
+    // Add optional fields if provided
+    if (otherInvestigationType && investigationType === "Other") {
+      investigation.otherInvestigationType = otherInvestigationType;
+    }
+
+    if (scheduledDate) {
+      investigation.scheduledDate = new Date(scheduledDate);
+      investigation.status = "Scheduled";
+    }
+
+    if (clinicalHistory) {
+      investigation.clinicalHistory = clinicalHistory;
+    }
+
+    if (investigationDetails) {
+      // Check if investigationDetails is a string and convert it to an object
+      if (typeof investigationDetails === "string") {
+        // For blood tests, store in parameters array
+        if (
+          investigationType === "Blood Test" ||
+          investigationType === "Urine Test"
+        ) {
+          investigation.investigationDetails = {
+            parameters: investigationDetails
+              .split(",")
+              .map((item) => item.trim()),
+          };
+        } else if (
+          investigationType === "X-Ray" ||
+          investigationType === "MRI" ||
+          investigationType === "CT Scan" ||
+          investigationType === "Ultrasound" ||
+          investigationType === "CT PNS" ||
+          investigationType === "Nasal Endoscopy" ||
+          investigationType === "Laryngoscopy"
+        ) {
+          // For imaging studies
+          investigation.investigationDetails = {
+            bodySite: investigationDetails,
+          };
+        } else if (
+          investigationType === "Glucose Tolerance Test" ||
+          investigationType === "DEXA Scan" ||
+          investigationType === "VEP" ||
+          investigationType === "SSEP" ||
+          investigationType === "BAER"
+        ) {
+          // For functional tests
+          investigation.investigationDetails = {
+            testProtocol: investigationDetails,
+          };
+        } else if (investigationType === "Breath Test") {
+          // For breath tests
+          investigation.investigationDetails = {
+            testSubstance: investigationDetails,
+          };
+        } else {
+          // Default: store as parameters
+          investigation.investigationDetails = {
+            parameters: [investigationDetails],
+          };
+        }
+      } else if (typeof investigationDetails === "object") {
+        // If it's already an object, use it directly
+        investigation.investigationDetails = investigationDetails;
+      }
+    }
+
+    if (tags && Array.isArray(tags)) {
+      investigation.tags = tags;
+    }
+
+    // Save the investigation
+    await investigation.save({ session });
+
+    // Add a doctor note to the admission record about the investigation if admissionId is provided
+    if (admissionId) {
+      const admissionIndex = patient.admissionRecords.findIndex(
+        (record) => record._id.toString() === admissionId
+      );
+
+      if (admissionIndex !== -1) {
+        const doctorNote = {
+          text: `Ordered investigation: ${investigation.fullInvestigationName} - ${reasonForInvestigation}`,
+          doctorName: doctor.doctorName, // Use doctor name from doctor record
+          time: new Date().toLocaleTimeString(),
+          date: new Date().toLocaleDateString(),
+        };
+
+        patient.admissionRecords[admissionIndex].doctorNotes.push(doctorNote);
+        await patient.save({ session });
+      }
+    }
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: "Investigation ordered successfully",
+      data: investigation,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+
+    console.error("Error creating investigation:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to order investigation",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+// Get all investigations for a patient
+export const getPatientInvestigations = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    // Find patient by patientId string
+    const patient = await patientSchema.findOne({ patientId: patientId });
+    if (!patient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
+    }
+
+    // Optional query parameters for filtering
+    const { status, type, startDate, endDate } = req.query;
+
+    // Build filter object using MongoDB _id
+    const filter = { patientId: patient._id };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (type) {
+      filter.investigationType = type;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      filter.orderDate = {};
+      if (startDate) {
+        filter.orderDate.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.orderDate.$lte = new Date(endDate);
+      }
+    }
+
+    const investigations = await Investigation.find(filter)
+      .sort({ orderDate: -1 })
+      .populate("doctorId", "name");
+
+    return res.status(200).json({
+      success: true,
+      count: investigations.length,
+      data: investigations,
+    });
+  } catch (error) {
+    console.error("Error retrieving investigations:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve investigations",
+      error: error.message,
+    });
+  }
+};
+export const getDoctorInvestigations = async (req, res) => {
+  try {
+    // Get doctor ID from authenticated user
+    const doctorId = req.userId;
+
+    // Get query parameters for filtering
+    const {
+      status,
+      type,
+      patientId,
+      startDate,
+      endDate,
+      priority,
+      isAbnormal,
+      page = 1,
+      limit = 10,
+      sortBy = "orderDate",
+      sortOrder = "desc",
+    } = req.query;
+
+    // Build filter object - always filter by doctor ID
+    const filter = { doctorId };
+
+    // Apply additional filters if provided
+    if (status) {
+      filter.status = status;
+    }
+
+    if (type) {
+      filter.investigationType = type;
+    }
+
+    if (patientId) {
+      // Check if it's a patientIdNumber (string) or an ObjectId
+      if (mongoose.Types.ObjectId.isValid(patientId)) {
+        filter.patientId = patientId;
+      } else {
+        filter.patientIdNumber = patientId;
+      }
+    }
+
+    if (priority) {
+      filter.priority = priority;
+    }
+
+    if (isAbnormal !== undefined) {
+      filter["results.isAbnormal"] = isAbnormal === "true";
+    }
+
+    // Date range filter for orderDate
+    if (startDate || endDate) {
+      filter.orderDate = {};
+      if (startDate) {
+        filter.orderDate.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        filter.orderDate.$lte = new Date(endDate);
+      }
+    }
+
+    // Calculate pagination values
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Set up sort configuration
+    const sort = {};
+    sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    // Get total count
+    const total = await Investigation.countDocuments(filter);
+
+    // Execute query with pagination and sorting
+    const investigations = await Investigation.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limitNumber)
+      .populate("patientId", "name age gender contact")
+      .lean();
+
+    // Calculate additional fields
+    const enhancedInvestigations = investigations.map((investigation) => {
+      // Calculate days elapsed since order
+      const daysSinceOrdered = Math.floor(
+        (new Date() - new Date(investigation.orderDate)) / (1000 * 60 * 60 * 24)
+      );
+
+      // Determine if investigation is overdue based on priority
+      let isOverdue = false;
+      if (
+        investigation.status === "Ordered" ||
+        investigation.status === "Scheduled"
+      ) {
+        switch (investigation.priority) {
+          case "STAT":
+            isOverdue = daysSinceOrdered > 1;
+            break;
+          case "Urgent":
+            isOverdue = daysSinceOrdered > 3;
+            break;
+          case "Routine":
+            isOverdue = daysSinceOrdered > 7;
+            break;
+        }
+      }
+
+      // Return enhanced investigation object
+      return {
+        ...investigation,
+        daysSinceOrdered,
+        isOverdue,
+        hasAttachments:
+          investigation.attachments && investigation.attachments.length > 0,
+        hasResults: investigation.status === "Results Available",
+      };
+    });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / limitNumber);
+
+    // Return response
+    return res.status(200).json({
+      success: true,
+      count: total,
+      pagination: {
+        currentPage: pageNumber,
+        totalPages,
+        pageSize: limitNumber,
+        totalItems: total,
+      },
+      data: enhancedInvestigations,
+    });
+  } catch (error) {
+    console.error("Error fetching doctor investigations:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch doctor investigations",
+      error: error.message,
+    });
+  }
+};
+export const getLabReportsByAdmissionId = async (req, res) => {
+  try {
+    const { admissionId } = req.params;
+
+    // Validate if provided admission ID is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(admissionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid admission ID format",
+      });
+    }
+
+    // Find lab reports associated with the given admission ID
+    const labReports = await LabReport.find({ admissionId })
+      .populate("patientId", "name patientId") // Populate patient details
+      .populate("doctorId", "name") // Populate doctor details
+      .sort({ "reports.uploadedAt": -1 }); // Sort by most recent upload
+
+    // Check if any lab reports were found
+    if (!labReports || labReports.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No lab reports found for this admission",
+      });
+    }
+
+    // Return the lab reports
+    return res.status(200).json({
+      success: true,
+      count: labReports.length,
+      data: labReports,
+    });
+  } catch (error) {
+    console.error("Error fetching lab reports:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching lab reports",
+      error: error.message,
+    });
   }
 };

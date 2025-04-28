@@ -179,6 +179,7 @@ const admissionRecordSchema = new mongoose.Schema({
     type: { type: String },
   },
   bedNumber: { type: Number },
+  ipdDetailsUpdated: { type: Boolean, default: false },
 });
 
 const patientSchema1 = new mongoose.Schema({
@@ -188,6 +189,9 @@ const patientSchema1 = new mongoose.Schema({
   gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
   contact: { type: String, required: true },
   address: { type: String },
+  city: { type: String },
+  state: { type: String },
+  country: { type: String },
   dob: { type: String },
   imageUrl: {
     type: String,

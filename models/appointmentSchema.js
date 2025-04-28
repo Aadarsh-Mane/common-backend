@@ -17,7 +17,14 @@ const appointmentRecordSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["waiting", "canceled", "completed", "rescheduled", "no-show"],
+      enum: [
+        "waiting",
+        "canceled",
+        "completed",
+        "rescheduled",
+        "no-show",
+        "accepted",
+      ],
       default: "waiting",
     },
 

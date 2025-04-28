@@ -589,10 +589,7 @@ export const listDoctors = async (req, res) => {
   try {
     // Retrieve all doctors, with an option to filter by availability if required
     const doctors = await hospitalDoctors
-      .find({
-        usertype: "doctor",
-        // available: true,
-      })
+      .find()
       .select("-password -createdAt -fcmToken");
 
     if (!doctors || doctors.length === 0) {
@@ -610,9 +607,9 @@ export const listDoctors = async (req, res) => {
 export const listExternalDoctors = async (req, res) => {
   try {
     // Retrieve all doctors, with an option to filter by availability if required
-    const doctors = await externalDoctors
+    const doctors = await hospitalDoctors
       .find({
-        usertype: "doctor",
+        usertype: "external",
         // available: true,
       })
       .select("-password -createdAt -fcmToken");
@@ -4251,4 +4248,55 @@ export const getAvailableBeds = async (req, res) => {
       availableBedNumbers,
     },
   });
+};
+export const addIpdDetails = async (req, res) => {
+  try {
+    const {
+      patientId,
+      admissionId,
+      reasonForAdmission,
+      symptoms,
+      initialDiagnosis,
+    } = req.body;
+
+    // Find the patient
+    const patient = await patientSchema.findOne({ patientId });
+
+    if (!patient) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Patient not found" });
+    }
+
+    // Find the admission record
+    const admissionRecord = patient.admissionRecords.id(admissionId);
+
+    if (!admissionRecord) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Admission record not found" });
+    }
+
+    // Update the fields
+    admissionRecord.reasonForAdmission = reasonForAdmission;
+    admissionRecord.symptoms = symptoms;
+    admissionRecord.initialDiagnosis = initialDiagnosis;
+    admissionRecord.ipdDetailsUpdated = true;
+
+    // Save the updated document
+    await patient.save();
+
+    res.status(200).json({
+      success: true,
+      message: "IPD details added successfully",
+      updatedAdmissionRecord: admissionRecord,
+    });
+  } catch (error) {
+    console.error("Error adding IPD details:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
 };

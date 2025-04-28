@@ -1,6 +1,7 @@
 import express from "express";
 import {
   acceptAppointment,
+  addIpdDetails,
   addPatient,
   admitPatientWithNotes,
   assignBedToPatient,
@@ -98,5 +99,6 @@ receiptionRouter.get("/getAdmittedPatients", getAdmittedPatients);
 receiptionRouter.post("/assignBedToPatient", assignBedToPatient);
 receiptionRouter.get("/occupiedBeds/:sectionId", getOccupiedBeds);
 receiptionRouter.get("/availableBeds/:sectionId", getAvailableBeds);
+receiptionRouter.post("/addIpdDetails", addIpdDetails);
 
 export default receiptionRouter;

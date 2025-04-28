@@ -40,14 +40,13 @@ export const signupDoctor = async (req, res) => {
       experience,
       department,
       phoneNumber,
-      type, // Determines if doctor is external or internal
     } = req.body;
     console.log("Signup request body:", req.body); // Log the request body
     const file = req.file; // File is optional now
     console.log("Uploaded file details:", file);
 
     // Choose the correct model based on type
-    const DoctorModel = type === "external" ? externalDoctors : hospitalDoctors;
+    const DoctorModel = hospitalDoctors;
 
     // Check if the user already exists in the selected collection
     const existingUser = await DoctorModel.findOne({ email });
