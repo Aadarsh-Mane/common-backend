@@ -46,6 +46,7 @@ import {
   getLabReportsByAdmissionId,
   getOutbreakDetection,
   getPatientHistory1,
+  getPatientInvestigationsByAdmission,
   getPatients,
   getPatientsAssignedByDoctor,
   getPatientSuggestions,
@@ -54,7 +55,6 @@ import {
   getSymptomDemographics,
   getSymptomsByLocation,
   getSymptomTrends,
-  rescheduleAppointment,
   seeAllAttendees,
   suggestions,
   updateAppointmentStatus,
@@ -135,8 +135,13 @@ doctorRouter.get(
 );
 doctorRouter.delete("/deleteDoctorTreatment", deleteDoctorTreatment);
 doctorRouter.get("/getDoctorAppointments", auth, getDoctorAppointments);
-doctorRouter.patch("/rescheduleAppointment", auth, rescheduleAppointment);
-doctorRouter.post("/updateAppointmentStatus", auth, updateAppointmentStatus);
+doctorRouter.post(
+  "/updateAppointmentStatus/:patientId/:appointmentId",
+  auth,
+  updateAppointmentStatus
+);
+// doctorRouter.patch("/rescheduleAppointment", auth, rescheduleAppointment);
+// doctorRouter.post("/updateAppointmentStatus", auth, updateAppointmentStatus);
 doctorRouter.post("/addMedicine", auth, addMedicine);
 doctorRouter.get("/getDoctorMedicines", auth, getDoctorMedicines);
 doctorRouter.patch("/updateMedicine/:medicineId", auth, updateMedicine);
@@ -159,6 +164,11 @@ doctorRouter.get(
 
 doctorRouter.post("/createInvestigation", auth, createInvestigation);
 doctorRouter.get("/getDoctorInvestigations", auth, getDoctorInvestigations);
+doctorRouter.get(
+  "/getPatientInvestigationsByAdmission/:patientId/:admissionId",
+  auth,
+  getPatientInvestigationsByAdmission
+);
 
 // userRouter.get("/profile", auth, getUserProfile);
 // userRouter.patch("/edit-profile", auth, upload.single("image"), editProfile);

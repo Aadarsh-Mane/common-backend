@@ -561,7 +561,11 @@ export const assignDoctor = async (req, res) => {
     //     .json({ message: "Doctor is already assigned to this patient" });
     // }
     // Assign doctor to admission record
-    admissionRecord.doctor = { id: doctorId, name: doctor.doctorName };
+    admissionRecord.doctor = {
+      id: doctorId,
+      name: doctor.doctorName,
+      usertype: doctor.usertype,
+    };
     await patient.save();
 
     // Check if doctor has FCM token
@@ -3743,71 +3747,216 @@ export const createAppointment = async (req, res) => {
       status: "waiting",
       paymentStatus: paymentStatus || "pending",
     };
-    if (isReadmission && !patientId) {
-      return res
-        .status(400)
-        .json({ message: "Patient ID is required for readmission" });
-    }
-    if (isReadmission && patientId) {
-      // **1️⃣ Existing Patient (Readmission) → Check past records**
+
+    // CASE 1: This is a readmission (patientId should be provided)
+    if (isReadmission) {
+      if (!patientId) {
+        return res.status(400).json({
+          message: "Patient ID is required for readmission",
+        });
+      }
+
+      // Look up patient record by patientId ONLY
       let patientRecord = await PatientAppointment.findOne({ patientId });
 
       if (!patientRecord) {
-        return res.status(404).json({ message: "Patient record not found" });
+        return res.status(404).json({
+          message: "Patient record not found. Please verify the Patient ID.",
+        });
       }
 
-      // **Check if patient has at least one "completed" or valid "rescheduled" appointment**
+      // Check patient's discharge status
+      const existingPatientInSystem = await patientSchema.findOne({
+        patientId,
+      });
+
+      // If patient exists in system, check if they are currently admitted (not discharged)
+      if (existingPatientInSystem && !existingPatientInSystem.discharged) {
+        return res.status(400).json({
+          message:
+            "Patient is currently admitted and cannot create a new appointment until discharged by a doctor",
+          currentStatus: "admitted",
+        });
+      }
+
+      // Check PatientHistory for reception discharge status
+      const patientHistory = await PatientHistory.findOne({ patientId });
+
+      if (patientHistory && patientHistory.history.length > 0) {
+        const latestRecord =
+          patientHistory.history[patientHistory.history.length - 1];
+
+        // Check if not discharged by reception yet
+        if (latestRecord.dischargeDate && !latestRecord.dischargedByReception) {
+          return res.status(400).json({
+            message:
+              "Patient has been discharged by doctor but not yet by reception. Cannot create new appointment until reception discharge is complete.",
+            currentStatus: "pendingReceptionDischarge",
+          });
+        }
+      }
+
+      // IMPORTANT NEW CHECK: Verify if there's already a pending appointment for this doctor
+      const hasExistingPendingAppointment = patientRecord.appointments.some(
+        (appt) =>
+          appt.doctorId === doctorId &&
+          appt.status === "waiting" &&
+          !appt.rescheduledTo
+      );
+
+      if (hasExistingPendingAppointment) {
+        return res.status(400).json({
+          message:
+            "Patient already has a pending appointment with this doctor. Please reschedule the existing appointment instead of creating a new one.",
+          currentStatus: "pendingAppointmentExists",
+        });
+      }
+
+      // Check if patient has at least one "completed" or valid "rescheduled" appointment
       const hasValidPreviousAppointment = patientRecord.appointments.some(
         (appt) =>
           appt.doctorId === doctorId &&
           (appt.status === "completed" ||
-            (appt.status === "rescheduled" && appt.rescheduledTo)) // Must have a valid rescheduled date
+            (appt.status === "rescheduled" && appt.rescheduledTo))
       );
 
       if (!hasValidPreviousAppointment) {
         return res.status(400).json({
           message:
-            "Reappointment not allowed. No completed or rescheduled appointment found.",
+            "Reappointment not allowed. No completed or rescheduled appointment found with this doctor.",
         });
       }
 
-      // **Check if the new appointment is conflicting with an existing one**
-      // const isConflicting = patientRecord.appointments.some(
-      //   (appt) =>
-      //     appt.doctorId === doctorId && appt.date === date && appt.time === time
-      // );
+      // Get the most recent rescheduled appointment to handle the rescheduling flow
+      const rescheduledAppointments = patientRecord.appointments.filter(
+        (appt) =>
+          appt.doctorId === doctorId &&
+          appt.status === "rescheduled" &&
+          appt.rescheduledTo
+      );
 
-      // if (isConflicting) {
-      //   return res.status(400).json({
-      //     message: "Appointment slot already booked. Choose a different time.",
-      //   });
-      // }
+      // If there are rescheduled appointments, we'll mark them as handled
+      if (rescheduledAppointments.length > 0) {
+        // Sort by updatedAt to get the most recent rescheduled appointment
+        rescheduledAppointments.sort(
+          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+        );
 
-      // **Add new appointment**
+        // Add a field to indicate this new appointment is based on a rescheduled one
+        newAppointment.basedOnRescheduledAppointment =
+          rescheduledAppointments[0]._id;
+      }
+
+      // Add new appointment
       patientRecord.appointments.push(newAppointment);
       await patientRecord.save();
-      return res
-        .status(201)
-        .json({ message: "Reappointment booked", patientRecord });
-    } else {
-      // **2️⃣ New Patient or Existing Patient with Same Contact**
-      let patientRecord = await PatientAppointment.findOne({
-        patientContact,
-      });
 
-      if (patientRecord) {
-        // **Patient exists → Just add the new appointment**
+      return res.status(201).json({
+        success: true,
+        message: "Reappointment booked successfully",
+        patientRecord,
+      });
+    }
+
+    // CASE 2: This is a new patient registration or an existing patient without patientId provided
+    else {
+      // If patientId is provided, treat as an existing patient
+      if (patientId) {
+        // Look up patient by patientId ONLY
+        let patientRecord = await PatientAppointment.findOne({ patientId });
+
+        if (!patientRecord) {
+          return res.status(404).json({
+            message:
+              "Patient record not found with the provided Patient ID. Please verify the ID.",
+          });
+        }
+
+        // Check discharge status (same as readmission)
+        const existingPatientInSystem = await patientSchema.findOne({
+          patientId,
+        });
+
+        if (existingPatientInSystem && !existingPatientInSystem.discharged) {
+          return res.status(400).json({
+            message:
+              "Patient is currently admitted and cannot create a new appointment until discharged by a doctor",
+            currentStatus: "admitted",
+          });
+        }
+
+        // Check PatientHistory for reception discharge
+        const patientHistory = await PatientHistory.findOne({ patientId });
+
+        if (patientHistory && patientHistory.history.length > 0) {
+          const latestRecord =
+            patientHistory.history[patientHistory.history.length - 1];
+
+          if (
+            latestRecord.dischargeDate &&
+            !latestRecord.dischargedByReception
+          ) {
+            return res.status(400).json({
+              message:
+                "Patient has been discharged by doctor but not yet by reception. Cannot create new appointment until reception discharge is complete.",
+              currentStatus: "pendingReceptionDischarge",
+            });
+          }
+        }
+
+        // IMPORTANT NEW CHECK: Verify if there's already a pending appointment for this doctor
+        const hasExistingPendingAppointment = patientRecord.appointments.some(
+          (appt) =>
+            appt.doctorId === doctorId &&
+            appt.status === "waiting" &&
+            !appt.rescheduledTo
+        );
+
+        if (hasExistingPendingAppointment) {
+          return res.status(400).json({
+            message:
+              "Patient already has a pending appointment with this doctor. Please reschedule the existing appointment instead of creating a new one.",
+            currentStatus: "pendingAppointmentExists",
+          });
+        }
+
+        // Get the most recent rescheduled appointment to handle the rescheduling flow
+        const rescheduledAppointments = patientRecord.appointments.filter(
+          (appt) =>
+            appt.doctorId === doctorId &&
+            appt.status === "rescheduled" &&
+            appt.rescheduledTo
+        );
+
+        // If there are rescheduled appointments, we'll mark them as handled
+        if (rescheduledAppointments.length > 0) {
+          // Sort by updatedAt to get the most recent rescheduled appointment
+          rescheduledAppointments.sort(
+            (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+          );
+
+          // Add a field to indicate this new appointment is based on a rescheduled one
+          newAppointment.basedOnRescheduledAppointment =
+            rescheduledAppointments[0]._id;
+        }
+
+        // Add appointment
         patientRecord.appointments.push(newAppointment);
         await patientRecord.save();
+
         return res.status(201).json({
+          success: true,
           message: "Appointment added for existing patient",
           patientRecord,
         });
-      } else {
-        // **New Patient → Create a new record**
+      }
+      // Truly new patient - no existing records
+      else {
+        // Generate new patientId
         const newPatientId = generatePatientId(patientName);
 
-        patientRecord = new PatientAppointment({
+        // Create new patient record
+        const patientRecord = new PatientAppointment({
           patientId: newPatientId,
           patientName,
           patientContact,
@@ -3815,26 +3964,242 @@ export const createAppointment = async (req, res) => {
         });
 
         await patientRecord.save();
-        return res
-          .status(201)
-          .json({ message: "New appointment booked", patientRecord });
+
+        return res.status(201).json({
+          success: true,
+          message: "New patient registered and appointment booked",
+          patientRecord,
+        });
       }
     }
   } catch (error) {
     console.error("Error creating appointment:", error);
 
-    // **Handle Duplicate Key Error**
+    // Handle Duplicate Key Error
     if (error.code === 11000) {
       return res.status(400).json({
+        success: false,
         message:
-          "A patient with this contact number already exists. Try rebooking as a readmission.",
+          "A patient with this information already exists. Try using patientId instead.",
       });
     }
 
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 };
+export const getAppointmentsForReceptionist = async (req, res) => {
+  try {
+    const {
+      status, // Filter by appointment status
+      date, // Filter by specific date
+      doctorId, // Filter by specific doctor
+      appointmentType, // Filter by appointment type (online/offline)
+      searchQuery, // Search by patient name or contact
+      page = 1, // Pagination
+      limit = 10, // Results per page
+      sortBy = "date", // Sort field
+      sortOrder = "asc", // Sort direction
+    } = req.query;
 
+    // Build the filter object
+    const filter = {};
+    let patientFilter = {};
+
+    // Search by patient name or contact
+    if (searchQuery) {
+      patientFilter = {
+        $or: [
+          { patientName: { $regex: searchQuery, $options: "i" } },
+          { patientContact: { $regex: searchQuery, $options: "i" } },
+        ],
+      };
+    }
+
+    // Convert to aggregation pipeline for more complex filtering
+    const pipeline = [];
+
+    // Match patients based on search query if provided
+    if (Object.keys(patientFilter).length > 0) {
+      pipeline.push({ $match: patientFilter });
+    }
+
+    // Unwind the appointments array to work with individual appointments
+    pipeline.push({ $unwind: "$appointments" });
+
+    // Build appointment filters
+    const appointmentFilters = {};
+
+    if (status) {
+      appointmentFilters["appointments.status"] = status;
+    }
+
+    if (date) {
+      appointmentFilters["appointments.date"] = date;
+    }
+
+    if (doctorId) {
+      appointmentFilters["appointments.doctorId"] = doctorId;
+    }
+
+    if (appointmentType) {
+      appointmentFilters["appointments.appointmentType"] = appointmentType;
+    }
+
+    // Apply appointment filters if any exist
+    if (Object.keys(appointmentFilters).length > 0) {
+      pipeline.push({ $match: appointmentFilters });
+    }
+
+    // Add projection to include both patient and appointment info
+    pipeline.push({
+      $project: {
+        patientId: 1,
+        patientName: 1,
+        patientContact: 1,
+        appointment: "$appointments",
+      },
+    });
+
+    // Add sorting
+    const sortField =
+      sortBy === "patientName" ? "patientName" : `appointment.${sortBy}`;
+    pipeline.push({
+      $sort: {
+        [sortField]: sortOrder === "desc" ? -1 : 1,
+      },
+    });
+
+    // Add count metadata
+    const countPipeline = [...pipeline];
+    const countResult = await PatientAppointment.aggregate([
+      ...countPipeline,
+      { $count: "totalAppointments" },
+    ]);
+
+    const totalAppointments =
+      countResult.length > 0 ? countResult[0].totalAppointments : 0;
+    const totalPages = Math.ceil(totalAppointments / limit);
+
+    // Add pagination
+    pipeline.push({ $skip: (page - 1) * limit });
+    pipeline.push({ $limit: parseInt(limit) });
+
+    // Execute the aggregation
+    const appointments = await PatientAppointment.aggregate(pipeline);
+
+    // Format the response
+    return res.status(200).json({
+      success: true,
+      data: {
+        appointments,
+        pagination: {
+          totalAppointments,
+          totalPages,
+          currentPage: parseInt(page),
+          limit: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching appointments:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+export const rescheduleAppointmentByReceptionist = async (req, res) => {
+  try {
+    const { patientId, appointmentId } = req.params;
+    const { newDate, newTime, notes } = req.body;
+
+    // Validate required fields
+    if (!patientId || !appointmentId) {
+      return res.status(400).json({
+        message: "Patient ID and Appointment ID are required",
+      });
+    }
+
+    if (!newDate || !newTime) {
+      return res.status(400).json({
+        message: "New date and time are required for rescheduling",
+      });
+    }
+
+    // Find the patient record
+    const patientRecord = await PatientAppointment.findOne({ patientId });
+    if (!patientRecord) {
+      return res.status(404).json({ message: "Patient record not found" });
+    }
+
+    // Find the specific appointment
+    const appointmentIndex = patientRecord.appointments.findIndex(
+      (appt) => appt._id.toString() === appointmentId
+    );
+
+    if (appointmentIndex === -1) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    const appointment = patientRecord.appointments[appointmentIndex];
+
+    // Verify this is a valid appointment to reschedule
+    // (either in waiting status or was previously rescheduled)
+    if (appointment.status !== "waiting" && !appointment.rescheduledTo) {
+      return res.status(400).json({
+        message:
+          "Only waiting appointments or appointments with previous reschedule history can be rescheduled",
+        currentStatus: appointment.status,
+      });
+    }
+
+    // Update the current appointment to "rescheduled" status
+    patientRecord.appointments[appointmentIndex].status = "rescheduled";
+    patientRecord.appointments[
+      appointmentIndex
+    ].rescheduledTo = `${newDate} ${newTime}`;
+
+    // Create a new appointment with the new date and time
+    const newAppointment = {
+      doctorId: appointment.doctorId,
+      doctorName: appointment.doctorName,
+      doctorSpecialization: appointment.doctorSpecialization,
+      symptoms: appointment.symptoms,
+      appointmentType: appointment.appointmentType,
+      date: newDate,
+      time: newTime,
+      status: "waiting",
+      paymentStatus: appointment.paymentStatus,
+    };
+
+    // Add notes if provided
+    if (notes) {
+      newAppointment.receptionistNotes = notes;
+    }
+
+    // Add the new appointment to the patient's record
+    patientRecord.appointments.push(newAppointment);
+
+    // Save the updated patient record
+    await patientRecord.save();
+
+    // Return success response
+    return res.status(200).json({
+      message: "Appointment successfully rescheduled",
+      originalAppointment: patientRecord.appointments[appointmentIndex],
+      newAppointment:
+        patientRecord.appointments[patientRecord.appointments.length - 1],
+    });
+  } catch (error) {
+    console.error("Error rescheduling appointment:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 export const getAllAppointments = async (req, res) => {
   try {
     // Fetch all patient records

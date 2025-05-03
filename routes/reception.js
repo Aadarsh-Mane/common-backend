@@ -17,6 +17,7 @@ import {
   getAdmittedPatients,
   getAiSggestions,
   getAllAppointments,
+  getAppointmentsForReceptionist,
   getAvailableBeds,
   getBasicPatientInfo,
   getDischargedPatientHistory,
@@ -32,6 +33,7 @@ import {
   listDoctors,
   listExternalDoctors,
   listPatients,
+  rescheduleAppointmentByReceptionist,
   searchPatientAppointment,
 } from "../controllers/admin/receiptionController.js";
 import {
@@ -91,6 +93,14 @@ receiptionRouter.get("/info", getBasicPatientInfo);
 receiptionRouter.get("/suggestions", getPatientSuggestions);
 receiptionRouter.get("/ai", getAiSggestions);
 receiptionRouter.post("/createAppointment", createAppointment);
+receiptionRouter.get(
+  "/getAppointmentsForReceptionist",
+  getAppointmentsForReceptionist
+);
+receiptionRouter.get(
+  "/rescheduleAppointmentByReceptionist/:patientId/:appointmentId",
+  rescheduleAppointmentByReceptionist
+);
 receiptionRouter.get("/getAllAppointments", getAllAppointments);
 receiptionRouter.get("/getDoctorSchedule/:doctorId", getDoctorSchedule);
 receiptionRouter.get("/searchPatientAppointment", searchPatientAppointment);

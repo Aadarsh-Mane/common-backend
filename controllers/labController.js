@@ -166,3 +166,30 @@ export const generateReportPdfForPatient = async (req, res) => {
     });
   }
 };
+export const deleteSpecificReport = async (req, res) => {
+  const { labReportId, reportId } = req.params;
+
+  try {
+    const updatedLabReport = await LabReport.findByIdAndUpdate(
+      labReportId,
+      {
+        $pull: {
+          reports: { _id: reportId },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedLabReport) {
+      return res.status(404).json({ message: "LabReport not found" });
+    }
+
+    res.status(200).json({
+      message: "Report deleted successfully",
+      updatedLabReport,
+    });
+  } catch (error) {
+    console.error("Error deleting report:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

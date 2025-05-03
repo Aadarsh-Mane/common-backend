@@ -4,7 +4,7 @@ const appointmentRecordSchema = new mongoose.Schema(
   {
     doctorId: { type: String, required: true },
     doctorName: { type: String, required: true },
-    doctorSpecialization: { type: String, required: true },
+    doctorSpecialization: { type: String },
 
     symptoms: { type: String, required: true },
     appointmentType: {

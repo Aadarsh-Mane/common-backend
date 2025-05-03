@@ -785,6 +785,8 @@ export const dischargePatient = async (req, res) => {
       admissionDate: admissionRecord.admissionDate,
       dischargeDate: new Date(),
       status: admissionRecord.status,
+      patientType: admissionRecord.patientType || "Internal", // Default value if not present
+
       admitNotes: admissionRecord.admitNotes,
       reasonForAdmission: admissionRecord.reasonForAdmission,
       doctorConsultant: admissionRecord.doctorConsultant,
@@ -2212,201 +2214,326 @@ export const deleteDoctorTreatment = async (req, res) => {
 };
 export const getDoctorAppointments = async (req, res) => {
   try {
-    const doctorId = req.userId; // Extract doctorId from req.userId
+    const doctorId = req.userId; // Get doctor ID from authenticated user
 
     if (!doctorId) {
-      return res.status(400).json({ message: "Doctor ID is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Doctor ID not found. Authentication required.",
+      });
     }
 
-    // Find all patient records that contain appointments for this doctor
-    const appointments = await PatientAppointment.find({
+    // Query parameters for filtering
+    const {
+      status, // Filter by appointment status
+      date, // Filter by specific date
+      startDate, // Filter by date range (start)
+      endDate, // Filter by date range (end)
+      searchQuery, // Search by patient name
+      page = 1, // Pagination
+      limit = 10, // Results per page
+      sortBy = "date", // Sort field
+      sortOrder = "asc", // Sort direction
+    } = req.query;
+
+    // First, get all patient IDs with their appointments for this doctor
+    const patientAppointments = await PatientAppointment.find({
       "appointments.doctorId": doctorId,
     });
 
-    if (!appointments || appointments.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No appointments found for this doctor" });
+    // For each patient, determine which appointment is the latest
+    const latestAppointmentIds = new Map();
+
+    patientAppointments.forEach((patient) => {
+      // Filter to only this doctor's appointments
+      const doctorAppointments = patient.appointments.filter(
+        (appt) => appt.doctorId === doctorId
+      );
+
+      if (doctorAppointments.length > 0) {
+        // Sort by createdAt date (newest first)
+        doctorAppointments.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
+        // The first one after sorting is the latest
+        latestAppointmentIds.set(doctorAppointments[0]._id.toString(), true);
+      }
+    });
+
+    // Build the aggregation pipeline
+    const pipeline = [];
+
+    // Unwind the appointments array to work with individual appointments
+    pipeline.push({ $unwind: "$appointments" });
+
+    // Filter for the specific doctor's appointments
+    pipeline.push({
+      $match: {
+        "appointments.doctorId": doctorId,
+      },
+    });
+
+    // Apply additional filters
+    const additionalFilters = {};
+
+    if (status) {
+      additionalFilters["appointments.status"] = status;
     }
 
-    // Extract only the appointments that belong to this doctor
-    const doctorAppointments = appointments.flatMap((patient) =>
-      patient.appointments
-        .filter((appt) => appt.doctorId === doctorId)
-        .map((appt) => ({
-          _id: appt._id, // Include MongoDB generated ID
-          patientId: patient.patientId,
-          patientName: patient.patientName,
-          patientContact: patient.patientContact,
-          doctorId: appt.doctorId,
-          doctorName: appt.doctorName,
-          doctorSpecialization: appt.doctorSpecialization,
-          symptoms: appt.symptoms,
-          appointmentType: appt.appointmentType,
-          date: appt.date,
-          time: appt.time,
-          status: appt.status,
-          paymentStatus: appt.paymentStatus,
-          rescheduledTo: appt.rescheduledTo,
-          createdAt: appt.createdAt, // Timestamp of when the appointment was created
-          updatedAt: appt.updatedAt, // Timestamp of last update
-        }))
-    );
+    // Date filtering logic
+    if (date) {
+      // Specific date filter
+      additionalFilters["appointments.date"] = date;
+    } else if (startDate && endDate) {
+      // Date range filter
+      additionalFilters["appointments.date"] = {
+        $gte: startDate,
+        $lte: endDate,
+      };
+    } else if (startDate) {
+      // Only start date provided
+      additionalFilters["appointments.date"] = { $gte: startDate };
+    } else if (endDate) {
+      // Only end date provided
+      additionalFilters["appointments.date"] = { $lte: endDate };
+    }
 
-    res.status(200).json({ doctorAppointments });
+    // Apply additional filters if they exist
+    if (Object.keys(additionalFilters).length > 0) {
+      pipeline.push({ $match: additionalFilters });
+    }
+
+    // Search by patient name if provided
+    if (searchQuery) {
+      pipeline.push({
+        $match: {
+          patientName: { $regex: searchQuery, $options: "i" },
+        },
+      });
+    }
+
+    // Create a projection to shape the response
+    pipeline.push({
+      $project: {
+        _id: 0,
+        appointmentId: "$appointments._id",
+        patientId: 1,
+        patientName: 1,
+        patientContact: 1,
+        symptoms: "$appointments.symptoms",
+        appointmentType: "$appointments.appointmentType",
+        date: "$appointments.date",
+        time: "$appointments.time",
+        status: "$appointments.status",
+        paymentStatus: "$appointments.paymentStatus",
+        rescheduledTo: "$appointments.rescheduledTo",
+        createdAt: "$appointments.createdAt",
+        updatedAt: "$appointments.updatedAt",
+      },
+    });
+
+    // Sort the results
+    const sortField = sortBy === "patientName" ? "patientName" : sortBy;
+    pipeline.push({
+      $sort: {
+        [sortField]: sortOrder === "desc" ? -1 : 1,
+      },
+    });
+
+    // Get the total count for pagination
+    const countPipeline = [...pipeline];
+    const countResult = await PatientAppointment.aggregate([
+      ...countPipeline,
+      { $count: "totalAppointments" },
+    ]);
+
+    const totalAppointments =
+      countResult.length > 0 ? countResult[0].totalAppointments : 0;
+    const totalPages = Math.ceil(totalAppointments / limit);
+
+    // Add pagination
+    pipeline.push({ $skip: (parseInt(page) - 1) * parseInt(limit) });
+    pipeline.push({ $limit: parseInt(limit) });
+
+    // Execute the aggregation
+    const appointments = await PatientAppointment.aggregate(pipeline);
+
+    // Add the isLatest flag to each appointment
+    const appointmentsWithLatestFlag = appointments.map((appt) => {
+      return {
+        ...appt,
+        isLatest: latestAppointmentIds.has(appt.appointmentId.toString()),
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        appointments: appointmentsWithLatestFlag,
+        pagination: {
+          totalAppointments,
+          totalPages,
+          currentPage: parseInt(page),
+          limit: parseInt(limit),
+        },
+      },
+    });
   } catch (error) {
-    console.error("Error fetching doctor's appointments:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-export const rescheduleAppointment = async (req, res) => {
-  try {
-    const { patientId, appointmentId, newDate, newTime } = req.body;
-
-    if (!patientId || !appointmentId || !newDate || !newTime) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    // Find the patient record
-    const patient = await PatientAppointment.findOne({ patientId });
-
-    if (!patient) {
-      return res.status(404).json({ message: "Patient not found" });
-    }
-
-    // Find the specific appointment
-    const appointment = patient.appointments.id(appointmentId);
-
-    if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found" });
-    }
-
-    // Update appointment details
-    appointment.status = "rescheduled";
-    appointment.rescheduledTo = `${newDate} ${newTime}`;
-    appointment.date = newDate;
-    appointment.time = newTime;
-
-    // Save the updated patient document
-    await patient.save();
-
-    res
-      .status(200)
-      .json({ message: "Appointment rescheduled successfully", appointment });
-  } catch (error) {
-    console.error("Error rescheduling appointment:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error fetching doctor appointments:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 export const updateAppointmentStatus = async (req, res) => {
   try {
-    const { patientId, appointmentId, status } = req.body;
-    const doctorId = req.userId; // Extract doctorId from authenticated user
+    const { patientId, appointmentId } = req.params;
+    const { status, rescheduledDate, rescheduledTime, doctorNotes } = req.body;
 
-    if (!patientId || !appointmentId || !status || !doctorId) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!patientId || !appointmentId) {
+      return res
+        .status(400)
+        .json({ message: "Patient ID and Appointment ID are required" });
     }
 
-    if (!["completed", "canceled", "accepted"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status update" });
+    if (
+      !status ||
+      !["accepted", "canceled", "completed", "rescheduled", "no-show"].includes(
+        status
+      )
+    ) {
+      return res.status(400).json({ message: "Valid status is required" });
     }
 
-    // Find the patient record
+    // If status is rescheduled, check if new date and time are provided
+    if (status === "rescheduled" && (!rescheduledDate || !rescheduledTime)) {
+      return res
+        .status(400)
+        .json({ message: "Rescheduled date and time are required" });
+    }
+
+    // Find the patient appointment record
     const patientRecord = await PatientAppointment.findOne({ patientId });
 
     if (!patientRecord) {
       return res.status(404).json({ message: "Patient record not found" });
     }
 
-    // Find the index of the appointment
+    // Find the specific appointment
     const appointmentIndex = patientRecord.appointments.findIndex(
-      (appt) =>
-        appt._id.toString() === appointmentId && appt.doctorId === doctorId
+      (appt) => appt._id.toString() === appointmentId
     );
 
     if (appointmentIndex === -1) {
-      return res
-        .status(404)
-        .json({ message: "Appointment not found or unauthorized" });
+      return res.status(404).json({ message: "Appointment not found" });
     }
+
+    const appointment = patientRecord.appointments[appointmentIndex];
+
+    // Update appointment status
+    patientRecord.appointments[appointmentIndex].status = status;
+
+    // If rescheduled, update with new date and time
+    // BUT do not create a new appointment (as per your requirement)
+    if (status === "rescheduled") {
+      // Just store the rescheduled info in the existing appointment
+      patientRecord.appointments[
+        appointmentIndex
+      ].rescheduledTo = `${rescheduledDate} ${rescheduledTime}`;
+
+      // Note: We're NOT creating a new appointment here
+      // New appointments will only be created when the receptionist handles the rescheduling
+    }
+
+    // If accepted, create a new patient record in the Patient collection if not exists
     if (status === "accepted") {
-      // Get appointment details
-      const appointment = patientRecord.appointments[appointmentIndex];
+      // Check if patient already exists in Patient collection
+      let patientExists = await patientSchema.findOne({ patientId });
 
-      // Check if patient already exists in patientSchema
-      const existingPatient = await patientSchema.findOne({
-        patientId: patientRecord.patientId,
-      });
-
-      if (!existingPatient) {
-        // Create a new patient entry
+      if (!patientExists) {
+        // Create new patient in Patient schema
         const newPatient = new patientSchema({
           patientId: patientRecord.patientId,
           name: patientRecord.patientName,
-          // You might need to extract or calculate age from appointment data
-          age: 0, // Set a default value or extract from appointment if available
-          gender: "Other", // Set a default value or extract from appointment if available
+          age: 0, // Default age (to be updated)
+          gender: "Other", // Default gender (to be updated)
           contact: patientRecord.patientContact,
-          address: "",
+          discharged: false, // Initialize as not discharged
           admissionRecords: [
             {
               admissionDate: new Date(),
+              status: "Pending",
+              patientType: "external",
               reasonForAdmission: appointment.symptoms,
-              symptoms: appointment.symptoms,
               initialDiagnosis: "",
+              symptoms: appointment.symptoms,
               doctor: {
-                id: new mongoose.Types.ObjectId(appointment.doctorId),
+                id: appointment.doctorId,
                 name: appointment.doctorName,
+                usertype: "external",
               },
+              doctorNotes: doctorNotes
+                ? [
+                    {
+                      text: doctorNotes,
+                      doctorName: appointment.doctorName,
+                      date: new Date().toISOString().split("T")[0],
+                      time: new Date().toTimeString().split(" ")[0],
+                    },
+                  ]
+                : [],
             },
           ],
         });
 
         await newPatient.save();
-        res.status(201).json({
-          message: "Patient created and appointment accepted",
-          patient: newPatient,
-        });
       } else {
-        // If patient exists, add a new admission record
-        existingPatient.admissionRecords.push({
+        // Add a new admission record to existing patient
+        patientExists.discharged = false; // Reset discharged status when accepting a new appointment
+        patientExists.admissionRecords.push({
           admissionDate: new Date(),
+          status: "Pending",
+          patientType: "external",
           reasonForAdmission: appointment.symptoms,
-          symptoms: appointment.symptoms,
           initialDiagnosis: "",
+          symptoms: appointment.symptoms,
           doctor: {
-            id: new mongoose.Types.ObjectId(appointment.doctorId),
+            id: appointment.doctorId,
             name: appointment.doctorName,
           },
+          doctorNotes: doctorNotes
+            ? [
+                {
+                  text: doctorNotes,
+                  doctorName: appointment.doctorName,
+                  date: new Date().toISOString().split("T")[0],
+                  time: new Date().toTimeString().split(" ")[0],
+                },
+              ]
+            : [],
         });
 
-        await existingPatient.save();
-        res.status(200).json({
-          message: "Appointment accepted and patient record updated",
-          patient: existingPatient,
-        });
+        await patientExists.save();
       }
     }
 
-    if (status === "canceled") {
-      // ❌ Delete the appointment if canceled
-      patientRecord.appointments.splice(appointmentIndex, 1);
-      await patientRecord.save();
-      return res
-        .status(200)
-        .json({ message: "Appointment canceled and removed" });
-    } else if (status === "completed") {
-      // ✅ Update status to completed
-      patientRecord.appointments[appointmentIndex].status = "completed";
-      await patientRecord.save();
-      return res
-        .status(200)
-        .json({ message: "Appointment marked as completed" });
-    }
+    await patientRecord.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Appointment ${status} successfully`,
+      updatedAppointment: patientRecord.appointments[appointmentIndex],
+    });
   } catch (error) {
     console.error("Error updating appointment status:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
@@ -3645,7 +3772,7 @@ export const getDoctorInvestigations = async (req, res) => {
       .sort(sort)
       .skip(skip)
       .limit(limitNumber)
-      .populate("patientId", "name age gender contact")
+      .populate("patientId", "name age gender contact discharged")
       .lean();
 
     // Calculate additional fields
@@ -3705,6 +3832,86 @@ export const getDoctorInvestigations = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch doctor investigations",
+      error: error.message,
+    });
+  }
+};
+export const getPatientInvestigationsByAdmission = async (req, res) => {
+  try {
+    const { patientId, admissionId } = req.params; // or req.query
+
+    if (!patientId || !admissionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Both patientId and admissionId are required",
+      });
+    }
+
+    // Build filter
+    const filter = {
+      admissionRecordId: admissionId,
+    };
+
+    // Add patientId filter
+    if (mongoose.Types.ObjectId.isValid(patientId)) {
+      filter.patientId = patientId;
+    } else {
+      filter.patientIdNumber = patientId;
+    }
+
+    // Get all investigations for this admission
+    const investigations = await Investigation.find(filter)
+      .sort({ orderDate: -1 })
+      .populate("patientId", "name age gender contact discharged")
+      .populate("doctorId", "name specialization")
+      .lean();
+
+    // Enhance the investigations data
+    const enhancedInvestigations = investigations.map((investigation) => {
+      const daysSinceOrdered = Math.floor(
+        (new Date() - new Date(investigation.orderDate)) / (1000 * 60 * 60 * 24)
+      );
+
+      let isOverdue = false;
+      if (
+        investigation.status === "Ordered" ||
+        investigation.status === "Scheduled"
+      ) {
+        switch (investigation.priority) {
+          case "STAT":
+            isOverdue = daysSinceOrdered > 1;
+            break;
+          case "Urgent":
+            isOverdue = daysSinceOrdered > 3;
+            break;
+          case "Routine":
+            isOverdue = daysSinceOrdered > 7;
+            break;
+        }
+      }
+
+      return {
+        ...investigation,
+        daysSinceOrdered,
+        isOverdue,
+        hasAttachments:
+          investigation.attachments && investigation.attachments.length > 0,
+        hasResults: investigation.status === "Results Available",
+        patientDischarged: investigation.patientId?.discharged || false,
+      };
+    });
+
+    // Return response
+    return res.status(200).json({
+      success: true,
+      count: investigations.length,
+      data: enhancedInvestigations,
+    });
+  } catch (error) {
+    console.error("Error fetching patient investigations by admission:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch patient investigations",
       error: error.message,
     });
   }

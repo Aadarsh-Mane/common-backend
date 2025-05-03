@@ -270,6 +270,10 @@ const patientHistorySchema = new mongoose.Schema({
       admissionDate: { type: Date },
       dischargeDate: { type: Date }, // When the patient was discharged
       status: { type: String },
+      patientType: {
+        type: String,
+        default: "Internal",
+      },
       admitNotes: { type: String },
       reasonForAdmission: { type: String },
       doctorConsultant: { type: [String] },
@@ -290,6 +294,7 @@ const patientHistorySchema = new mongoose.Schema({
       doctor: {
         id: { type: mongoose.Schema.Types.ObjectId, ref: "hospitalDoctor" },
         name: { type: String },
+        usertype: { type: String },
       },
       section: {
         id: { type: mongoose.Schema.Types.ObjectId, ref: "Section" },

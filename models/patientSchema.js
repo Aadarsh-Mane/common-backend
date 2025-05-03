@@ -96,6 +96,11 @@ const consultantSchema = new mongoose.Schema({
 const admissionRecordSchema = new mongoose.Schema({
   admissionDate: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" },
+  patientType: {
+    type: String,
+    default: "Internal",
+  },
+
   admitNotes: { type: String },
   reasonForAdmission: { type: String },
   doctorConsultant: { type: [String] },
@@ -112,6 +117,7 @@ const admissionRecordSchema = new mongoose.Schema({
   doctor: {
     id: { type: mongoose.Schema.Types.ObjectId, ref: "hospitalDoctor" },
     name: { type: String },
+    usertype: { type: String },
   },
   followUps: [followUpSchema], // Array of follow-up records for each admission
   fourHrFollowUpSchema: [fourHrFollowUpSchema], // Array of 4-hour follow-up records for each admission
