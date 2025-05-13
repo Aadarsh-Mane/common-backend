@@ -17,6 +17,7 @@ import { socketHandler } from "./socketHandler.js";
 import fs from "fs";
 import adminRouter from "./routes/admin.js";
 import investigateRouter from "./routes/investigation.js";
+import pharmaRouter from "./routes/pharma.js";
 const port = 5001;
 //hello saideep v3
 const app = express();
@@ -33,6 +34,7 @@ app.use("/doctors", doctorRouter);
 app.use("/nurse", nurseRouter);
 app.use("/labs", labRouter);
 app.use("/investigate", investigateRouter);
+app.use("/pharma", pharmaRouter);
 app.get("/patientHistory/:patientId", getPatientHistory);
 
 app.get("/", (req, res) => {
