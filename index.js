@@ -40,7 +40,7 @@ app.get("/patientHistory/:patientId", getPatientHistory);
 app.get("/", (req, res) => {
   return res
     .status(200)
-    .json("Welcome to Ai in HealthCare common backend v3.1");
+    .json("Welcome to Ai in HealthCare common backend v3.2");
 });
 app.post("/generateDischargeSummary", async (req, res) => {
   const patientData = req.body; // Patient details sent from Flutter
