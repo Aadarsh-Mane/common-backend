@@ -297,45 +297,81 @@ export const addToInventory = async (req, res) => {
 
 export const getInventory = async (req, res) => {
   try {
-    const { medicineId, batchNumber, expiringSoon } = req.query;
-    const filter = {};
+    const {
+      medicineId,
+      batchNumber,
+      expiringSoon,
+      page = 1,
+      limit = 20,
+    } = req.query;
+    const filter = { quantity: { $gt: 0 } }; // Always filter for items with quantity > 0
 
+    // Add additional filters only if they exist
     if (medicineId) {
-      filter.medicine = medicineId;
+      // Convert string ID to ObjectId to ensure proper matching
+      filter.medicine = new mongoose.Types.ObjectId(medicineId);
     }
 
     if (batchNumber) {
-      filter.batchNumber = { $regex: batchNumber, $options: "i" };
+      filter.batchNumber = { $regex: new RegExp(batchNumber, "i") };
     }
 
     if (expiringSoon === "true") {
       // Get items expiring in the next 3 months
-      const threeMonthsFromNow = new Date();
-      threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day
+
+      const threeMonthsFromNow = new Date(today);
+      threeMonthsFromNow.setMonth(today.getMonth() + 3);
 
       filter.expiryDate = {
-        $gte: new Date(),
+        $gte: today,
         $lte: threeMonthsFromNow,
       };
     }
 
-    // Only get items with quantity > 0
-    filter.quantity = { $gt: 0 };
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const inventory = await Inventory.find(filter)
-      .populate("medicine")
-      .populate("distributor")
-      .sort({ expiryDate: 1 });
+    // Use lean() for better performance when you don't need Mongoose document methods
+    // Use proper indexing in your schema for the fields you're filtering and sorting on
+    const countPromise = Inventory.countDocuments(filter);
+    const inventoryPromise = Inventory.find(filter)
+      .populate({
+        path: "medicine",
+        select: "name manufacturer category mrp purchasePrice", // Select only needed fields
+      })
+      .populate({
+        path: "distributor",
+        select: "name contactNumber email", // Select only needed fields
+      })
+      .sort({ expiryDate: 1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean(); // Use lean() for better performance
+
+    // Execute both promises in parallel
+    const [count, inventory] = await Promise.all([
+      countPromise,
+      inventoryPromise,
+    ]);
+
+    // Add proper caching headers for GET requests
+    res.set("Cache-Control", "public, max-age=300"); // Cache for 5 minutes
 
     res.status(200).json({
       success: true,
-      count: inventory.length,
+      count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page),
       data: inventory,
     });
   } catch (error) {
+    console.error("Error fetching inventory:", error);
     res.status(500).json({
       success: false,
       message: error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
     });
   }
 };

@@ -59,9 +59,9 @@ pharmaRouter.get("/getMedicine/:id", getMedicine);
 
 pharmaRouter.post("/addToInventory", addToInventory);
 pharmaRouter.get("/getInventory", getInventory);
-// pharmaRouter.get("/search", searchMedicineInInventory);
-// pharmaRouter.put("/:id", updateInventory);
-// pharmaRouter.delete("/:id", deleteInventory);
+pharmaRouter.get("/search", searchMedicineInInventory);
+pharmaRouter.put("/updateInventory/:id", updateInventory);
+pharmaRouter.delete("/deleteInventory/:id", deleteInventory);
 
 pharmaRouter.post("/createCustomer", createCustomer);
 pharmaRouter.get("/getCustomers", getCustomers);
