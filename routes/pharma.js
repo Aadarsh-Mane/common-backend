@@ -4,7 +4,7 @@ import {
   addToInventory,
   createCustomer,
   createDistributor,
-  createMedicine,
+  createMedicinesBulk,
   deleteCustomer,
   deleteDistributor,
   deleteInventory,
@@ -12,6 +12,7 @@ import {
   getCustomer,
   getCustomers,
   getDistributor,
+  getDistributorMedicines,
   getDistributors,
   getInventory,
   getMedicine,
@@ -43,17 +44,21 @@ import {
 const pharmaRouter = express.Router();
 
 pharmaRouter.post("/createDistributor", createDistributor);
-// pharmaRouter.get("/", getDistributors);
-// pharmaRouter.get("/:id", getDistributor);
-// pharmaRouter.put("/:id", updateDistributor);
-// pharmaRouter.delete("/:id", deleteDistributor);
+pharmaRouter.get("/getDistributors", getDistributors);
+pharmaRouter.get("/getDistributor/:id", getDistributor);
+pharmaRouter.patch("/updateDistributor/:id", updateDistributor);
+pharmaRouter.get(
+  "/getDistributorMedicines/:distributorId",
+  getDistributorMedicines
+);
+pharmaRouter.delete("/deleteDistributor/:id", deleteDistributor);
 
-pharmaRouter.post("/createMedicine", createMedicine);
+pharmaRouter.post("/createMedicine", createMedicinesBulk);
 pharmaRouter.get("/getMedicines", getMedicines);
 pharmaRouter.get("/getMedicine/:id", getMedicine);
-// pharmaRouter.put("/:id", updateMedicine);
+pharmaRouter.post("/updateMedicine/:id", updateMedicine);
 
-// pharmaRouter.delete("/:id", deleteMedicine);
+pharmaRouter.delete("/deleteMedicine/:id", deleteMedicine);
 
 // routes/inventoryRoutes.js
 

@@ -60,25 +60,100 @@ export const getDistributor = async (req, res) => {
 
 export const updateDistributor = async (req, res) => {
   try {
+    // Validate the request ID
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid distributor ID format",
+      });
+    }
+
+    // Security: Ensure only allowed fields can be updated
+    const allowedFields = ["name", "contactNumber", "email", "address"];
+    const updateData = {};
+
+    Object.keys(req.body).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        updateData[key] = req.body[key];
+      }
+    });
+
+    // If no valid fields are provided, return an error
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields to update",
+      });
+    }
+
+    // Add updatedAt timestamp
+    updateData.updatedAt = new Date();
+
+    // Use lean() for better performance
     const distributor = await Distributor.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      // Use $set to only update the specified fields
+      { $set: updateData },
+      {
+        new: true, // Return the updated document
+        runValidators: true, // Run validators on update
+        lean: true, // Return plain JavaScript object
+      }
     );
+
     if (!distributor) {
       return res.status(404).json({
         success: false,
         message: "Distributor not found",
       });
     }
+
+    // Audit logging (optional but recommended for production)
+    console.log(
+      `Distributor ${req.params.id} updated by ${
+        req.user?.id || "unknown"
+      } with fields: ${Object.keys(updateData).join(", ")}`
+    );
+
     res.status(200).json({
       success: true,
       data: distributor,
     });
   } catch (error) {
+    // More detailed error handling
+    if (error.name === "ValidationError") {
+      // Handle Mongoose validation errors
+      const validationErrors = {};
+
+      // Extract validation error messages
+      Object.keys(error.errors).forEach((field) => {
+        validationErrors[field] = error.errors[field].message;
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: validationErrors,
+      });
+    }
+
+    // Handle duplicate key errors (e.g. unique email constraint)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        message: `The ${field} '${error.keyValue[field]}' is already in use.`,
+      });
+    }
+
+    console.error("Error updating distributor:", error);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message:
+        process.env.NODE_ENV === "production"
+          ? "An error occurred while updating the distributor"
+          : error.message,
+      stack: process.env.NODE_ENV === "production" ? null : error.stack,
     });
   }
 };
@@ -103,21 +178,282 @@ export const deleteDistributor = async (req, res) => {
     });
   }
 };
+export const getDistributorMedicines = async (req, res) => {
+  const { distributorId } = req.params;
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "name",
+    sortOrder = "asc",
+    search = "",
+    expiryBefore,
+    minQuantity,
+  } = req.query;
 
-// controllers/medicineController.js
-
-export const createMedicine = async (req, res) => {
   try {
-    const medicine = await Medicine.create(req.body);
-    res.status(201).json({
+    // Validate distributorId format
+    if (!mongoose.Types.ObjectId.isValid(distributorId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid distributor ID format",
+      });
+    }
+
+    // Check if distributor exists
+    const distributorExists = await Distributor.exists({ _id: distributorId });
+    if (!distributorExists) {
+      return res.status(404).json({
+        success: false,
+        message: "Distributor not found",
+      });
+    }
+
+    // Build match stage for aggregation
+    const matchStage = {
+      distributor: new mongoose.Types.ObjectId(distributorId),
+    };
+
+    // Build aggregation pipeline
+    const aggregationPipeline = [];
+
+    // Initial match for distributor
+    aggregationPipeline.push({ $match: matchStage });
+
+    // Join with medicines collection
+    aggregationPipeline.push({
+      $lookup: {
+        from: "medicines",
+        localField: "medicine",
+        foreignField: "_id",
+        as: "medicineDetails",
+      },
+    });
+
+    aggregationPipeline.push({ $unwind: "$medicineDetails" });
+
+    // Apply search filter if provided
+    if (search) {
+      aggregationPipeline.push({
+        $match: {
+          $or: [
+            { "medicineDetails.name": { $regex: search, $options: "i" } },
+            {
+              "medicineDetails.manufacturer": { $regex: search, $options: "i" },
+            },
+            { batchNumber: { $regex: search, $options: "i" } },
+          ],
+        },
+      });
+    }
+
+    // Apply expiry filter if provided
+    if (expiryBefore) {
+      const expiryDate = new Date(expiryBefore);
+      if (!isNaN(expiryDate.getTime())) {
+        aggregationPipeline.push({
+          $match: { expiryDate: { $lte: expiryDate } },
+        });
+      }
+    }
+
+    // Apply minimum quantity filter if provided
+    if (minQuantity !== undefined && !isNaN(Number(minQuantity))) {
+      aggregationPipeline.push({
+        $match: { quantity: { $gte: Number(minQuantity) } },
+      });
+    }
+
+    // Group by medicine
+    aggregationPipeline.push({
+      $group: {
+        _id: "$medicine",
+        name: { $first: "$medicineDetails.name" },
+        manufacturer: { $first: "$medicineDetails.manufacturer" },
+        dosageForm: { $first: "$medicineDetails.dosageForm" },
+        strength: { $first: "$medicineDetails.strength" },
+        totalQuantity: { $sum: "$quantity" },
+        nearestExpiry: { $min: "$expiryDate" },
+        batches: {
+          $push: {
+            batchNumber: "$batchNumber",
+            expiryDate: "$expiryDate",
+            quantity: "$quantity",
+          },
+        },
+      },
+    });
+
+    // Sorting
+    const sortDirection = sortOrder.toLowerCase() === "desc" ? -1 : 1;
+    const sortField = sortBy === "expiryDate" ? "nearestExpiry" : sortBy;
+
+    aggregationPipeline.push({
+      $sort: { [sortField]: sortDirection },
+    });
+
+    // Get total count for pagination
+    const countPipeline = [...aggregationPipeline];
+    countPipeline.push({ $count: "totalCount" });
+
+    const totalCountResult = await Inventory.aggregate(countPipeline);
+    const totalCount =
+      totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
+
+    // Apply pagination
+    const skip = (Number(page) - 1) * Number(limit);
+    aggregationPipeline.push({ $skip: skip });
+    aggregationPipeline.push({ $limit: Number(limit) });
+
+    // Execute aggregation
+    const medicines = await Inventory.aggregate(aggregationPipeline);
+
+    // Return paginated response
+    return res.status(200).json({
       success: true,
-      data: medicine,
+      count: medicines.length,
+      totalCount,
+      totalPages: Math.ceil(totalCount / Number(limit)),
+      currentPage: Number(page),
+      data: medicines,
     });
   } catch (error) {
-    res.status(400).json({
+    console.error("Error fetching paginated distributor medicines:", error);
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to retrieve medicines",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
+  }
+};
+// controllers/medicineController.js
+
+export const createMedicinesBulk = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Handle both single medicine and array of medicines
+    const medicines = Array.isArray(req.body)
+      ? req.body
+      : req.body.medicines
+      ? req.body.medicines
+      : [req.body];
+
+    if (medicines.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide at least one medicine",
+      });
+    }
+
+    const results = {
+      created: [],
+      duplicates: [],
+      errors: [],
+    };
+
+    // Extract all names and manufacturers for efficient bulk duplicate check
+    const namesToCheck = medicines.map((med) => ({
+      name: med.name?.trim(),
+      manufacturer: med.manufacturer?.trim() || "",
+    }));
+
+    // Bulk find existing medicines (more efficient than individual checks)
+    const existingMedicinesQuery = namesToCheck.map((item) => ({
+      name: { $regex: new RegExp(`^${item.name}$`, "i") },
+      manufacturer: item.manufacturer
+        ? { $regex: new RegExp(`^${item.manufacturer}$`, "i") }
+        : { $exists: true },
+    }));
+
+    const existingMedicines =
+      existingMedicinesQuery.length > 0
+        ? await Medicine.find({ $or: existingMedicinesQuery }).session(session)
+        : [];
+
+    // Create a map for quick lookup of existing medicines
+    const existingMedicineMap = new Map();
+    existingMedicines.forEach((med) => {
+      const key = `${med.name.toLowerCase()}_${(
+        med.manufacturer || ""
+      ).toLowerCase()}`;
+      existingMedicineMap.set(key, med);
+    });
+
+    // Process each medicine
+    const medicinesToCreate = [];
+
+    for (const medicineData of medicines) {
+      try {
+        if (!medicineData.name) {
+          results.errors.push({
+            input: medicineData,
+            error: "Medicine name is required",
+          });
+          continue;
+        }
+
+        // Check if medicine already exists using our map (faster than DB query)
+        const lookupKey = `${medicineData.name.trim().toLowerCase()}_${(
+          medicineData.manufacturer || ""
+        )
+          .trim()
+          .toLowerCase()}`;
+        const existingMedicine = existingMedicineMap.get(lookupKey);
+
+        if (existingMedicine) {
+          results.duplicates.push({
+            input: medicineData,
+            existing: existingMedicine,
+          });
+          continue;
+        }
+
+        // Add to batch for creation
+        medicinesToCreate.push({
+          ...medicineData,
+          name: medicineData.name.trim(),
+        });
+      } catch (err) {
+        results.errors.push({
+          input: medicineData,
+          error: err.message,
+        });
+      }
+    }
+
+    // Batch create medicines if any available
+    if (medicinesToCreate.length > 0) {
+      const createdMedicines = await Medicine.create(medicinesToCreate, {
+        session,
+      });
+      results.created = createdMedicines;
+    }
+
+    // Commit transaction only if at least one medicine was created
+    if (results.created.length > 0) {
+      await session.commitTransaction();
+    } else {
+      await session.abortTransaction();
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `Created ${results.created.length} medicines, found ${results.duplicates.length} duplicates, encountered ${results.errors.length} errors`,
+      data: results,
+    });
+  } catch (error) {
+    // Abort transaction on any error
+    await session.abortTransaction();
+
+    console.error("Error in bulk medicine creation:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create medicines in bulk",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  } finally {
+    session.endSession();
   }
 };
 
