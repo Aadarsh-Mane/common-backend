@@ -72,8 +72,8 @@ pharmaRouter.post("/createCustomer", createCustomer);
 pharmaRouter.get("/getCustomers", getCustomers);
 pharmaRouter.get("/search", searchCustomers);
 pharmaRouter.get("/getCustomer/:id", getCustomer);
-// pharmaRouter.put("/:id", updateCustomer);
-// pharmaRouter.delete("/:id", deleteCustomer);
+pharmaRouter.put("/updateCustomer/:id", updateCustomer);
+pharmaRouter.delete("/deleteCustomer/:id", deleteCustomer);
 
 pharmaRouter.post("/createSale", createSale);
 pharmaRouter.get("/getSales", getSales);

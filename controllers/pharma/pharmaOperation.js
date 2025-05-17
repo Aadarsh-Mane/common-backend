@@ -558,7 +558,7 @@ export const addToInventory = async (req, res) => {
   try {
     const { medicineId, batchNumber, expiryDate, quantity, distributorId } =
       req.body;
-
+    console.log(req.body);
     // Check if medicine exists
     const medicine = await Medicine.findById(medicineId);
     if (!medicine) {
