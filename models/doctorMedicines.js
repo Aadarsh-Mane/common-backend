@@ -7,24 +7,6 @@ const medicineSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: [
-      "Antibiotics",
-      "Analgesics",
-      "Antipyretics",
-      "Antipyretics",
-      "Antihypertensives",
-      "Antidiabetics",
-      "Antidepressants",
-      "Anticoagulants",
-      "Antihistamines",
-      "Bronchodilators",
-      "Corticosteroids",
-      "Diuretics",
-      "Gastrointestinal Agents",
-      "Vitamins/Supplements",
-      // ... keep other categories ...
-      "Others",
-    ],
   },
   morning: {
     type: String,
