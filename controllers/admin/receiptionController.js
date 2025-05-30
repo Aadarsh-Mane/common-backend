@@ -24,6 +24,9 @@ import Appointment from "../../models/appointmentSchema.js";
 import PatientAppointment from "../../models/appointmentSchema.js";
 import externalDoctors from "../../models/externalDoctor.js";
 import Section from "../../models/sectionSchema.js";
+import BillingRecord from "../../models/hospitalSchema.js";
+import { generateDischargeSummaryHTML } from "../../utils/dischargeSummary.js";
+import { generateDischargeBillHTML } from "../../utils/dischargeBill.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -1114,7 +1117,7 @@ export const generateBillForDischargedPatient = async (req, res) => {
 </head>
 <body>
     <div class="header">
-        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1737924501/Spandan_Hospital_nriqjl.png" alt="Hospital Logo" />
+        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Logo" />
         <h1>Hospital Bill</h1>
     </div>
     <div class="patient-details">
@@ -1260,15 +1263,15 @@ export const generateBillForDischargedPatient = async (req, res) => {
     //     });
     //   }
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     const page = await browser.newPage();
     await page.setContent(billHTML);
@@ -1602,7 +1605,7 @@ export const getDoctorAdvice = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1737924501/Spandan_Hospital_nriqjl.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -1944,15 +1947,15 @@ export const generateFinalReceipt = async (req, res) => {
     //     });
     //   }
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
     const page = await browser.newPage();
@@ -2023,6 +2026,12 @@ export const getDoctorAdvic1 = async (req, res) => {
       return res.status(404).json({ message: "Admission record not found." });
     }
 
+    // Get only the latest vital signs (last entry in the vitals array)
+    const latestVital =
+      admissionRecord.vitals && admissionRecord.vitals.length > 0
+        ? admissionRecord.vitals[admissionRecord.vitals.length - 1]
+        : null;
+
     // Format the response
     const response = {
       name: patient.name,
@@ -2035,7 +2044,7 @@ export const getDoctorAdvic1 = async (req, res) => {
       doctor: admissionRecord.doctor ? admissionRecord.doctor.name : null,
       weight: admissionRecord.weight || null,
       symptoms: admissionRecord.symptomsByDoctor || [],
-      vitals: admissionRecord.vitals || [],
+      latestVital: latestVital, // Changed from vitals array to single latest vital
       diagnosis: admissionRecord.diagnosisByDoctor || [],
       prescriptions: admissionRecord.doctorPrescriptions || [],
     };
@@ -2144,7 +2153,7 @@ export const getDoctorAdvic1 = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1737924501/Spandan_Hospital_nriqjl.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -2154,44 +2163,58 @@ export const getDoctorAdvic1 = async (req, res) => {
             </div>
             <div class="details-row">
              <p><strong>Weight:</strong> ${response.weight} kg</p>
-
                 <p><strong>Date:</strong> ${new Date(
                   response.admissionDate
                 ).toLocaleDateString()}</p>
                 <p><strong>Doctor:</strong> ${response.doctor}</p>
             </div>
-
         </div>
         <div class="section">
             <div class="left">
-                <h2>Vitals</h2>
+                <h2>Latest Vitals</h2>
                 <ul>
-                    ${response.vitals
-                      .map(
-                        (vital) => `
-                        <li>Temperature: ${vital.temperature} °C</li>
-                        <li>Pulse: ${vital.pulse} bpm</li>
-                        <li>BP: ${vital.bloodPressure}</li>
-                        <li>BSL: ${vital.bloodSugarLevel}</li>
-                        <li>Other: ${vital.other}</li>
+                    ${
+                      response.latestVital
+                        ? `
+                        <li>Temperature: ${
+                          response.latestVital.temperature || "N/A"
+                        } °C</li>
+                        <li>Pulse: ${
+                          response.latestVital.pulse || "N/A"
+                        } bpm</li>
+                        <li>BP: ${
+                          response.latestVital.bloodPressure || "N/A"
+                        }</li>
+                        <li>BSL: ${
+                          response.latestVital.bloodSugarLevel || "N/A"
+                        }</li>
+                        <li>Other: ${response.latestVital.other || "N/A"}</li>
                         <li>Recorded At: ${new Date(
-                          vital.recordedAt
+                          response.latestVital.recordedAt
                         ).toLocaleString()}</li>
                     `
-                      )
-                      .join("")}
+                        : "<li>No vital signs recorded</li>"
+                    }
                 </ul>
                 <h2>Symptoms</h2>
                 <ul>
-                    ${response.symptoms
-                      .map((symptom) => `<li>${symptom}</li>`)
-                      .join("")}
+                    ${
+                      response.symptoms.length > 0
+                        ? response.symptoms
+                            .map((symptom) => `<li>${symptom}</li>`)
+                            .join("")
+                        : "<li>No symptoms recorded</li>"
+                    }
                 </ul>
                 <h2>Diagnosis</h2>
                 <ul>
-                    ${response.diagnosis
-                      .map((diagnosis) => `<li>${diagnosis}</li>`)
-                      .join("")}
+                    ${
+                      response.diagnosis.length > 0
+                        ? response.diagnosis
+                            .map((diagnosis) => `<li>${diagnosis}</li>`)
+                            .join("")
+                        : "<li>No diagnosis recorded</li>"
+                    }
                 </ul>
             </div>
             <div class="right">
@@ -2205,17 +2228,29 @@ export const getDoctorAdvic1 = async (req, res) => {
                         </tr>
                     </thead>
                     <tbody>
-                        ${response.prescriptions
-                          .map(
-                            (prescription) => `
-                        <tr>
-                            <td>${prescription.medicine.name}</td>
-                            <td>M: ${prescription.medicine.morning} / A: ${prescription.medicine.afternoon} / N: ${prescription.medicine.night}</td>
-                            <td>${prescription.medicine.comment}</td>
-                        </tr>
-                        `
-                          )
-                          .join("")}
+                        ${
+                          response.prescriptions.length > 0
+                            ? response.prescriptions
+                                .map(
+                                  (prescription) => `
+                            <tr>
+                                <td>${prescription.medicine.name || "N/A"}</td>
+                                <td>M: ${
+                                  prescription.medicine.morning || "-"
+                                } / A: ${
+                                    prescription.medicine.afternoon || "-"
+                                  } / N: ${
+                                    prescription.medicine.night || "-"
+                                  }</td>
+                                <td>${
+                                  prescription.medicine.comment || "N/A"
+                                }</td>
+                            </tr>
+                            `
+                                )
+                                .join("")
+                            : '<tr><td colspan="3">No prescriptions recorded</td></tr>'
+                        }
                     </tbody>
                 </table>
             </div>
@@ -2233,66 +2268,8 @@ export const getDoctorAdvic1 = async (req, res) => {
       `DoctorAdvice_${req.params.patientId}.pdf`,
       "1MKYZ4fIUzERPyYzL_8I101agWemxVXts" // Folder ID
     );
-    // const cloudinaryLink = await uploadToCloudinary(pdfBuffer);
 
-    // const browser = await puppeteer.launch({
-    //   // args: [
-    //   //   "--disable-setuid-sandbox",
-    //   //   "--no-sandbox",
-    //   //   "--single-process",
-    //   //   "--no-zygote",
-    //   // ],
-    //   // executablePath:
-    //   //   process.env.PUPPETEER_EXECUTABLE_PATH ||
-    //   //   "/usr/bin/google-chrome-stable",
-    // });
-    // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
-    // const page = await browser.newPage();
-    // await page.setContent(doctorAdviceHtml);
-    // const pdfBuffer = await page.pdf({ format: "A4" });
-    // await browser.close();
-    // Generate PDF from HTML
-    // pdf
-    //   .create(doctorAdviceHtml, { format: "A4" })
-    //   .toBuffer(async (err, pdfBuffer) => {
-    //     if (err) {
-    //       return res.status(500).json({
-    //         message: "Failed to generate PDF",
-    //         error: err.message,
-    //       });
-    //     }
-
-    // Authenticate with Google Drive API
-    // const auth = new google.auth.GoogleAuth({
-    //   credentials: ServiceAccount,
-    //   // keyFile: "./apikey.json", // Path to your Google service account key file
-    //   scopes: ["https://www.googleapis.com/auth/drive"],
-    // });
-    // const drive = google.drive({ version: "v3", auth });
-
-    // // Convert PDF buffer into a readable stream
-    // const bufferStream = new Readable();
-    // bufferStream.push(pdfBuffer);
-    // bufferStream.push(null);
-
-    // // Folder ID in Google Drive
-    // const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
-
-    // Upload PDF to Google Drive
     try {
-      // const driveFile = await drive.files.create({
-      //   resource: {
-      //     name: `DoctorAdvice_${patientId}.pdf`,
-      //     parents: [folderId],
-      //   },
-      //   media: {
-      //     mimeType: "application/pdf",
-      //     body: bufferStream,
-      //   },
-      //   fields: "id, webViewLink",
-      // Extract file's public link
-      // const fileLink = driveFile.data.webViewLink;
-
       return res.status(200).json({
         message: "Doctor advice generated successfully.",
         fileLink: driveLink,
@@ -2303,29 +2280,6 @@ export const getDoctorAdvic1 = async (req, res) => {
         error: error.message,
       });
     }
-
-    // try {
-    //   const result = await new Promise((resolve, reject) => {
-    //     const uploadStream = cloudinary.v2.uploader.upload_stream(
-    //       { resource_type: "auto", folder: "doctor_advices" },
-    //       (error, result) => {
-    //         if (error) reject(error);
-    //         else resolve(result);
-    //       }
-    //     );
-    //     bufferStream.pipe(uploadStream);
-    //   });
-    //   console.log(result.secure_url);
-    //   return res.status(200).json({
-    //     message: "Doctor advice generated successfully.",
-    //     fileLink: result.secure_url,
-    //   });
-    // } catch (error) {
-    //   return res.status(500).json({
-    //     message: "Failed to upload PDF to Cloudinary",
-    //     error: error.message,
-    //   });
-    // }
   } catch (error) {
     console.error("Error generating doctor advice:", error);
     return res
@@ -2502,7 +2456,7 @@ export const getDoctorSheet = async (req, res) => {
 <body>
     <div class="container" id="page-1">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1737924501/Spandan_Hospital_nriqjl.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
             <h3>DOCTOR INITIAL ASSESSMENT SHEET</h3>
         </div>
         <div class="section">
@@ -2625,15 +2579,15 @@ export const getDoctorSheet = async (req, res) => {
 </html>
     `;
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
     const page = await browser.newPage();
@@ -2952,7 +2906,7 @@ export const generateOpdBill = async (req, res) => {
 </head>
 <body>
     <div class="header">
-        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1737924501/Spandan_Hospital_nriqjl.png" alt="Hospital Logo" />
+        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Logo" />
         <h1>Hospital Bill</h1>
     </div>
     <div class="patient-details">
@@ -3036,15 +2990,15 @@ export const generateOpdBill = async (req, res) => {
 
 `;
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
     const page = await browser.newPage();
@@ -3140,6 +3094,15 @@ export const generateOpdReceipt = async (req, res) => {
     // lastRecord.lastPaymentReceived = amountPaid;
 
     await patientHistory.save();
+    const billingRecord = new BillingRecord({
+      patientId: patientId,
+      patientName: patient.name,
+      billingAmount: billingAmount,
+      amountPaid: amountPaid,
+      remainingAmount: newRemaining < 0 ? 0 : newRemaining,
+      previousRemainingAmount: previousRemaining,
+      receiptGenerated: true,
+    });
     const now = new Date();
     const data = {
       date: now.toISOString().split("T")[0], // Extracts the date in YYYY-MM-DD format
@@ -3286,15 +3249,15 @@ export const generateOpdReceipt = async (req, res) => {
 
 `;
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
     const page = await browser.newPage();
@@ -3332,6 +3295,7 @@ export const generateOpdReceipt = async (req, res) => {
 
     // Extract file's public link
     const fileLink = driveFile.data.webViewLink;
+    await billingRecord.save();
     return res.status(200).json({
       message: "OPD receipt generated successfully.",
       updatedPatient: {
@@ -3542,15 +3506,15 @@ export const generateaIpddReceipt = async (req, res) => {
 
 `;
     const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
+      // args: [
+      //   "--disable-setuid-sandbox",
+      //   "--no-sandbox",
+      //   "--single-process",
+      //   "--no-zygote",
+      // ],
+      // executablePath:
+      //   process.env.PUPPETEER_EXECUTABLE_PATH ||
+      //   "/usr/bin/google-chrome-stable",
     });
     // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
     const page = await browser.newPage();
@@ -4665,3 +4629,1044 @@ export const addIpdDetails = async (req, res) => {
     });
   }
 };
+export const getAllPatientHistories = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = "dischargeDate",
+      sortOrder = "desc",
+      filterBy,
+      startDate,
+      endDate,
+      minAmount,
+      maxAmount,
+      conditionAtDischarge,
+      doctorId,
+      patientType,
+    } = req.query;
+
+    // Build aggregation pipeline for comprehensive data retrieval
+    const pipeline = [
+      {
+        $unwind: "$history",
+      },
+      {
+        $match: {
+          ...(startDate &&
+            endDate && {
+              "history.dischargeDate": {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            }),
+          ...(minAmount && {
+            "history.amountToBePayed": { $gte: parseFloat(minAmount) },
+          }),
+          ...(maxAmount && {
+            "history.amountToBePayed": { $lte: parseFloat(maxAmount) },
+          }),
+          ...(conditionAtDischarge && {
+            "history.conditionAtDischarge": conditionAtDischarge,
+          }),
+          ...(doctorId && {
+            "history.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          }),
+          ...(patientType && { "history.patientType": patientType }),
+          "history.dischargeDate": { $exists: true, $ne: null },
+        },
+      },
+      {
+        $addFields: {
+          "history.lengthOfStay": {
+            $ceil: {
+              $divide: [
+                {
+                  $subtract: [
+                    "$history.dischargeDate",
+                    "$history.admissionDate",
+                  ],
+                },
+                1000 * 60 * 60 * 24, // Convert milliseconds to days
+              ],
+            },
+          },
+          "history.totalRevenue": {
+            $add: [
+              { $ifNull: ["$history.amountToBePayed", 0] },
+              { $ifNull: ["$history.previousRemainingAmount", 0] },
+            ],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "hospitaldoctors",
+          localField: "history.doctor.id",
+          foreignField: "_id",
+          as: "doctorDetails",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "history.section.id",
+          foreignField: "_id",
+          as: "sectionDetails",
+        },
+      },
+      {
+        $project: {
+          patientId: 1,
+          name: 1,
+          age: 1,
+          gender: 1,
+          contact: 1,
+          address: 1,
+          dob: 1,
+          imageUrl: 1,
+          "history.admissionId": 1,
+          "history.admissionDate": 1,
+          "history.dischargeDate": 1,
+          "history.lengthOfStay": 1,
+          "history.status": 1,
+          "history.patientType": 1,
+          "history.reasonForAdmission": 1,
+          "history.conditionAtDischarge": 1,
+          "history.amountToBePayed": 1,
+          "history.previousRemainingAmount": 1,
+          "history.totalRevenue": 1,
+          "history.weight": 1,
+          "history.initialDiagnosis": 1,
+          "history.diagnosisByDoctor": 1,
+          "history.doctor": 1,
+          "history.section": 1,
+          "history.bedNumber": 1,
+          "history.followUps": {
+            $size: { $ifNull: ["$history.followUps", []] },
+          },
+          "history.fourHrFollowUps": {
+            $size: { $ifNull: ["$history.fourHrFollowUpSchema", []] },
+          },
+          "history.labReportsCount": {
+            $size: { $ifNull: ["$history.labReports", []] },
+          },
+          "history.medicationsCount": {
+            $size: { $ifNull: ["$history.medications", []] },
+          },
+          "history.proceduresCount": {
+            $size: { $ifNull: ["$history.procedures", []] },
+          },
+          "history.doctorNotesCount": {
+            $size: { $ifNull: ["$history.doctorNotes", []] },
+          },
+          doctorDetails: { $arrayElemAt: ["$doctorDetails", 0] },
+          sectionDetails: { $arrayElemAt: ["$sectionDetails", 0] },
+        },
+      },
+      {
+        $sort: {
+          [`history.${sortBy}`]: sortOrder === "desc" ? -1 : 1,
+        },
+      },
+      {
+        $skip: (parseInt(page) - 1) * parseInt(limit),
+      },
+      {
+        $limit: parseInt(limit),
+      },
+    ];
+
+    const patientHistories = await PatientHistory.aggregate(pipeline);
+
+    // Get total count for pagination
+    const countPipeline = [
+      { $unwind: "$history" },
+      {
+        $match: {
+          ...(startDate &&
+            endDate && {
+              "history.dischargeDate": {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            }),
+          ...(minAmount && {
+            "history.amountToBePayed": { $gte: parseFloat(minAmount) },
+          }),
+          ...(maxAmount && {
+            "history.amountToBePayed": { $lte: parseFloat(maxAmount) },
+          }),
+          ...(conditionAtDischarge && {
+            "history.conditionAtDischarge": conditionAtDischarge,
+          }),
+          ...(doctorId && {
+            "history.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          }),
+          ...(patientType && { "history.patientType": patientType }),
+          "history.dischargeDate": { $exists: true, $ne: null },
+        },
+      },
+      { $count: "total" },
+    ];
+
+    const countResult = await PatientHistory.aggregate(countPipeline);
+    const totalRecords = countResult[0]?.total || 0;
+
+    // Calculate financial summary
+    const financialSummary = await PatientHistory.aggregate([
+      { $unwind: "$history" },
+      {
+        $match: {
+          "history.dischargeDate": { $exists: true, $ne: null },
+          ...(startDate &&
+            endDate && {
+              "history.dischargeDate": {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            }),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: {
+            $sum: {
+              $add: [
+                { $ifNull: ["$history.amountToBePayed", 0] },
+                { $ifNull: ["$history.previousRemainingAmount", 0] },
+              ],
+            },
+          },
+          totalDischarges: { $sum: 1 },
+          averageAmount: {
+            $avg: {
+              $add: [
+                { $ifNull: ["$history.amountToBePayed", 0] },
+                { $ifNull: ["$history.previousRemainingAmount", 0] },
+              ],
+            },
+          },
+          averageLengthOfStay: {
+            $avg: {
+              $ceil: {
+                $divide: [
+                  {
+                    $subtract: [
+                      "$history.dischargeDate",
+                      "$history.admissionDate",
+                    ],
+                  },
+                  1000 * 60 * 60 * 24,
+                ],
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Get discharge condition breakdown
+    const dischargeBreakdown = await PatientHistory.aggregate([
+      { $unwind: "$history" },
+      {
+        $match: {
+          "history.dischargeDate": { $exists: true, $ne: null },
+          ...(startDate &&
+            endDate && {
+              "history.dischargeDate": {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate),
+              },
+            }),
+        },
+      },
+      {
+        $group: {
+          _id: "$history.conditionAtDischarge",
+          count: { $sum: 1 },
+          totalRevenue: {
+            $sum: {
+              $add: [
+                { $ifNull: ["$history.amountToBePayed", 0] },
+                { $ifNull: ["$history.previousRemainingAmount", 0] },
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        patientHistories,
+        financialSummary: financialSummary[0] || {
+          totalRevenue: 0,
+          totalDischarges: 0,
+          averageAmount: 0,
+          averageLengthOfStay: 0,
+        },
+        dischargeBreakdown,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalRecords / parseInt(limit)),
+          totalRecords,
+          hasNext: parseInt(page) * parseInt(limit) < totalRecords,
+          hasPrev: parseInt(page) > 1,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient histories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get detailed patient history by patient ID
+ * @route GET /api/patient-history/:patientId
+ * @access Private
+ */
+export const getPatientHistoryById = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name specialization")
+      .populate("history.section.id", "name type");
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient history not found",
+      });
+    }
+
+    // Calculate financial summary for this patient
+    const financialSummary = patientHistory.history.reduce(
+      (acc, admission) => {
+        const totalAmount =
+          (admission.amountToBePayed || 0) +
+          (admission.previousRemainingAmount || 0);
+        acc.totalRevenue += totalAmount;
+        acc.totalAdmissions += 1;
+        acc.averageAmount = acc.totalRevenue / acc.totalAdmissions;
+
+        const lengthOfStay = Math.ceil(
+          (admission.dischargeDate - admission.admissionDate) /
+            (1000 * 60 * 60 * 24)
+        );
+        acc.totalDays += lengthOfStay;
+        acc.averageLengthOfStay = acc.totalDays / acc.totalAdmissions;
+
+        return acc;
+      },
+      {
+        totalRevenue: 0,
+        totalAdmissions: 0,
+        totalDays: 0,
+        averageAmount: 0,
+        averageLengthOfStay: 0,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        patientHistory,
+        financialSummary,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient history:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+export const getAllPatientAmountDetails = async (req, res) => {
+  try {
+    // Get all patients
+    const patients = await patientSchema.find({});
+
+    if (!patients || patients.length === 0) {
+      return res.status(200).json({
+        message: "No patients found.",
+        data: [],
+      });
+    }
+
+    const allPatientAmountDetails = await Promise.all(
+      patients.map(async (patient) => {
+        // Get patient history for each patient
+        const patientHistory = await PatientHistory.findOne({
+          patientId: patient.patientId,
+        });
+
+        let previousRemainingAmount = 0;
+        let totalHistoricalAmount = 0;
+        let admissionCount = 0;
+
+        if (patientHistory && patientHistory.history.length > 0) {
+          // Get the most recent discharge record
+          const lastRecord =
+            patientHistory.history[patientHistory.history.length - 1];
+          previousRemainingAmount = lastRecord.previousRemainingAmount || 0;
+
+          // Calculate total historical amounts and count admissions
+          admissionCount = patientHistory.history.length;
+          totalHistoricalAmount = patientHistory.history.reduce(
+            (total, record) => {
+              return total + (record.amountToBePayed || 0);
+            },
+            0
+          );
+        }
+
+        // Check if patient has current admission
+        let currentAdmissionAmount = 0;
+        if (!patient.discharged && patient.admissionRecords.length > 0) {
+          const currentRecord =
+            patient.admissionRecords[patient.admissionRecords.length - 1];
+          currentAdmissionAmount = currentRecord.amountToBePayed || 0;
+          admissionCount += 1; // Add current admission to count
+        }
+
+        return {
+          patientId: patient.patientId,
+          name: patient.name,
+          contact: patient.contact,
+          age: patient.age,
+          gender: patient.gender,
+          currentPendingAmount: patient.pendingAmount,
+          previousRemainingAmount: previousRemainingAmount,
+          totalOutstanding: patient.pendingAmount,
+          isCurrentlyAdmitted: !patient.discharged,
+          totalAdmissions: admissionCount,
+          totalHistoricalAmount: totalHistoricalAmount,
+          currentAdmissionAmount: currentAdmissionAmount,
+          hasOutstandingBalance: patient.pendingAmount > 0,
+        };
+      })
+    );
+
+    // Sort by pending amount (highest first) to prioritize patients with outstanding balances
+    const sortedPatients = allPatientAmountDetails.sort(
+      (a, b) => b.currentPendingAmount - a.currentPendingAmount
+    );
+
+    // Calculate summary statistics
+    const summary = {
+      totalPatients: patients.length,
+      patientsWithOutstandingBalance: sortedPatients.filter(
+        (p) => p.hasOutstandingBalance
+      ).length,
+      currentlyAdmittedPatients: sortedPatients.filter(
+        (p) => p.isCurrentlyAdmitted
+      ).length,
+      totalOutstandingAmount: sortedPatients.reduce(
+        (total, patient) => total + patient.currentPendingAmount,
+        0
+      ),
+      totalHistoricalAmount: sortedPatients.reduce(
+        (total, patient) => total + patient.totalHistoricalAmount,
+        0
+      ),
+    };
+
+    return res.status(200).json({
+      message: "All patient amount details retrieved successfully.",
+      summary: summary,
+      data: sortedPatients,
+    });
+  } catch (error) {
+    console.error("Error getting all patient amount details:", error);
+    return res.status(500).json({
+      message: "An error occurred while retrieving all patient amount details.",
+      error: error.message,
+    });
+  }
+};
+export const getPatientAmountDetails = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    if (!patientId) {
+      return res.status(400).json({
+        message: "Patient ID is required.",
+      });
+    }
+
+    // Find the patient
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found." });
+    }
+
+    // Get patient history
+    const patientHistory = await PatientHistory.findOne({ patientId });
+
+    let previousRemainingAmount = 0;
+    let admissionHistory = [];
+
+    if (patientHistory && patientHistory.history.length > 0) {
+      // Get the most recent discharge record
+      const lastRecord =
+        patientHistory.history[patientHistory.history.length - 1];
+      previousRemainingAmount = lastRecord.previousRemainingAmount || 0;
+
+      // Get all admission history with amounts
+      admissionHistory = patientHistory.history.map((record) => ({
+        admissionId: record.admissionId,
+        admissionDate: record.admissionDate,
+        dischargeDate: record.dischargeDate,
+        amountToBePayed: record.amountToBePayed,
+        previousRemainingAmount: record.previousRemainingAmount,
+        conditionAtDischarge: record.conditionAtDischarge,
+      }));
+    }
+
+    return res.status(200).json({
+      message: "Patient amount details retrieved successfully.",
+      data: {
+        patientId: patient.patientId,
+        name: patient.name,
+        currentPendingAmount: patient.pendingAmount,
+        previousRemainingAmount: previousRemainingAmount,
+        totalOutstanding: patient.pendingAmount,
+        isCurrentlyAdmitted: !patient.discharged,
+        admissionHistory: admissionHistory,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting patient amount details:", error);
+    return res.status(500).json({
+      message: "An error occurred while retrieving patient amount details.",
+      error: error.message,
+    });
+  }
+};
+export const getAllPatientAmountDetailsWithBilling = async (req, res) => {
+  try {
+    // Get all patients
+    const patients = await patientSchema.find({});
+
+    if (!patients || patients.length === 0) {
+      return res.status(200).json({
+        message: "No patients found.",
+        data: [],
+      });
+    }
+
+    const allPatientAmountDetails = await Promise.all(
+      patients.map(async (patient) => {
+        // Get patient history for each patient
+        const patientHistory = await PatientHistory.findOne({
+          patientId: patient.patientId,
+        });
+
+        // Get billing records for each patient
+        const billingRecords = await BillingRecord.find({
+          patientId: patient.patientId,
+        }).sort({ billingDate: -1 });
+
+        let previousRemainingAmount = 0;
+        let totalHistoricalAmount = 0; // Doctor amounts only
+        let totalBillingAmount = 0; // Complete billing amounts (doctor + other charges)
+        let admissionCount = 0;
+
+        if (patientHistory && patientHistory.history.length > 0) {
+          // Get the most recent discharge record
+          const lastRecord =
+            patientHistory.history[patientHistory.history.length - 1];
+          previousRemainingAmount = lastRecord.previousRemainingAmount || 0;
+
+          // Calculate total historical amounts (doctor only) and count admissions
+          admissionCount = patientHistory.history.length;
+          totalHistoricalAmount = patientHistory.history.reduce(
+            (total, record) => {
+              return total + (record.amountToBePayed || 0);
+            },
+            0
+          );
+        }
+
+        // Calculate total billing amount from billing records
+        totalBillingAmount = billingRecords.reduce((total, record) => {
+          return total + (record.billingAmount || 0);
+        }, 0);
+
+        // Check if patient has current admission
+        let currentAdmissionAmount = 0;
+        if (!patient.discharged && patient.admissionRecords.length > 0) {
+          const currentRecord =
+            patient.admissionRecords[patient.admissionRecords.length - 1];
+          currentAdmissionAmount = currentRecord.amountToBePayed || 0;
+          admissionCount += 1; // Add current admission to count
+        }
+
+        return {
+          patientId: patient.patientId,
+          name: patient.name,
+          contact: patient.contact,
+          age: patient.age,
+          gender: patient.gender,
+          currentPendingAmount: patient.pendingAmount,
+          previousRemainingAmount: previousRemainingAmount,
+          totalOutstanding: patient.pendingAmount,
+          isCurrentlyAdmitted: !patient.discharged,
+          totalAdmissions: admissionCount,
+          totalHistoricalAmount: totalHistoricalAmount, // Doctor amounts only
+          totalBillingAmount: totalBillingAmount, // Complete billing (doctor + other charges)
+          currentAdmissionAmount: currentAdmissionAmount,
+          hasOutstandingBalance: patient.pendingAmount > 0,
+          totalBillingRecords: billingRecords.length,
+        };
+      })
+    );
+
+    // Sort by pending amount (highest first)
+    const sortedPatients = allPatientAmountDetails.sort(
+      (a, b) => b.currentPendingAmount - a.currentPendingAmount
+    );
+
+    // Calculate summary statistics
+    const summary = {
+      totalPatients: patients.length,
+      patientsWithOutstandingBalance: sortedPatients.filter(
+        (p) => p.hasOutstandingBalance
+      ).length,
+      currentlyAdmittedPatients: sortedPatients.filter(
+        (p) => p.isCurrentlyAdmitted
+      ).length,
+      totalOutstandingAmount: sortedPatients.reduce(
+        (total, patient) => total + patient.currentPendingAmount,
+        0
+      ),
+      totalHistoricalAmount: sortedPatients.reduce(
+        (total, patient) => total + patient.totalHistoricalAmount,
+        0
+      ),
+      totalBillingAmount: sortedPatients.reduce(
+        (total, patient) => total + patient.totalBillingAmount,
+        0
+      ),
+    };
+
+    return res.status(200).json({
+      message: "All patient amount details retrieved successfully.",
+      summary: summary,
+      data: sortedPatients,
+    });
+  } catch (error) {
+    console.error("Error getting all patient amount details:", error);
+    return res.status(500).json({
+      message: "An error occurred while retrieving all patient amount details.",
+      error: error.message,
+    });
+  }
+};
+export const generateDischargeSummary = async (req, res) => {
+  const { patientId } = req.params; // Only patientId needed, no admissionId
+  const { includeReports = true, template = "standard" } = req.query;
+  const userId = req.userId; // From auth middleware
+
+  try {
+    // Fetch patient history with comprehensive population
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name specialization license")
+      .populate("history.section.id", "name type department");
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient history not found",
+        code: "PATIENT_HISTORY_NOT_FOUND",
+      });
+    }
+
+    // Check if patient has any history records
+    if (!patientHistory.history || patientHistory.history.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No admission history found for this patient",
+        code: "NO_ADMISSION_HISTORY",
+      });
+    }
+
+    // Get the most recent (last) admission record
+    const admissionHistory =
+      patientHistory.history[patientHistory.history.length - 1];
+    const admissionId = admissionHistory.admissionId.toString();
+
+    // Log summary generation request
+    console.log(
+      `Generating discharge summary for patient ${patientId}, latest admission ${admissionId}`
+    );
+
+    // Generate HTML content for discharge summary
+    const htmlContent = generateDischargeSummaryHTML(
+      patientHistory,
+      admissionHistory,
+      { includeReports: includeReports === "true", template }
+    );
+
+    // Generate PDF with optimized settings
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Generate unique filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `Discharge_Summary_${sanitizedName}_${timestamp}.pdf`;
+
+    // Upload to Google Drive (optional)
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    let driveLink = null;
+
+    if (folderId) {
+      try {
+        driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        console.log(`PDF uploaded to Drive: ${driveLink}`);
+      } catch (uploadError) {
+        console.error("Error uploading to Drive:", uploadError);
+        // Continue without failing the request
+      }
+    }
+
+    // Calculate admission details for response
+    const admissionDate = new Date(admissionHistory.admissionDate);
+    const dischargeDate = new Date(admissionHistory.dischargeDate);
+    const lengthOfStay = Math.ceil(
+      (dischargeDate - admissionDate) / (1000 * 60 * 60 * 24)
+    );
+
+    // Return JSON response with PDF link and data
+    res.status(200).json({
+      success: true,
+      message: "Discharge summary generated successfully",
+      data: {
+        fileName,
+        driveLink,
+        pdfSize: pdfBuffer.length,
+        generatedAt: new Date(),
+        patientInfo: {
+          patientId: patientHistory.patientId,
+          name: patientHistory.name,
+          age: patientHistory.age,
+          gender: patientHistory.gender,
+        },
+        admissionDetails: {
+          admissionId: admissionId,
+          admissionDate: admissionDate,
+          dischargeDate: dischargeDate,
+          lengthOfStay: lengthOfStay,
+          attendingDoctor: admissionHistory.doctor?.name || "Not specified",
+          department: admissionHistory.section?.name || "Not specified",
+          dischargeCondition: admissionHistory.conditionAtDischarge,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error generating discharge summary:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate discharge summary",
+      code: "SUMMARY_GENERATION_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * Generate discharge bill for patient
+ * Takes patientId and billing charges, uses most recent admission record
+ */
+export const generateIpdBill = async (req, res) => {
+  const { patientId } = req.params;
+  const { charges, discount = 0, advance = 0 } = req.body;
+
+  try {
+    // Fetch patient history
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name specialization")
+      .populate("history.section.id", "name type");
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient history not found",
+        code: "PATIENT_HISTORY_NOT_FOUND",
+      });
+    }
+
+    // Check if patient has any history records
+    if (!patientHistory.history || patientHistory.history.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "No admission history found for this patient",
+        code: "NO_ADMISSION_HISTORY",
+      });
+    }
+
+    // Get the most recent (last) admission record
+    const admissionHistory =
+      patientHistory.history[patientHistory.history.length - 1];
+    const admissionId = admissionHistory.admissionId.toString();
+
+    // Calculate length of stay
+    const admissionDate = new Date(admissionHistory.admissionDate);
+    const dischargeDate = new Date(admissionHistory.dischargeDate);
+    const lengthOfStay = Math.ceil(
+      (dischargeDate - admissionDate) / (1000 * 60 * 60 * 24)
+    );
+
+    // Process charges and calculate totals
+    const processedCharges = processCharges(charges, lengthOfStay);
+    const billCalculations = calculateBillTotals(
+      processedCharges,
+      discount,
+      advance
+    );
+
+    // Generate HTML content for bill
+    const htmlContent = generateDischargeBillHTML(
+      patientHistory,
+      admissionHistory,
+      processedCharges,
+      billCalculations,
+      lengthOfStay
+    );
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Generate unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `Discharge_Bill_${sanitizedName}_${timestamp}.pdf`;
+
+    // Upload to Google Drive (optional)
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"; // Replace with your folder ID;
+    let driveLink = null;
+
+    if (folderId) {
+      try {
+        driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        console.log(`Bill PDF uploaded to Drive: ${driveLink}`);
+      } catch (uploadError) {
+        console.error("Error uploading bill to Drive:", uploadError);
+      }
+    }
+
+    // Return JSON response with bill data
+    res.status(200).json({
+      success: true,
+      message: "Discharge bill generated successfully",
+      data: {
+        fileName,
+        driveLink,
+        pdfSize: pdfBuffer.length,
+        generatedAt: new Date(),
+        patientInfo: {
+          patientId: patientHistory.patientId,
+          name: patientHistory.name,
+          age: patientHistory.age,
+          gender: patientHistory.gender,
+        },
+        admissionDetails: {
+          admissionId: admissionId,
+          admissionDate: admissionDate,
+          dischargeDate: dischargeDate,
+          lengthOfStay: lengthOfStay,
+          attendingDoctor: admissionHistory.doctor?.name || "Not specified",
+          department: admissionHistory.section?.name || "Not specified",
+        },
+        billSummary: {
+          totalCharges: billCalculations.totalCharges,
+          discount: billCalculations.discount,
+          advance: billCalculations.advance,
+          finalAmount: billCalculations.finalAmount,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error generating discharge bill:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate discharge bill",
+      code: "BILL_GENERATION_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
+/**
+ * Process charges and calculate totals based on length of stay
+ */
+function processCharges(charges, lengthOfStay) {
+  const chargesList = [
+    "admissionFees",
+    "icuCharges",
+    "specialCharges",
+    "generalWardCharges",
+    "surgeonCharges",
+    "assistantSurgeonCharges",
+    "operationTheatreCharges",
+    "operationTheatreMedicines",
+    "anaesthesiaCharges",
+    "localAnaesthesiaCharges",
+    "o2Charges",
+    "monitorCharges",
+    "tapping",
+    "ventilatorCharges",
+    "emergencyCharges",
+    "micCharges",
+    "ivFluids",
+    "bloodTransfusionCharges",
+    "physioTherapyCharges",
+    "xrayFilmCharges",
+    "ecgCharges",
+    "specialVisitCharges",
+    "doctorCharges",
+    "nursingCharges",
+    "injMedicines",
+    "catheterCharges",
+    "rylesTubeCharges",
+    "miscellaneousCharges",
+    "dressingCharges",
+    "professionalCharges",
+    "serviceTaxCharges",
+    "tractionCharges",
+    "gastricLavageCharges",
+    "plateletCharges",
+    "nebulizerCharges",
+    "implantCharges",
+    "physicianCharges",
+    "slabCastCharges",
+    "mrfCharges",
+    "procCharges",
+    "staplingCharges",
+    "enemaCharges",
+    "gastroscopyCharges",
+    "endoscopicCharges",
+    "velixCharges",
+    "bslCharges",
+    "icdtCharges",
+    "ophthalmologistCharges",
+  ];
+
+  const processedCharges = {};
+
+  chargesList.forEach((chargeType) => {
+    if (charges[chargeType]) {
+      const rate = parseFloat(charges[chargeType].rate) || 0;
+      const days = parseInt(charges[chargeType].days) || lengthOfStay;
+      const total = rate * days;
+
+      processedCharges[chargeType] = {
+        rate: rate,
+        days: days,
+        total: total,
+        description: getChargeDescription(chargeType),
+      };
+    }
+  });
+
+  return processedCharges;
+}
+
+/**
+ * Calculate bill totals, discount, and final amount
+ */
+function calculateBillTotals(processedCharges, discount, advance) {
+  let totalCharges = 0;
+
+  // Sum all charges
+  Object.values(processedCharges).forEach((charge) => {
+    totalCharges += charge.total;
+  });
+
+  const discountAmount = parseFloat(discount) || 0;
+  const advanceAmount = parseFloat(advance) || 0;
+  const finalAmount = totalCharges - discountAmount - advanceAmount;
+
+  return {
+    totalCharges,
+    discount: discountAmount,
+    advance: advanceAmount,
+    finalAmount: Math.max(0, finalAmount), // Ensure non-negative
+  };
+}
+
+/**
+ * Get user-friendly description for charge types
+ */
+function getChargeDescription(chargeType) {
+  const descriptions = {
+    admissionFees: "Admission Fees",
+    icuCharges: "ICU",
+    specialCharges: "Special",
+    generalWardCharges: "General ward",
+    surgeonCharges: "Surgeon Charges",
+    assistantSurgeonCharges: "Assistant Surgeon Charges",
+    operationTheatreCharges: "Operation Theatre charges",
+    operationTheatreMedicines: "Operation Theatre Medicines",
+    anaesthesiaCharges: "Anaesthesia charges",
+    localAnaesthesiaCharges: "Local Anaesthesia charges",
+    o2Charges: "O2 Charges",
+    monitorCharges: "Monitor Charges",
+    tapping: "Tapping",
+    ventilatorCharges: "Ventilator Charges",
+    emergencyCharges: "Emergency charges",
+    micCharges: "M.I.C Charges",
+    ivFluids: "IV Fluids",
+    bloodTransfusionCharges: "Blood Transfusion Service Charges",
+    physioTherapyCharges: "Physio/Occupation Therapy Charges",
+    xrayFilmCharges: "X-Ray Film Charges",
+    ecgCharges: "E.C.G. Charges",
+    specialVisitCharges: "Special Visit Charges",
+    doctorCharges: "Doctor Charges",
+    nursingCharges: "Nursing Charges",
+    injMedicines: "Inj & Medicines",
+    catheterCharges: "Catheter Charges",
+    rylesTubeCharges: "Ryles Tube Charges",
+    miscellaneousCharges: "Miscellaneous Charges",
+    dressingCharges: "Dressing Charges",
+    professionalCharges: "Professional Charges",
+    serviceTaxCharges: "Service Tax Charges @ 15%",
+    tractionCharges: "Traction/SWD/L.F.T.",
+    gastricLavageCharges: "Gastric Lavage Charges",
+    plateletCharges: "Platelet Charges",
+    nebulizerCharges: "Nebulizer Charges",
+    implantCharges: "Implant Charges",
+    physicianCharges: "Physician Charges",
+    slabCastCharges: "Slab/Cast Charges",
+    mrfCharges: "M.R.F./Debridement Proc. Charges",
+    procCharges: "Proc. Charges / Hydro Therapy",
+    staplingCharges: "Stapling/Thomas Splint",
+    enemaCharges: "Enema/Proctoscopy",
+    gastroscopyCharges: "Gastroscopy/Colonoscopy",
+    endoscopicCharges: "Endoscopic Dilatation",
+    velixCharges: "Velix /Solumedrol / A.S.V. drip charges",
+    bslCharges: "B.S.L. charges",
+    icdtCharges: "I.C.D.T. Proc. Charges",
+    ophthalmologistCharges: "Ophthalmologist Charges",
+  };
+
+  return descriptions[chargeType] || chargeType;
+}
+
+/**
+ * Generate HTML content for discharge bill
+ */

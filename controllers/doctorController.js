@@ -17,6 +17,7 @@ import Appointment from "../models/appointmentSchema.js";
 import PatientAppointment from "../models/appointmentSchema.js";
 import Medicine from "../models/doctorMedicines.js";
 import Investigation from "../models/investigationSchema.js";
+import EmergencyMedication from "../models/nurse/emergencySchema.js";
 export const getPatients = async (req, res) => {
   console.log(req.usertype);
   try {
@@ -90,32 +91,455 @@ export const admitPatient = async (req, res) => {
   }
 };
 
+/**
+ * Get pending patients assigned to the authenticated doctor with advanced filtering and pagination
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 export const getAssignedPatients = async (req, res) => {
   try {
-    const doctorId = req.userId; // Get doctor ID from authenticated user
+    const doctorId = req.userId;
 
-    // Find all patients with admission records assigned to this doctor
-    const patients = await patientSchema.find({
-      "admissionRecords.doctor.id": doctorId,
+    // Validate doctor ID
+    if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or missing doctor credentials",
+        code: "INVALID_DOCTOR_ID",
+      });
+    }
+
+    // Extract and validate query parameters
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      gender = "",
+      ageMin = "",
+      ageMax = "",
+      city = "",
+      state = "",
+      patientType = "",
+      sortBy = "admissionDate",
+      sortOrder = "desc",
+      dateFrom = "",
+      dateTo = "",
+    } = req.query;
+
+    // Validate pagination parameters
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit))); // Max 100 per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build dynamic match conditions
+    const matchConditions = {
+      "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+      "admissionRecords.status": "Pending",
+    };
+
+    // Add search conditions
+    if (search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      matchConditions.$or = [
+        { name: searchRegex },
+        { patientId: searchRegex },
+        { contact: searchRegex },
+      ];
+    }
+
+    // Add filter conditions
+    if (gender) {
+      matchConditions.gender = gender;
+    }
+
+    if (city) {
+      matchConditions.city = new RegExp(city.trim(), "i");
+    }
+
+    if (state) {
+      matchConditions.state = new RegExp(state.trim(), "i");
+    }
+
+    // Age range filter
+    if (ageMin || ageMax) {
+      matchConditions.age = {};
+      if (ageMin) matchConditions.age.$gte = parseInt(ageMin);
+      if (ageMax) matchConditions.age.$lte = parseInt(ageMax);
+    }
+
+    // Build aggregation pipeline for optimal performance
+    const pipeline = [
+      // Stage 1: Initial match
+      { $match: matchConditions },
+
+      // Stage 2: Unwind admission records to filter them
+      { $unwind: "$admissionRecords" },
+
+      // Stage 3: Match admission records for this doctor with pending status
+      {
+        $match: {
+          "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          "admissionRecords.status": "Pending",
+        },
+      },
+
+      // Stage 4: Add patient type filter if specified
+      ...(patientType
+        ? [{ $match: { "admissionRecords.patientType": patientType } }]
+        : []),
+
+      // Stage 5: Add date range filter if specified
+      ...(dateFrom || dateTo
+        ? [
+            {
+              $match: {
+                "admissionRecords.admissionDate": {
+                  ...(dateFrom && { $gte: new Date(dateFrom) }),
+                  ...(dateTo && { $lte: new Date(dateTo) }),
+                },
+              },
+            },
+          ]
+        : []),
+
+      // Stage 6: Group back by patient
+      {
+        $group: {
+          _id: "$_id",
+          patientId: { $first: "$patientId" },
+          name: { $first: "$name" },
+          age: { $first: "$age" },
+          gender: { $first: "$gender" },
+          contact: { $first: "$contact" },
+          address: { $first: "$address" },
+          city: { $first: "$city" },
+          state: { $first: "$state" },
+          country: { $first: "$country" },
+          dob: { $first: "$dob" },
+          imageUrl: { $first: "$imageUrl" },
+          pendingAmount: { $first: "$pendingAmount" },
+          admissionRecords: { $push: "$admissionRecords" },
+        },
+      },
+
+      // Stage 7: Add computed fields
+      {
+        $addFields: {
+          totalPendingAdmissions: { $size: "$admissionRecords" },
+          latestAdmissionDate: { $max: "$admissionRecords.admissionDate" },
+          earliestAdmissionDate: { $min: "$admissionRecords.admissionDate" },
+        },
+      },
+
+      // Stage 8: Sort
+      {
+        $sort: {
+          [sortBy === "admissionDate" ? "latestAdmissionDate" : sortBy]:
+            sortOrder === "desc" ? -1 : 1,
+        },
+      },
+
+      // Stage 9: Facet for pagination and count
+      {
+        $facet: {
+          patients: [{ $skip: skip }, { $limit: limitNum }],
+          totalCount: [{ $count: "count" }],
+        },
+      },
+    ];
+
+    // Execute aggregation pipeline
+    const [result] = await patientSchema.aggregate(pipeline);
+
+    const patients = result.patients || [];
+    const totalCount = result.totalCount[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    // Performance metrics
+    const responseTime = Date.now();
+
+    // Build response with metadata
+    const response = {
+      success: true,
+      message: "Pending patients retrieved successfully",
+      data: {
+        patients,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalCount,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+          limit: limitNum,
+        },
+        filters: {
+          search: search || null,
+          gender: gender || null,
+          ageRange: {
+            min: ageMin || null,
+            max: ageMax || null,
+          },
+          location: {
+            city: city || null,
+            state: state || null,
+          },
+          patientType: patientType || null,
+          dateRange: {
+            from: dateFrom || null,
+            to: dateTo || null,
+          },
+        },
+        sorting: {
+          sortBy,
+          sortOrder,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Add performance warning for large datasets
+    if (totalCount > 1000) {
+      response.warning =
+        "Large dataset detected. Consider using more specific filters for better performance.";
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error retrieving pending patients:", {
+      doctorId: req.userId,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString(),
     });
 
-    // Filter admission records specifically assigned to this doctor
-    const filteredPatients = patients.map((patient) => {
-      const relevantAdmissions = patient.admissionRecords.filter(
-        (record) => record.doctor && record.doctor.id.toString() === doctorId
-      );
-      return { ...patient.toObject(), admissionRecords: relevantAdmissions };
+    // Determine error type and response
+    let statusCode = 500;
+    let errorMessage = "Internal server error occurred";
+    let errorCode = "INTERNAL_ERROR";
+
+    if (error.name === "CastError") {
+      statusCode = 400;
+      errorMessage = "Invalid parameter format";
+      errorCode = "INVALID_PARAMETER";
+    } else if (error.name === "ValidationError") {
+      statusCode = 400;
+      errorMessage = "Validation error";
+      errorCode = "VALIDATION_ERROR";
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      message: errorMessage,
+      code: errorCode,
+      ...(process.env.NODE_ENV === "development" && {
+        details: error.message,
+        stack: error.stack,
+      }),
+      timestamp: new Date().toISOString(),
     });
+  }
+};
+
+/**
+ * Get available filter options for pending patients
+ * This endpoint helps frontend build dynamic filter UI
+ */
+export const getPendingPatientsFilterOptions = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+
+    if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid doctor credentials",
+      });
+    }
+
+    const filterOptions = await patientSchema.aggregate([
+      {
+        $match: {
+          "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          "admissionRecords.status": "Pending",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          genders: { $addToSet: "$gender" },
+          cities: { $addToSet: "$city" },
+          states: { $addToSet: "$state" },
+          countries: { $addToSet: "$country" },
+          ageRange: {
+            $push: {
+              min: { $min: "$age" },
+              max: { $max: "$age" },
+            },
+          },
+          patientTypes: { $addToSet: "$admissionRecords.patientType" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          genders: {
+            $filter: { input: "$genders", cond: { $ne: ["$$this", null] } },
+          },
+          cities: {
+            $filter: { input: "$cities", cond: { $ne: ["$$this", null] } },
+          },
+          states: {
+            $filter: { input: "$states", cond: { $ne: ["$$this", null] } },
+          },
+          countries: {
+            $filter: { input: "$countries", cond: { $ne: ["$$this", null] } },
+          },
+          ageRange: {
+            min: { $min: "$ageRange.min" },
+            max: { $max: "$ageRange.max" },
+          },
+          patientTypes: {
+            $filter: {
+              input: "$patientTypes",
+              cond: { $ne: ["$$this", null] },
+            },
+          },
+        },
+      },
+    ]);
 
     res.status(200).json({
-      message: "Patients assigned to doctor retrieved successfully",
-      patients: filteredPatients,
+      success: true,
+      data: filterOptions[0] || {
+        genders: [],
+        cities: [],
+        states: [],
+        countries: [],
+        ageRange: { min: 0, max: 100 },
+        patientTypes: [],
+      },
     });
   } catch (error) {
-    console.error("Error retrieving assigned patients:", error);
-    res
-      .status(500)
-      .json({ message: "Error retrieving patients", error: error.message });
+    console.error("Error getting filter options:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving filter options",
+    });
+  }
+};
+
+/**
+ * Get pending patients statistics for dashboard
+ */
+export const getPendingPatientsStats = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+
+    if (!doctorId || !mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid doctor credentials",
+      });
+    }
+
+    const stats = await patientSchema.aggregate([
+      {
+        $match: {
+          "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          "admissionRecords.status": "Pending",
+        },
+      },
+      { $unwind: "$admissionRecords" },
+      {
+        $match: {
+          "admissionRecords.doctor.id": new mongoose.Types.ObjectId(doctorId),
+          "admissionRecords.status": "Pending",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: 1 },
+          avgAge: { $avg: "$age" },
+          genderDistribution: {
+            $push: "$gender",
+          },
+          patientTypeDistribution: {
+            $push: "$admissionRecords.patientType",
+          },
+          todayAdmissions: {
+            $sum: {
+              $cond: [
+                {
+                  $gte: [
+                    "$admissionRecords.admissionDate",
+                    new Date(new Date().setHours(0, 0, 0, 0)),
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          thisWeekAdmissions: {
+            $sum: {
+              $cond: [
+                {
+                  $gte: [
+                    "$admissionRecords.admissionDate",
+                    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const result = stats[0] || {
+      totalPending: 0,
+      avgAge: 0,
+      genderDistribution: [],
+      patientTypeDistribution: [],
+      todayAdmissions: 0,
+      thisWeekAdmissions: 0,
+    };
+
+    // Process distributions
+    const genderCounts = result.genderDistribution.reduce((acc, gender) => {
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {});
+
+    const patientTypeCounts = result.patientTypeDistribution.reduce(
+      (acc, type) => {
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {}
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalPending: result.totalPending,
+        averageAge: Math.round(result.avgAge || 0),
+        todayAdmissions: result.todayAdmissions,
+        thisWeekAdmissions: result.thisWeekAdmissions,
+        distributions: {
+          gender: genderCounts,
+          patientType: patientTypeCounts,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error getting pending patients stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving statistics",
+    });
   }
 };
 export const getPatientDetailsForDoctor = async (req, res) => {
@@ -662,6 +1086,7 @@ export const getPatientsAssignedByDoctor = async (req, res) => {
 //   }
 // };
 export const dischargePatient = async (req, res) => {
+  //latest one
   const doctorId = req.userId;
   const { patientId, admissionId } = req.body;
   console.log("here is the detail", req.body);
@@ -851,6 +1276,277 @@ export const dischargePatient = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+// export const dischargePatient = async (req, res) => {
+//   const doctorId = req.userId;
+//   const {
+//     patientId,
+//     admissionId,
+//     conditionAtDischarge,
+//     finalDiagnosis,
+//     dischargeInstructions,
+//   } = req.body;
+
+//   // Validation
+//   if (!patientId || !admissionId || !doctorId) {
+//     return res.status(400).json({
+//       success: false,
+//       error: "Missing required parameters: patientId, admissionId, or doctorId",
+//     });
+//   }
+
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     // Fetch patient with all admission records
+//     const patient = await patientSchema
+//       .findOne({ patientId })
+//       .populate({
+//         path: "admissionRecords",
+//         populate: [
+//           { path: "followUps.nurseId", select: "name" },
+//           { path: "fourHrFollowUpSchema.nurseId", select: "name" },
+//           { path: "doctor.id", select: "name specialization" },
+//           { path: "section.id", select: "name type" },
+//         ],
+//       })
+//       .session(session);
+
+//     if (!patient) {
+//       await session.abortTransaction();
+//       return res.status(404).json({
+//         success: false,
+//         error: "Patient not found",
+//       });
+//     }
+
+//     // Find the specific admission record
+//     const admissionIndex = patient.admissionRecords.findIndex(
+//       (admission) =>
+//         admission._id.toString() === admissionId &&
+//         admission.doctor.id._id.toString() === doctorId
+//     );
+
+//     if (admissionIndex === -1) {
+//       await session.abortTransaction();
+//       return res.status(403).json({
+//         success: false,
+//         error: "Unauthorized access or admission record not found",
+//       });
+//     }
+
+//     // Extract and update the admission record
+//     const admissionRecord = patient.admissionRecords[admissionIndex];
+
+//     // Update discharge information
+//     admissionRecord.conditionAtDischarge =
+//       conditionAtDischarge ||
+//       admissionRecord.conditionAtDischarge ||
+//       "Discharged";
+//     admissionRecord.diagnosisByDoctor = finalDiagnosis
+//       ? [...(admissionRecord.diagnosisByDoctor || []), finalDiagnosis]
+//       : admissionRecord.diagnosisByDoctor;
+
+//     if (dischargeInstructions) {
+//       admissionRecord.specialInstructions.push({
+//         instruction: dischargeInstructions,
+//         date: new Date().toISOString().split("T")[0],
+//         time: new Date().toLocaleTimeString("en-US", { hour12: false }),
+//       });
+//     }
+
+//     // Fetch all related lab reports for this admission
+//     const labReports = await LabReport.find({
+//       $or: [
+//         { admissionId: admissionId },
+//         {
+//           patientId: patientId,
+//           createdAt: {
+//             $gte: admissionRecord.admissionDate,
+//             $lte: new Date(),
+//           },
+//         },
+//       ],
+//     }).session(session);
+
+//     // Remove the admission record from patient
+//     const [dischargedAdmission] = patient.admissionRecords.splice(
+//       admissionIndex,
+//       1
+//     );
+
+//     // Mark patient as discharged if no more active admissions
+//     if (patient.admissionRecords.length === 0) {
+//       patient.discharged = true;
+//     }
+
+//     // Save updated patient document
+//     await patient.save({ session });
+
+//     // Create or update patient history
+//     let patientHistory = await PatientHistory.findOne({ patientId }).session(
+//       session
+//     );
+
+//     if (!patientHistory) {
+//       patientHistory = new PatientHistory({
+//         patientId: patient.patientId,
+//         name: patient.name,
+//         gender: patient.gender,
+//         contact: patient.contact,
+//         age: patient.age,
+//         address: patient.address,
+//         dob: patient.dob,
+//         imageUrl: patient.imageUrl,
+//         history: [],
+//       });
+//     }
+
+//     // Comprehensive history entry creation
+//     const historyEntry = {
+//       admissionId: new mongoose.Types.ObjectId(admissionId),
+//       admissionDate: dischargedAdmission.admissionDate,
+//       dischargeDate: new Date(),
+//       status: dischargedAdmission.status,
+//       patientType: dischargedAdmission.patientType || "Internal",
+
+//       // Admission details
+//       admitNotes: dischargedAdmission.admitNotes,
+//       reasonForAdmission: dischargedAdmission.reasonForAdmission,
+//       doctorConsultant: dischargedAdmission.doctorConsultant || [],
+//       conditionAtDischarge: dischargedAdmission.conditionAtDischarge,
+//       amountToBePayed: dischargedAdmission.amountToBePayed,
+//       previousRemainingAmount: patient.pendingAmount || 0,
+//       weight: dischargedAdmission.weight,
+//       symptoms: dischargedAdmission.symptoms,
+//       initialDiagnosis: dischargedAdmission.initialDiagnosis,
+
+//       // Doctor and facility information
+//       doctor: {
+//         id:
+//           dischargedAdmission.doctor?.id?._id || dischargedAdmission.doctor?.id,
+//         name: dischargedAdmission.doctor?.name,
+//         usertype: dischargedAdmission.doctor?.usertype,
+//       },
+//       section: dischargedAdmission.section
+//         ? {
+//             id:
+//               dischargedAdmission.section.id?._id ||
+//               dischargedAdmission.section.id,
+//             name: dischargedAdmission.section.name,
+//             type: dischargedAdmission.section.type,
+//           }
+//         : null,
+//       bedNumber: dischargedAdmission.bedNumber,
+
+//       // Reports and references
+//       reports: dischargedAdmission.reports || [],
+
+//       // Follow-up records with complete data preservation
+//       followUps:
+//         dischargedAdmission.followUps?.map((followUp) => ({
+//           ...followUp.toObject(),
+//           nurseId: followUp.nurseId,
+//           nurseName: followUp.nurseId?.name || "Unknown",
+//         })) || [],
+
+//       fourHrFollowUpSchema:
+//         dischargedAdmission.fourHrFollowUpSchema?.map((followUp) => ({
+//           ...followUp.toObject(),
+//           nurseId: followUp.nurseId,
+//           nurseName: followUp.nurseId?.name || "Unknown",
+//         })) || [],
+
+//       // Lab reports with complete data
+//       labReports: labReports.map((report) => ({
+//         labTestNameGivenByDoctor: report.labTestNameGivenByDoctor,
+//         reports: report.reports || [],
+//         requestDate: report.createdAt,
+//         completedDate: report.updatedAt,
+//       })),
+
+//       // Medical records
+//       doctorPrescriptions:
+//         dischargedAdmission.doctorPrescriptions?.map((prescription) => ({
+//           ...prescription.toObject(),
+//         })) || [],
+
+//       doctorConsulting:
+//         dischargedAdmission.doctorConsulting?.map((consultation) => ({
+//           ...consultation.toObject(),
+//         })) || [],
+
+//       symptomsByDoctor: dischargedAdmission.symptomsByDoctor || [],
+//       diagnosisByDoctor: dischargedAdmission.diagnosisByDoctor || [],
+
+//       // Vital signs history
+//       vitals:
+//         dischargedAdmission.vitals?.map((vital) => ({
+//           ...vital.toObject(),
+//         })) || [],
+
+//       // Treatment records
+//       doctorNotes:
+//         dischargedAdmission.doctorNotes?.map((note) => ({
+//           ...note.toObject(),
+//         })) || [],
+
+//       medications:
+//         dischargedAdmission.medications?.map((medication) => ({
+//           ...medication.toObject(),
+//         })) || [],
+
+//       ivFluids:
+//         dischargedAdmission.ivFluids?.map((fluid) => ({
+//           ...fluid.toObject(),
+//         })) || [],
+
+//       procedures:
+//         dischargedAdmission.procedures?.map((procedure) => ({
+//           ...procedure.toObject(),
+//         })) || [],
+
+//       specialInstructions:
+//         dischargedAdmission.specialInstructions?.map((instruction) => ({
+//           ...instruction.toObject(),
+//         })) || [],
+//     };
+
+//     // Add the complete history entry
+//     patientHistory.history.push(historyEntry);
+//     await patientHistory.save({ session });
+
+//     // Commit the transaction
+//     await session.commitTransaction();
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Patient discharged successfully",
+//       data: {
+//         patient: {
+//           patientId: patient.patientId,
+//           name: patient.name,
+//           discharged: patient.discharged,
+//         },
+//         dischargeDate: new Date(),
+//         admissionId: admissionId,
+//       },
+//     });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     console.error("Error discharging patient:", error);
+
+//     res.status(500).json({
+//       success: false,
+//       error: "Internal server error during patient discharge",
+//       details:
+//         process.env.NODE_ENV === "development" ? error.message : undefined,
+//     });
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
 export const getAllDoctorsProfiles = async (req, res) => {
   try {
     // Find all doctors' profiles
@@ -2624,7 +3320,7 @@ export const deleteDoctorMedicine = async (req, res) => {
 export const updateMedicine = async (req, res) => {
   try {
     const doctorId = req.userId;
-    const { medicineId } = req.params;
+    const { id } = req.params;
     const { name, category, morning, afternoon, night, comment } = req.body;
 
     if (!doctorId) {
@@ -3954,6 +4650,147 @@ export const getLabReportsByAdmissionId = async (req, res) => {
       success: false,
       message: "Server error while fetching lab reports",
       error: error.message,
+    });
+  }
+};
+export const doctorBulkApproveEmergencyMedications = async (req, res) => {
+  try {
+    const { patientId, admissionId } = req.params;
+    const doctorId = req.userId;
+    const { medications } = req.body; // Array of {medicationId, approved, notes}
+
+    if (!medications || !Array.isArray(medications)) {
+      return res.status(400).json({
+        success: false,
+        message: "medications array is required",
+      });
+    }
+
+    // Get doctor details
+    const doctor = await mongoose
+      .model("hospitalDoctor")
+      .findById(doctorId)
+      .select("doctorName ")
+      .lean();
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    const results = [];
+    let addedToPatientCount = 0;
+
+    for (const med of medications) {
+      const { medicationId, approved, notes } = med;
+
+      if (!medicationId || typeof approved !== "boolean") {
+        results.push({
+          medicationId,
+          success: false,
+          message: "Invalid medicationId or approved value",
+        });
+        continue;
+      }
+
+      try {
+        const medication = await EmergencyMedication.findOne({
+          _id: medicationId,
+          patientId,
+          admissionId,
+        });
+
+        if (!medication) {
+          results.push({
+            medicationId,
+            success: false,
+            message: "Medication not found",
+          });
+          continue;
+        }
+
+        // Update doctor approval
+        medication.doctorApproval = {
+          approved,
+          doctorId,
+          doctorName: doctor.name,
+          notes: notes || "",
+          timestamp: new Date(),
+          priority: "Medium",
+        };
+
+        await medication.save();
+
+        // Check if should add to patient record
+        let addedToRecord = false;
+        if (approved && medication.status === "Approved") {
+          const patient = await patientSchema.findOne({ patientId });
+
+          if (patient) {
+            const admissionIndex = patient.admissionRecords.findIndex(
+              (record) => record._id.toString() === admissionId
+            );
+
+            if (admissionIndex !== -1) {
+              patient.admissionRecords[admissionIndex].medications.push({
+                name: `${medication.medicationName} (EMERGENCY - APPROVED)`,
+                dosage: medication.dosage,
+                type: "Emergency",
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString(),
+                // administrationStatus: "Administered",
+                // administeredBy: medication.administeredBy,
+                // administeredAt: medication.administeredAt,
+                // administrationNotes: `Emergency medication approved by Dr. ${doctor.name}`,
+              });
+
+              await patient.save();
+              addedToRecord = true;
+              addedToPatientCount++;
+            }
+          }
+        }
+
+        results.push({
+          medicationId,
+          success: true,
+          approved,
+          addedToPatientRecord: addedToRecord,
+          message: approved ? "Approved" : "Rejected",
+        });
+      } catch (error) {
+        results.push({
+          medicationId,
+          success: false,
+          message: error.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Processed ${medications.length} medications. ${addedToPatientCount} added to patient record.`,
+      data: {
+        patientId,
+        admissionId,
+        doctorName: doctor.name,
+        processedCount: medications.length,
+        addedToPatientCount,
+        results,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error bulk approving emergency medications:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process bulk approval",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
     });
   }
 };

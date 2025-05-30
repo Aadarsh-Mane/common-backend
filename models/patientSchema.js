@@ -145,37 +145,80 @@ const admissionRecordSchema = new mongoose.Schema({
       date: { type: String }, // Date of the note
     },
   ],
+  // Updated medication schema
   medications: [
     {
-      name: { type: String, required: true }, // Example: Paracetamol 500mg
-      dosage: { type: String }, // Example: Every 6 hours for 3 days
-      type: { type: String }, // Type of medication
+      name: { type: String, required: true },
+      dosage: { type: String },
+      type: { type: String },
       date: { type: String },
       time: { type: String },
+      // New fields for administration tracking
+      administrationStatus: {
+        type: String,
+        enum: ["Pending", "Administered", "Skipped"],
+        default: "Pending",
+      },
+      administeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "Nurse" },
+      administeredAt: { type: Date },
+      administrationNotes: { type: String },
     },
   ],
+
+  // Update IV fluids schema similarly
   ivFluids: [
     {
-      name: { type: String, required: true }, // Example: 0.9% Normal Saline
-      quantity: { type: String }, // Example: 500ml
-      duration: { type: String }, // Example: Over 4 hours
+      name: { type: String, required: true },
+      quantity: { type: String },
+      duration: { type: String },
       date: { type: String },
       time: { type: String },
+      // New fields for administration tracking
+      administrationStatus: {
+        type: String,
+        enum: ["Pending", "Administered", "Skipped"],
+        default: "Pending",
+      },
+      administeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "Nurse" },
+      administeredAt: { type: Date },
+      administrationNotes: { type: String },
     },
   ],
+
+  // Update procedures schema
   procedures: [
     {
-      name: { type: String, required: true }, // Example: Dressing change
-      frequency: { type: String }, // Example: Every 24 hours
+      name: { type: String, required: true },
+      frequency: { type: String },
       date: { type: String },
       time: { type: String },
+      // New fields for completion tracking
+      administrationStatus: {
+        type: String,
+        enum: ["Pending", "Completed", "Skipped"],
+        default: "Pending",
+      },
+      administeredBy: { type: mongoose.Schema.Types.ObjectId, ref: "Nurse" },
+      administeredAt: { type: Date },
+      administrationNotes: { type: String },
     },
   ],
+
+  // Update special instructions schema
   specialInstructions: [
     {
-      instruction: { type: String, required: true }, // Example: Monitor BP every 2 hours
+      instruction: { type: String, required: true },
       date: { type: String },
       time: { type: String },
+      // New fields for completion tracking
+      status: {
+        type: String,
+        enum: ["Pending", "Completed", "Skipped"],
+        default: "Pending",
+      },
+      completedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Nurse" },
+      completedAt: { type: Date },
+      completionNotes: { type: String },
     },
   ],
   diagnosisByDoctor: { type: [String] }, // Array to store diagnoses added by the doctor

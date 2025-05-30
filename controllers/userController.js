@@ -215,7 +215,7 @@ export const signupNurse = async (req, res) => {
     const result = await Nurse.create({
       email,
       password: hashedPassword,
-      usertype, // Add usertype field if needed
+      usertype: usertype === "nurseadmin" ? "nurseadmin" : "nurse", // Ensure usertype is valid
       nurseName,
     });
 

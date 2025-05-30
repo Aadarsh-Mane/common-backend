@@ -24,6 +24,7 @@ import {
   deleteNote,
   deleteSymptom,
   dischargePatient,
+  doctorBulkApproveEmergencyMedications,
   fetchConsultant,
   fetchDiagnosis,
   fetchNotes,
@@ -168,6 +169,11 @@ doctorRouter.get(
   "/getPatientInvestigationsByAdmission/:patientId/:admissionId",
   auth,
   getPatientInvestigationsByAdmission
+);
+doctorRouter.patch(
+  "/doctorBulkApproveEmergencyMedications/:patientId/:admissionId",
+  auth,
+  doctorBulkApproveEmergencyMedications
 );
 
 // userRouter.get("/profile", auth, getUserProfile);

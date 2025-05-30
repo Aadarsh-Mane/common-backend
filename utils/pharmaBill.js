@@ -73,6 +73,13 @@ export const generateBillHTML = (sale) => {
           .invoice-header p {
             margin: 5px 0;
           }
+          .license-info {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 500;
+          }
           .invoice-details {
             display: flex;
             justify-content: space-between;
@@ -145,8 +152,11 @@ export const generateBillHTML = (sale) => {
       <body>
         <div class="invoice-container">
           <div class="invoice-header">
-            <h1>PHARMACY INVOICE</h1>
+            <h1>BHOSALE MEDICO</h1>
             <p>Your Health, Our Priority</p>
+            <div class="license-info">
+              <p>License No: MH-PZ6-595873</p>
+            </div>
           </div>
           
           <div class="invoice-details">
@@ -203,7 +213,7 @@ export const generateBillHTML = (sale) => {
           
           <div class="footer">
             <p>Thank you for your purchase!</p>
-            <p>For any queries, please contact us at: pharmacy@example.com | +91 123-456-7890</p>
+            <p>For any queries, please contact us at: +91 9145481414</p>
           </div>
         </div>
       </body>

@@ -11,12 +11,17 @@ import {
   dischargePatientByReception,
   generateBillForDischargedPatient,
   generateDeclaration,
+  generateDischargeSummary,
   generateFinalReceipt,
+  generateIpdBill,
   generateOpdBill,
   generateOpdReceipt,
   getAdmittedPatients,
   getAiSggestions,
   getAllAppointments,
+  getAllPatientAmountDetails,
+  getAllPatientAmountDetailsWithBilling,
+  getAllPatientHistories,
   getAppointmentsForReceptionist,
   getAvailableBeds,
   getBasicPatientInfo,
@@ -43,6 +48,12 @@ import {
   signupNurse,
 } from "../controllers/userController.js";
 import upload from "../helpers/multer.js";
+import { getBillingAnalyticsDashboard } from "../controllers/anayltics.js";
+import {
+  deleteAdmissionRecord,
+  getPatientsWithAdmissions,
+  updatePatientInfo,
+} from "../controllers/admin/adminController.js";
 
 const receiptionRouter = express.Router();
 
@@ -61,6 +72,7 @@ receiptionRouter.get(
 receiptionRouter.post("/acceptAppointment", acceptAppointment);
 receiptionRouter.post("/dischargePatient", dischargePatientByReception);
 receiptionRouter.post("/bill", generateBillForDischargedPatient);
+receiptionRouter.post("/generateIpdBill/:patientId", generateIpdBill);
 receiptionRouter.post("/addDoctorToPatient");
 receiptionRouter.get(
   "/getDischargedPatient/:patientId",
@@ -93,6 +105,12 @@ receiptionRouter.get("/info", getBasicPatientInfo);
 receiptionRouter.get("/suggestions", getPatientSuggestions);
 receiptionRouter.get("/ai", getAiSggestions);
 receiptionRouter.post("/createAppointment", createAppointment);
+receiptionRouter.get("/getPatientsWithAdmissions", getPatientsWithAdmissions);
+receiptionRouter.delete(
+  "/deleteAdmissionRecord/:patientId/:admissionId",
+  deleteAdmissionRecord
+);
+receiptionRouter.patch("/updatePatientInfo/:patientId", updatePatientInfo);
 receiptionRouter.get(
   "/getAppointmentsForReceptionist",
   getAppointmentsForReceptionist
@@ -110,5 +128,19 @@ receiptionRouter.post("/assignBedToPatient", assignBedToPatient);
 receiptionRouter.get("/occupiedBeds/:sectionId", getOccupiedBeds);
 receiptionRouter.get("/availableBeds/:sectionId", getAvailableBeds);
 receiptionRouter.post("/addIpdDetails", addIpdDetails);
+receiptionRouter.get("/getAllPatientHistories", getAllPatientHistories);
+receiptionRouter.get("/getAllPatientAmountDetails", getAllPatientAmountDetails);
+receiptionRouter.get(
+  "/generateDischargeSummary/:patientId",
+  generateDischargeSummary
+);
+receiptionRouter.get(
+  "/getBillingAnalyticsDashboard",
+  getBillingAnalyticsDashboard
+);
+receiptionRouter.get(
+  "/getAllPatientAmountDetailsWithBilling",
+  getAllPatientAmountDetailsWithBilling
+);
 
 export default receiptionRouter;

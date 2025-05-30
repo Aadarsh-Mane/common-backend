@@ -13,6 +13,7 @@ import patientSchema from "../../models/patientSchema.js";
 import { calculateMedicationQuantity } from "./pharmaOperation.js";
 import { Medicine } from "../../models/pharma/medicineSchema.js";
 import PatientHistory from "../../models/patientHistorySchema.js";
+import EmergencySale from "../../models/emergencySales.js";
 // Helper function to generate a unique bill number
 const generateBillNumber = async () => {
   const date = new Date();
@@ -919,9 +920,16 @@ export const getAllPrescriptions = async (req, res) => {
   }
 };
 
+// Enhanced createSaleFromPatientPrescription API with emergency sale support
 export const createSaleFromPatientPrescription = async (req, res) => {
   try {
-    const { patientId, prescriptions, days, customerId } = req.body;
+    const {
+      patientId,
+      prescriptions,
+      days,
+      customerId,
+      forceCreateWithoutInventory = false, // New parameter for emergency sales
+    } = req.body;
 
     // Validate input
     if (!patientId || !prescriptions || !Array.isArray(prescriptions)) {
@@ -936,8 +944,6 @@ export const createSaleFromPatientPrescription = async (req, res) => {
     if (customerId) {
       customer = await Customer.findById(customerId);
     } else {
-      // Fetch patient data from your patient API if needed
-      // If you already have patient data in the request, use that
       const patientName = req.body.patientName;
       const patientContact = req.body.patientContact;
 
@@ -966,6 +972,7 @@ export const createSaleFromPatientPrescription = async (req, res) => {
     // Process each prescription medicine
     const saleItems = [];
     const unavailableMedicines = [];
+    const emergencyItems = []; // For tracking emergency sale items
 
     for (const prescription of prescriptions) {
       // Find medicine in pharmacy database
@@ -973,12 +980,37 @@ export const createSaleFromPatientPrescription = async (req, res) => {
         name: { $regex: prescription.medicineName, $options: "i" },
       });
 
+      // Calculate quantity based on dosage
+      const quantity = calculateMedicationQuantity(
+        prescription.morning,
+        prescription.afternoon,
+        prescription.night,
+        days || 7
+      );
+
       if (!medicine) {
-        unavailableMedicines.push({
-          name: prescription.medicineName,
-          reason: "Medicine not found in pharmacy database",
-        });
-        continue;
+        if (forceCreateWithoutInventory) {
+          // Create emergency sale item without medicine reference
+          emergencyItems.push({
+            medicineName: prescription.medicineName,
+            quantity: quantity,
+            morning: prescription.morning,
+            afternoon: prescription.afternoon,
+            night: prescription.night,
+            prescribedDate: prescription.prescribedDate,
+            // Use default values for missing medicine data
+            mrp: 0, // Will be set manually or estimated
+            batchNumber: "EMERGENCY-" + Date.now(),
+            isEmergencyItem: true,
+          });
+          continue;
+        } else {
+          unavailableMedicines.push({
+            name: prescription.medicineName,
+            reason: "Medicine not found in pharmacy database",
+          });
+          continue;
+        }
       }
 
       // Find in inventory
@@ -989,32 +1021,60 @@ export const createSaleFromPatientPrescription = async (req, res) => {
       }).sort({ expiryDate: 1 });
 
       if (!inventory) {
-        unavailableMedicines.push({
-          name: prescription.medicineName,
-          reason: "Out of stock",
-        });
-        continue;
+        if (forceCreateWithoutInventory) {
+          // Create emergency sale item with medicine reference but no inventory
+          emergencyItems.push({
+            medicineId: medicine._id,
+            medicineName: prescription.medicineName,
+            quantity: quantity,
+            morning: prescription.morning,
+            afternoon: prescription.afternoon,
+            night: prescription.night,
+            prescribedDate: prescription.prescribedDate,
+            mrp: medicine.mrp || 0,
+            batchNumber: "EMERGENCY-" + Date.now(),
+            isEmergencyItem: true,
+          });
+          continue;
+        } else {
+          unavailableMedicines.push({
+            name: prescription.medicineName,
+            reason: "Out of stock",
+          });
+          continue;
+        }
       }
-
-      // Calculate quantity based on dosage
-      const quantity = calculateMedicationQuantity(
-        prescription.morning,
-        prescription.afternoon,
-        prescription.night,
-        days || 7 // Default to 7-day supply if not specified
-      );
 
       if (inventory.quantity < quantity) {
-        unavailableMedicines.push({
-          name: prescription.medicineName,
-          reason: "Insufficient stock",
-          available: inventory.quantity,
-          required: quantity,
-        });
-        continue;
+        if (forceCreateWithoutInventory) {
+          // Create emergency sale item even with insufficient stock
+          emergencyItems.push({
+            inventoryId: inventory._id,
+            medicineId: medicine._id,
+            medicineName: prescription.medicineName,
+            quantity: quantity,
+            morning: prescription.morning,
+            afternoon: prescription.afternoon,
+            night: prescription.night,
+            prescribedDate: prescription.prescribedDate,
+            mrp: medicine.mrp || 0,
+            batchNumber: inventory.batchNumber || "EMERGENCY-" + Date.now(),
+            isEmergencyItem: true,
+            availableStock: inventory.quantity,
+          });
+          continue;
+        } else {
+          unavailableMedicines.push({
+            name: prescription.medicineName,
+            reason: "Insufficient stock",
+            available: inventory.quantity,
+            required: quantity,
+          });
+          continue;
+        }
       }
 
-      // Add to sale items
+      // Add to regular sale items (sufficient inventory available)
       saleItems.push({
         inventoryId: inventory._id,
         quantity: quantity,
@@ -1022,18 +1082,28 @@ export const createSaleFromPatientPrescription = async (req, res) => {
       });
     }
 
-    // If some medicines are unavailable, return warning
+    // Handle emergency sale creation
+    if (forceCreateWithoutInventory && emergencyItems.length > 0) {
+      return await createEmergencySale(
+        req,
+        res,
+        customer,
+        emergencyItems,
+        saleItems
+      );
+    }
+
+    // Regular sale creation logic
     if (unavailableMedicines.length > 0 && saleItems.length === 0) {
       return res.status(400).json({
         success: false,
         message: "Cannot create sale. No medicines are available.",
-        unavailableMedicines,
+        unavailableMedicines: unavailableMedicines.map((item) => item.name),
       });
     }
 
-    // Create sale
+    // Create regular sale
     if (saleItems.length > 0) {
-      // Create sale data
       const saleData = {
         customerId: customer._id,
         items: saleItems,
@@ -1047,17 +1117,351 @@ export const createSaleFromPatientPrescription = async (req, res) => {
         },
       };
 
-      // Create the sale (use your existing sale controller)
-      req.body = saleData; // Replace request body with our processed data
+      req.body = saleData;
       return await createSale(req, res);
     } else {
       return res.status(400).json({
         success: false,
         message: "Cannot create sale with no items",
-        unavailableMedicines,
+        unavailableMedicines: unavailableMedicines.map((item) => item.name),
       });
     }
   } catch (error) {
+    console.error("Error in createSaleFromPatientPrescription:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+const generateBillNumber1 = (prefix = "SALE") => {
+  const timestamp = Date.now().toString().slice(-8);
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
+  return `${prefix}-${timestamp}-${random}`;
+};
+// New function to handle emergency sales
+const createEmergencySale = async (
+  req,
+  res,
+  customer,
+  emergencyItems,
+  regularItems = []
+) => {
+  try {
+    // Create emergency sale record
+    const emergencySale = {
+      customerId: customer._id,
+      billNumber: generateBillNumber1("EMG"),
+      items: [],
+      emergencyItems: emergencyItems,
+      subtotal: 0,
+      discount: 0,
+      tax: 18,
+      total: 0,
+      paymentMethod: req.body.paymentMethod || "cash",
+      isEmergencySale: true,
+      patientInfo: {
+        patientId: req.body.patientId,
+        prescriptionDate: emergencyItems[0]?.prescribedDate || new Date(),
+        doctorNotes: req.body.doctorNotes || "",
+      },
+      createdAt: new Date(),
+      status: "completed",
+    };
+
+    // Process regular inventory items if any
+    let subtotal = 0;
+    const processedItems = [];
+
+    for (const item of regularItems) {
+      const inventory = await Inventory.findById(item.inventoryId)
+        .populate("medicine")
+        .populate("distributor");
+
+      if (inventory && inventory.quantity >= item.quantity) {
+        const itemTotal = inventory.medicine.mrp * item.quantity;
+        processedItems.push({
+          inventoryId: inventory._id,
+          medicine: inventory.medicine,
+          batchNumber: inventory.batchNumber,
+          quantity: item.quantity,
+          mrp: inventory.medicine.mrp,
+          totalAmount: itemTotal,
+          expiryDate: inventory.expiryDate,
+          distributor: inventory.distributor,
+        });
+
+        subtotal += itemTotal;
+
+        // Update inventory
+        inventory.quantity -= item.quantity;
+        await inventory.save();
+      }
+    }
+
+    // Process emergency items (estimate pricing or use default)
+    const processedEmergencyItems = [];
+    for (const item of emergencyItems) {
+      const estimatedPrice = item.mrp || 50; // Default price or estimation logic
+      const itemTotal = estimatedPrice * item.quantity;
+
+      processedEmergencyItems.push({
+        medicineName: item.medicineName,
+        medicineId: item.medicineId || null,
+        batchNumber: item.batchNumber,
+        quantity: item.quantity,
+        mrp: estimatedPrice,
+        totalAmount: itemTotal,
+        isEmergencyItem: true,
+        dosage: {
+          morning: item.morning,
+          afternoon: item.afternoon,
+          night: item.night,
+        },
+        prescribedDate: item.prescribedDate,
+        availableStock: item.availableStock || 0,
+      });
+
+      subtotal += itemTotal;
+    }
+
+    // Calculate totals
+    const taxAmount = (subtotal * emergencySale.tax) / 100;
+    const total = subtotal + taxAmount - emergencySale.discount;
+
+    // Update sale object
+    emergencySale.items = processedItems;
+    emergencySale.emergencyItems = processedEmergencyItems;
+    emergencySale.subtotal = subtotal;
+    emergencySale.total = total;
+
+    // Save emergency sale to database
+    const savedSale = await EmergencySale.create(emergencySale);
+
+    // Generate PDF invoice for emergency sale
+    const pdfUrl = await generateEmergencyInvoicePDF(savedSale, customer);
+
+    // Log emergency sale for audit
+
+    // Send notification to inventory manager
+    await sendEmergencySaleNotification({
+      saleId: savedSale._id,
+      patientId: req.body.patientId,
+      emergencyItems: processedEmergencyItems,
+      total: total,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Emergency sale created successfully",
+      data: {
+        ...savedSale.toObject(),
+        customer: customer,
+        pdfLink: pdfUrl,
+        isEmergencySale: true,
+        warning:
+          "This sale was created without full inventory tracking. Please update inventory manually.",
+      },
+    });
+  } catch (error) {
+    console.error("Error in createEmergencySale:", error);
+    throw error;
+  }
+};
+
+// Helper function to calculate medication quantity
+
+// Helper function to generate bill number
+
+// Helper function to generate emergency invoice PDF
+const generateEmergencyInvoicePDF = async (sale, customer) => {
+  try {
+    // Implementation would depend on your PDF generation library
+    // This is a placeholder for the actual PDF generation logic
+    const pdfData = {
+      saleId: sale._id,
+      billNumber: sale.billNumber,
+      customer: customer,
+      items: sale.items,
+      emergencyItems: sale.emergencyItems,
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+      total: sale.total,
+      isEmergencySale: true,
+      watermark: "EMERGENCY SALE",
+      createdAt: sale.createdAt,
+    };
+
+    // Generate PDF and upload to cloud storage
+    const pdfBuffer = await generatePdf(pdfData);
+    const pdfUrl = await uploadToDrive(
+      pdfBuffer,
+      `emergency-invoice-${sale.billNumber}.pdf`
+    );
+
+    return pdfUrl;
+  } catch (error) {
+    console.error("Error generating emergency PDF:", error);
+    return null;
+  }
+};
+
+// Helper function to send emergency sale notification
+const sendEmergencySaleNotification = async (notificationData) => {
+  try {
+    // Send email notification to inventory manager
+    const emailData = {
+      to: process.env.INVENTORY_MANAGER_EMAIL,
+      subject: `Emergency Sale Created - ${notificationData.saleId}`,
+      template: "emergency-sale-notification",
+      data: notificationData,
+    };
+
+    await sendEmail(emailData);
+
+    // Send internal system notification
+    await SystemNotification.create({
+      type: "EMERGENCY_SALE",
+      title: "Emergency Sale Created",
+      message: `Emergency sale for patient ${notificationData.patientId} with ${notificationData.emergencyItems.length} items`,
+      data: notificationData,
+      priority: "high",
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error("Error sending emergency sale notification:", error);
+  }
+};
+
+// Database schema for emergency sales (Mongoose example)
+
+// API endpoint to get emergency sales report
+export const getEmergencySalesReport = async (req, res) => {
+  try {
+    const { startDate, endDate, page = 1, limit = 10 } = req.query;
+
+    const query = { isEmergencySale: true };
+
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+
+    const emergencySales = await EmergencySale.find(query)
+      .populate("customerId")
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await EmergencySale.countDocuments(query);
+
+    const summary = await EmergencySale.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalSales: { $sum: 1 },
+          totalAmount: { $sum: "$total" },
+          totalEmergencyItems: { $sum: { $size: "$emergencyItems" } },
+        },
+      },
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        sales: emergencySales,
+        pagination: {
+          current: page,
+          total: Math.ceil(total / limit),
+          count: emergencySales.length,
+          totalRecords: total,
+        },
+        summary: summary[0] || {
+          totalSales: 0,
+          totalAmount: 0,
+          totalEmergencyItems: 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching emergency sales report:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// API endpoint to update inventory after emergency sale
+export const updateInventoryAfterEmergencySale = async (req, res) => {
+  try {
+    const { emergencySaleId, inventoryUpdates } = req.body;
+
+    const emergencySale = await EmergencySale.findById(emergencySaleId);
+    if (!emergencySale) {
+      return res.status(404).json({
+        success: false,
+        message: "Emergency sale not found",
+      });
+    }
+
+    // Process inventory updates
+    for (const update of inventoryUpdates) {
+      const {
+        emergencyItemId,
+        medicineId,
+        batchNumber,
+        actualMrp,
+        addToInventory,
+      } = update;
+
+      if (addToInventory) {
+        // Add the medicine to inventory if it wasn't there before
+        await Inventory.create({
+          medicine: medicineId,
+          batchNumber: batchNumber,
+          quantity: 0, // Start with 0, will be updated separately
+          mrp: actualMrp,
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+          distributor: null, // To be updated separately
+        });
+      }
+
+      // Update the emergency item with actual pricing
+      const emergencyItem = emergencySale.emergencyItems.id(emergencyItemId);
+      if (emergencyItem) {
+        emergencyItem.mrp = actualMrp;
+        emergencyItem.totalAmount = actualMrp * emergencyItem.quantity;
+      }
+    }
+
+    // Recalculate totals
+    const newSubtotal = [
+      ...emergencySale.items,
+      ...emergencySale.emergencyItems,
+    ].reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+
+    const newTaxAmount = (newSubtotal * emergencySale.tax) / 100;
+    const newTotal = newSubtotal + newTaxAmount - emergencySale.discount;
+
+    emergencySale.subtotal = newSubtotal;
+    emergencySale.total = newTotal;
+    emergencySale.updatedAt = new Date();
+
+    await emergencySale.save();
+
+    res.json({
+      success: true,
+      message: "Inventory updated successfully for emergency sale",
+      data: emergencySale,
+    });
+  } catch (error) {
+    console.error("Error updating inventory after emergency sale:", error);
     res.status(500).json({
       success: false,
       message: error.message,

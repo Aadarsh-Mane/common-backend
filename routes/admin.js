@@ -4,6 +4,7 @@ import {
   createSection,
   deleteSection,
   getAllSections,
+  getPatientsWithAdmissions,
   getSectionById,
   getSectionTypes,
   updateSection,
@@ -22,5 +23,6 @@ adminRouter.post("/createSection", createSection);
 adminRouter.get("/:id", getSectionById);
 adminRouter.patch("/updateSection/:id", updateSection);
 adminRouter.delete("/deleteSection/:id", deleteSection);
+// adminRouter.get("/getPatientsWithAdmissions", getPatientsWithAdmissions);
 
 export default adminRouter;
