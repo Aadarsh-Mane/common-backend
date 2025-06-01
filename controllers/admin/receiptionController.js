@@ -25,8 +25,17 @@ import PatientAppointment from "../../models/appointmentSchema.js";
 import externalDoctors from "../../models/externalDoctor.js";
 import Section from "../../models/sectionSchema.js";
 import BillingRecord from "../../models/hospitalSchema.js";
-import { generateDischargeSummaryHTML } from "../../utils/dischargeSummary.js";
-import { generateDischargeBillHTML } from "../../utils/dischargeBill.js";
+import {
+  generateDischargeSummaryHTML,
+  generateManualDischargeSummaryHTML,
+} from "../../utils/dischargeSummary.js";
+import {
+  generateDischargeBillHTML,
+  generateOPDBillHTML,
+} from "../../utils/dischargeBill.js";
+import Bill from "../../models/billtrachSchema.js";
+import DepositReceipt from "../../models/depositSchema.js";
+import { generateDepositReceiptHTML } from "../../utils/depositBill.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -2721,336 +2730,399 @@ export const getLastRecordWithFollowUps = async (req, res) => {
   }
 };
 // Import necessary modules (e.g., your database model if needed)
-export const generateOpdBill = async (req, res) => {
+export const generateOPDBill = async (req, res) => {
+  const { patientId } = req.params;
+  const userId = req.userId; // Receptionist ID from auth middleware
+  const {
+    services: {
+      ecg = { quantity: 0, rate: 0 },
+      xray = { quantity: 0, rate: 0 },
+      injection = { quantity: 0, rate: 0 },
+      dialysis = { quantity: 0, rate: 0 },
+      dressing = { quantity: 0, rate: 0 },
+    } = {},
+    consultationFee = 0,
+    additionalCharges = [],
+    discount = 0,
+    paymentMode = "Cash",
+    notes = "",
+    paidAmount = 0,
+    transactionId = "",
+    chequeNumber = "",
+    bankName = "",
+    // Options
+    uploadToDriveFlag = true,
+  } = req.body;
+
   try {
-    // Extract patient history, lab charges, other charges, and dates from the request body
-    const { patientId, labCharges, otherCharges, labDate, otherChargesDate } =
-      req.body;
-    console.log(patientId);
-    const patient = await patientSchema.findOne({ patientId });
-    console.log("here is patient", patient);
-    if (!patient) {
-      return res.status(404).json({ error: "Patient not found." });
-    }
-    const patientHistory = await PatientHistory.findOne({ patientId });
+    // Get doctor charges from latest record
 
-    // Ensure all required fields are provided
-    // if (!labCharges || !otherCharges || !labDate || !otherChargesDate) {
-    //   return res.status(400).json({
-    //     message:
-    //       "All fields (patientHistory, labCharges, otherCharges, labDate, otherChargesDate) are required.",
-    //   });
-    // }
-    function cleanDate(rawDate) {
-      // Using moment to parse the date and remove the timezone and GMT
-      const cleanedDate = moment(rawDate).format("YYYY-MM-DD HH:mm:ss");
-      return cleanedDate;
+    // Validate that at least one service, consultation fee, or doctor charges is provided
+    const totalServices = Object.values({
+      ecg,
+      xray,
+      injection,
+      dialysis,
+      dressing,
+    }).reduce((sum, service) => sum + service.quantity * service.rate, 0);
+
+    if (totalServices === 0 && consultationFee === 0) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "At least one service, consultation fee, or doctor charges must be provided",
+        code: "NO_SERVICES_PROVIDED",
+      });
     }
 
-    // Retrieve the last record from the patient's history
-    const lastRecord =
-      patientHistory.history[patientHistory.history.length - 1];
-    const { amountToBePayed } = lastRecord;
-    const {
-      name,
-      gender,
-      contact,
-      weight,
-      age,
-      admissionDate,
-      dischargeDate,
-      reasonForAdmission,
-      conditionAtDischarge,
-      doctor,
-    } = lastRecord;
-    const cleanedAdmissionDate = cleanDate(admissionDate);
-    const cleanedDischargeDate = cleanDate(dischargeDate);
-    // Calculate the new total amount by including lab charges and other charges
-    // const totalAmount = amountToBePayed + labCharges + otherCharges;
-    const totalAmount =
-      amountToBePayed + (labCharges?.amount || 0) + (otherCharges?.amount || 0);
-    const now = new Date();
-    const data = {
-      date: now.toISOString().split("T")[0], // Extracts the date in YYYY-MM-DD format
-      time: now.toTimeString().split(" ")[0], // Extracts the time in HH:MM:SS format
-    };
-    const billDetails = {
-      patientId: patientId,
-      name: patient.name,
-      gender: patient.gender,
-      contact: patient.contact,
-      weight: weight,
-      age: patient.age,
-      admissionDate: cleanedAdmissionDate,
-      dischargeDate: cleanedDischargeDate,
-      reasonForAdmission: reasonForAdmission,
-      conditionAtDischarge: conditionAtDischarge,
-      doctor: doctor.name,
-      labCharges: labCharges,
-      otherCharges: otherCharges,
-      labDate: labDate,
-      date: data.date,
-      time: data.time,
-      amountToBePayed: amountToBePayed,
-      otherChargesDate: otherChargesDate,
-      totalAmount: totalAmount,
-    };
-    const billHTML = ` <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospital Bill</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            font-size: 12px;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 20px;
-        }
-        img {
-            background-color: transparent;
-        }
-        .header img {
-            margin-bottom: 10px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 22px;
-            color: #333;
-        }
-        .header p {
-            margin: 5px 0;
-            font-size: 12px;
-            color: #555;
-        }
-        .header-details {
-            margin: 20px 0;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-        .header-details strong {
-            color: #000;
-        }
-        .patient-details {
-            margin: 20px 0;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            display: flex;
-            flex-wrap: wrap;
-        }
-        .patient-details div {
-            width: 50%;
-            margin-bottom: 10px;
-        }
-        .patient-details div strong {
-            color: #000;
-        }
-        .charges {
-            margin-top: 20px;
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .charges th, .charges td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .charges th {
-            background-color: #f7f7f7;
-            font-size: 14px;
-        }
-        .charges td {
-            font-size: 12px;
-        }
-        .charges tr:hover {
-            background-color: #f0f0f0;
-        }
-        .charges th[colspan="5"] {
-            text-align: left;
-            font-size: 14px;
-            font-weight: bold;
-            background-color: #e0e0e0;
-        }
-        .summary {
-            margin-top: 30px;
-            background-color: #f9f9f9;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #ddd;
-        }
-        .summary h2 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #444;
-        }
-        .summary p {
-            margin: 10px 0;
-            font-size: 14px;
-            color: #333;
-        }
-        .summary strong {
-            color: #000;
-        }
-        @page {
-            size: A4;
-            margin: 20mm;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Logo" />
-        <h1>Hospital Bill</h1>
-    </div>
-    <div class="patient-details">
-        <div><strong>Patient ID:</strong> <span id="patientId">${
-          billDetails.patientId || "N/A"
-        }</span></div>
-        <div><strong>Patient Name:</strong> <span id="name">${
-          billDetails.name || "N/A"
-        }</span></div>
-        <div><strong>Gender:</strong> <span id="gender">${
-          billDetails.gender || "N/A"
-        }</span></div>
-        <div><strong>Contact:</strong> <span id="contact">${
-          billDetails.contact || "N/A"
-        }</span></div>
-        <div><strong>Weight:</strong> <span id="weight">${
-          billDetails.weight || "N/A"
-        }</span></div>
-        <div><strong>Age:</strong> <span id="age">${
-          billDetails.age || "N/A"
-        }</span></div>
-        <div><strong>Admission Date:</strong> <span id="admissionDate">${
-          billDetails.admissionDate || "N/A"
-        }</span></div>
-        <div><strong>Discharge Date:</strong> <span id="dischargeDate">${
-          billDetails.dischargeDate || "N/A"
-        }</span></div>
-        <div><strong>Reason for Admission:</strong> <span id="reasonForAdmission">${
-          billDetails.reasonForAdmission || "N/A"
-        }</span></div>
-        <div><strong>Condition at Discharge:</strong> <span id="conditionAtDischarge">${
-          billDetails.conditionAtDischarge || "N/A"
-        }</span></div>
-        <div><strong>Doctor:</strong> <span id="doctor">${
-          billDetails.doctor || "N/A"
-        }</span></div>
-      
-        <div>
-  <strong>Date & Time:</strong> 
-  <span id="dateTime">
-    ${billDetails.date ? billDetails.date : "N/A"} ${
-      billDetails.time ? billDetails.time : ""
+    // Fetch patient history for basic info
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name specialization license")
+      .populate("history.section.id", "name type department");
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient history not found",
+        code: "PATIENT_HISTORY_NOT_FOUND",
+      });
     }
-  </span>
-</div>
 
-    </div>
-    <table class="charges">
-        <tr>
-            <th>Description</th>
-            <th>Charges</th>
-            <th>Date</th>
-            <th>Total</th>
-        </tr>
-        <tr>
-            <td>Lab Charges</td>
-            <td>${billDetails.labCharges.amount || 0}</td>
-            <td>${billDetails.labCharges.date || "N/A"}</td>
-            <td>${billDetails.labCharges.amount || 0}</td>
-        </tr>
-        <tr>
-            <td>Other Charges</td>
-            <td>${billDetails.otherCharges.amount || 0}</td>
-            <td>${billDetails.otherCharges.date || "N/A"}</td>
-            <td>${billDetails.otherCharges.amount || 0}</td>
-        </tr>
-        <tr>
-            <td><strong>Doctor Charges</strong></td>
-            <td colspan="2"></td>
-            <td><strong>${billDetails.amountToBePayed || 0}</strong></td>
-        </tr>
-        <tr>
-            <td><strong>Total Amount</strong></td>
-            <td colspan="2"></td>
-            <td><strong>${billDetails.totalAmount || 0}</strong></td>
-        </tr>
-    </table>
-</body>
-</html>
+    // Get latest admission/visit record for doctor info
+    let latestRecord = null;
+    if (patientHistory.history && patientHistory.history.length > 0) {
+      latestRecord = patientHistory.history[patientHistory.history.length - 1];
+    }
 
-
-`;
-    const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
-    });
-    // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
-    const page = await browser.newPage();
-    await page.setContent(billHTML);
-    const pdfBuffer = await page.pdf({ format: "A4" });
-    await browser.close();
-
-    // Authenticate with Google Drive API
-    const auth = new google.auth.GoogleAuth({
-      credentials: ServiceAccount,
-      scopes: ["https://www.googleapis.com/auth/drive"],
-    });
-    const drive = google.drive({ version: "v3", auth });
-
-    // Convert PDF buffer into a readable stream
-    const bufferStream = new Readable();
-    bufferStream.push(pdfBuffer);
-    bufferStream.push(null);
-
-    // Folder ID in Google Drive
-    const folderId = "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV";
-
-    // Upload PDF to Google Drive
-    const driveFile = await drive.files.create({
-      resource: {
-        name: `Bill_${patientId}.pdf`,
-        parents: [folderId],
+    // Calculate service tota    const doctorCharges = latestRecord?.amountToBePayed || 0;
+    const doctorCharges = latestRecord?.amountToBePayed || 0;
+    console.log("Doctor Charges:", doctorCharges);
+    const serviceCalculations = {
+      ecg: {
+        quantity: ecg.quantity || 0,
+        rate: ecg.rate || 0,
+        total: (ecg.quantity || 0) * (ecg.rate || 0),
       },
-      media: {
-        mimeType: "application/pdf",
-        body: bufferStream,
+      xray: {
+        quantity: xray.quantity || 0,
+        rate: xray.rate || 0,
+        total: (xray.quantity || 0) * (xray.rate || 0),
       },
-      fields: "id, webViewLink",
+      injection: {
+        quantity: injection.quantity || 0,
+        rate: injection.rate || 0,
+        total: (injection.quantity || 0) * (injection.rate || 0),
+      },
+      dialysis: {
+        quantity: dialysis.quantity || 0,
+        rate: dialysis.rate || 0,
+        total: (dialysis.quantity || 0) * (dialysis.rate || 0),
+      },
+      dressing: {
+        quantity: dressing.quantity || 0,
+        rate: dressing.rate || 0,
+        total: (dressing.quantity || 0) * (dressing.rate || 0),
+      },
+    };
+
+    // Calculate additional charges total
+    const additionalChargesTotal = additionalCharges.reduce((sum, charge) => {
+      return sum + (charge.quantity || 0) * (charge.rate || 0);
+    }, 0);
+
+    // Get doctor charges from latest record
+
+    // Calculate totals
+    const servicesSubTotal = Object.values(serviceCalculations).reduce(
+      (sum, service) => sum + service.total,
+      0
+    );
+
+    const subTotal =
+      servicesSubTotal +
+      consultationFee +
+      additionalChargesTotal +
+      doctorCharges;
+    const discountAmount = (discount / 100) * subTotal;
+    const grandTotal = subTotal - discountAmount;
+
+    // Generate bill number
+    const billNumber = `OPD${Date.now()}${Math.floor(Math.random() * 100)}`;
+    const billNumber1 = await Bill.generateBillNumber("OPD");
+    const servicesArray = [];
+
+    // Add main services
+    Object.entries(serviceCalculations).forEach(([serviceName, service]) => {
+      if (service.total > 0) {
+        servicesArray.push({
+          name: serviceName.toUpperCase(),
+          description: getServiceDescription(serviceName),
+          quantity: service.quantity,
+          rate: service.rate,
+          total: service.total,
+          category: getServiceCategory(serviceName),
+        });
+      }
+    });
+    // Add consultation fee as service
+    if (consultationFee > 0) {
+      servicesArray.push({
+        name: "CONSULTATION",
+        description: "Doctor Consultation Fee",
+        quantity: 1,
+        rate: consultationFee,
+        total: consultationFee,
+        category: "consultation",
+      });
+    }
+
+    // Add doctor charges as service
+    if (doctorCharges > 0) {
+      servicesArray.push({
+        name: "DOCTOR_CHARGES",
+        description: "Doctor Treatment Charges",
+        quantity: 1,
+        rate: doctorCharges,
+        total: doctorCharges,
+        category: "treatment",
+      });
+    }
+
+    // Add additional charges
+    additionalCharges.forEach((charge, index) => {
+      if (charge.quantity > 0 && charge.rate > 0) {
+        servicesArray.push({
+          name: charge.name || `ADDITIONAL_${index + 1}`,
+          description:
+            charge.description ||
+            charge.name ||
+            `Additional Charge ${index + 1}`,
+          quantity: charge.quantity,
+          rate: charge.rate,
+          total: charge.quantity * charge.rate,
+          category: "other",
+        });
+      }
     });
 
-    // Extract file's public link
-    const fileLink = driveFile.data.webViewLink;
-    // Send the generated OPD bill in the response
-    return res.status(200).json({
+    const billRecord = new Bill({
+      billNumber: billNumber1,
+      billType: "OPD",
+
+      // Patient information
+      patient: {
+        patientId: patientHistory.patientId,
+        name: patientHistory.name,
+        age: patientHistory.age,
+        gender: patientHistory.gender,
+        contact: patientHistory.contact,
+        address: patientHistory.address,
+      },
+
+      // Admission details (minimal for OPD)
+      admission: latestRecord
+        ? {
+            admissionId: latestRecord.admissionId,
+            attendingDoctor: {
+              id: latestRecord.doctor?.id,
+              name: latestRecord.doctor?.name || "Not specified",
+            },
+            department: {
+              id: latestRecord.section?.id,
+              name: latestRecord.section?.name || "OPD",
+              type: latestRecord.section?.type || "OPD",
+            },
+          }
+        : {
+            attendingDoctor: { name: "OPD Doctor" },
+            department: { name: "OPD", type: "OPD" },
+          },
+
+      // Bill generation details
+      generatedBy: {
+        id: userId,
+        role: "Receptionist", // or get from user model
+      },
+
+      // Services
+      services: servicesArray,
+
+      // Financial calculations
+      financials: {
+        servicesTotal: servicesSubTotal,
+        consultationFee: consultationFee,
+        doctorCharges: doctorCharges,
+        subTotal: subTotal,
+        discountPercent: discount,
+        discountAmount: discountAmount,
+        grandTotal: grandTotal,
+        dueAmount: grandTotal,
+        paidAmount: 0,
+      },
+
+      // Payment if any
+      payments:
+        paidAmount > 0
+          ? [
+              {
+                amount: paidAmount,
+                paymentMode: paymentMode,
+                transactionId: transactionId || undefined,
+                chequeNumber: chequeNumber || undefined,
+                bankName: bankName || undefined,
+                paymentDate: new Date(),
+                notes: `OPD payment via ${paymentMode}`,
+              },
+            ]
+          : [],
+
+      // Additional information
+      notes: notes,
+
+      // Status
+      status: "Generated",
+    });
+    // Prepare bill data
+    const billData = {
+      // Patient info (from patient history)
+      patientName: patientHistory.name,
+      patientId: patientHistory.patientId,
+      age: patientHistory.age || "N/A",
+      gender: patientHistory.gender || "N/A",
+      address: patientHistory.address || "N/A",
+      contact: patientHistory.contact || "N/A",
+
+      // Doctor info (from latest record)
+      consultantDoctor: latestRecord?.doctor?.name || "N/A",
+
+      // Bill details
+      billNumber: billNumber,
+      billDate: new Date().toLocaleDateString("en-GB"),
+      billTime: new Date().toLocaleTimeString("en-US", {
+        hour12: true,
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+
+      // Services
+      services: serviceCalculations,
+      consultationFee: consultationFee,
+      doctorCharges: doctorCharges,
+      additionalCharges: additionalCharges,
+
+      // Calculations
+      servicesSubTotal: servicesSubTotal,
+      subTotal: subTotal,
+      discount: discount,
+      discountAmount: discountAmount,
+      grandTotal: grandTotal,
+
+      // Payment details
+      paymentMode: paymentMode,
+      notes: notes,
+
+      // Meta info
+      generatedBy: userId,
+      generatedAt: new Date(),
+      isOPDBill: true,
+    };
+
+    console.log(
+      `Generating OPD bill for patient ${patientId}, Bill No: ${billNumber}`
+    );
+
+    // Generate HTML and PDF
+    const htmlContent = generateOPDBillHTML(billData);
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Generate filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `OPD_Bill_${billNumber}_${sanitizedName}_${timestamp}.pdf`;
+
+    // Upload to Drive if requested
+    let driveLink = null;
+    if (uploadToDriveFlag) {
+      const folderId =
+        process.env.OPD_BILLS_FOLDER_ID || "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+      try {
+        driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        console.log(`OPD bill uploaded to Drive: ${driveLink}`);
+      } catch (uploadError) {
+        console.error("Error uploading to Drive:", uploadError);
+      }
+    }
+    billRecord.files = {
+      pdfFileName: fileName,
+      driveLink: driveLink,
+      pdfSize: pdfBuffer.length,
+      uploadedAt: new Date(),
+    };
+
+    // Save bill record
+    await billRecord.save();
+
+    res.status(200).json({
+      success: true,
       message: "OPD bill generated successfully",
-      fileLink: fileLink,
+      data: {
+        fileName,
+        driveLink,
+        pdfSize: pdfBuffer.length,
+        generatedAt: billData.generatedAt,
+        billInfo: {
+          billNumber: billData.billNumber,
+          patientName: billData.patientName,
+          grandTotal: billData.grandTotal,
+          paymentMode: billData.paymentMode,
+        },
+        billBreakdown: {
+          servicesTotal: billData.servicesSubTotal,
+          consultationFee: billData.consultationFee,
+          doctorCharges: billData.doctorCharges,
+          additionalCharges: billData.additionalCharges,
+          subTotal: billData.subTotal,
+          discount: billData.discount,
+          discountAmount: billData.discountAmount,
+          grandTotal: billData.grandTotal,
+        },
+      },
     });
   } catch (error) {
-    // Handle errors
     console.error("Error generating OPD bill:", error);
-    return res.status(500).json({
-      message: "An error occurred while generating the OPD bill.",
-      error: error.message,
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate OPD bill",
+      code: "OPD_BILL_GENERATION_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
+function getServiceDescription(serviceName) {
+  const descriptions = {
+    ecg: "Electrocardiogram",
+    xray: "X-Ray Examination",
+    injection: "Injection Service",
+    dialysis: "Dialysis Treatment",
+    dressing: "Wound Dressing",
+  };
+  return descriptions[serviceName] || serviceName;
+}
 
+/**
+ * Get service category
+ */
+function getServiceCategory(serviceName) {
+  const categories = {
+    ecg: "diagnostic",
+    xray: "diagnostic",
+    injection: "treatment",
+    dialysis: "treatment",
+    dressing: "treatment",
+  };
+  return categories[serviceName] || "other";
+}
 export const generateOpdReceipt = async (req, res) => {
   try {
     const { patientId, billingAmount, amountPaid } = req.body;
@@ -3248,53 +3320,17 @@ export const generateOpdReceipt = async (req, res) => {
 </html>
 
 `;
-    const browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-      ],
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/usr/bin/google-chrome-stable",
-    });
-    // console.log("check thei path", process.env.PUPPETEER_EXECUTABLE_PATH);
-    const page = await browser.newPage();
-    await page.setContent(receiptHtml);
-    const pdfBuffer = await page.pdf({ format: "A4" });
-    await browser.close();
 
-    // Authenticate with Google Drive API
-    const auth = new google.auth.GoogleAuth({
-      credentials: ServiceAccount,
-      scopes: ["https://www.googleapis.com/auth/drive"],
-    });
-    const drive = google.drive({ version: "v3", auth });
+    // Generate PDF using reusable function
+    const pdfBuffer = await generatePdf(receiptHtml);
 
-    // Convert PDF buffer into a readable stream
-    const bufferStream = new Readable();
-    bufferStream.push(pdfBuffer);
-    bufferStream.push(null);
+    // Generate filename
+    const fileName = `Bill_${patientId}.pdf`;
 
-    // Folder ID in Google Drive
+    // Upload to Drive using reusable function
     const folderId = "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV";
+    const fileLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
-    // Upload PDF to Google Drive
-    const driveFile = await drive.files.create({
-      resource: {
-        name: `Bill_${patientId}.pdf`,
-        parents: [folderId],
-      },
-      media: {
-        mimeType: "application/pdf",
-        body: bufferStream,
-      },
-      fields: "id, webViewLink",
-    });
-
-    // Extract file's public link
-    const fileLink = driveFile.data.webViewLink;
     await billingRecord.save();
     return res.status(200).json({
       message: "OPD receipt generated successfully.",
@@ -5437,6 +5473,7 @@ export const generateIpdBill = async (req, res) => {
       discount,
       advance
     );
+    const billNumber = await Bill.generateBillNumber("IPD");
 
     // Generate HTML content for bill
     const htmlContent = generateDischargeBillHTML(
@@ -5467,6 +5504,97 @@ export const generateIpdBill = async (req, res) => {
         console.error("Error uploading bill to Drive:", uploadError);
       }
     }
+    const billRecord = new Bill({
+      billNumber,
+      billType: "IPD",
+
+      // Patient information
+      patient: {
+        patientId: patientHistory.patientId,
+        name: patientHistory.name,
+        age: patientHistory.age,
+        gender: patientHistory.gender,
+        contact: patientHistory.contact,
+        address: patientHistory.address,
+      },
+
+      // Admission details
+      admission: {
+        admissionId: admissionHistory.admissionId,
+        admissionDate: admissionDate,
+        dischargeDate: dischargeDate,
+        lengthOfStay: lengthOfStay,
+        attendingDoctor: {
+          id: admissionHistory.doctor?.id,
+          name: admissionHistory.doctor?.name || "Not specified",
+        },
+        department: {
+          id: admissionHistory.section?.id,
+          name: admissionHistory.section?.name || "Not specified",
+          type: admissionHistory.section?.type,
+        },
+        bedNumber: admissionHistory.bedNumber,
+        roomType: admissionHistory.section?.type || "General",
+      },
+
+      // Bill generation details
+
+      // Charges breakdown
+      chargesBreakdown: processedCharges,
+
+      // Financial calculations
+      financials: {
+        subTotal: billCalculations.totalCharges,
+        discountPercent:
+          discount > billCalculations.totalCharges
+            ? 0
+            : (discount / billCalculations.totalCharges) * 100,
+        discountAmount: billCalculations.discount,
+        advance: billCalculations.advance,
+        grandTotal: billCalculations.finalAmount,
+        dueAmount: billCalculations.finalAmount,
+        paidAmount: 0,
+      },
+
+      // Initial payment if advance was given
+      payments:
+        advance > 0
+          ? [
+              {
+                amount: advance,
+                paymentMode: "Advance",
+                paymentDate: admissionDate,
+                notes: "Advance payment at admission",
+              },
+            ]
+          : [],
+
+      // File management
+      files: {
+        pdfFileName: fileName,
+        driveLink: driveLink,
+        pdfSize: pdfBuffer.length,
+        uploadedAt: new Date(),
+      },
+
+      // Additional information
+
+      // Status
+      status: "Generated",
+      paymentStatus:
+        advance >= billCalculations.finalAmount
+          ? "Paid"
+          : advance > 0
+          ? "Partial"
+          : "Pending",
+    });
+
+    // Save bill record
+    await billRecord.save();
+
+    console.log(
+      `IPD Bill generated and saved: ${billNumber} for patient ${patientId}`
+    );
 
     // Return JSON response with bill data
     res.status(200).json({
@@ -5670,3 +5798,845 @@ function getChargeDescription(chargeType) {
 /**
  * Generate HTML content for discharge bill
  */
+export const generateManualDischargeSummary = async (req, res) => {
+  const { patientId } = req.params;
+  const userId = req.userId;
+  const {
+    "Final Diagnosis": finalDiagnosis,
+    Complaints: complaints,
+    "Past History": pastHistory,
+    "Exam Findings": examFindings,
+    "General Exam": generalExam,
+    Radiology: radiology,
+    Pathology: pathology,
+    Operation: operation,
+    "Treatment Given": treatmentGiven,
+    "Condition on Discharge": conditionOnDischarge,
+
+    // Options
+    uploadToDriveFlag = true,
+    template = "standard",
+  } = req.body;
+
+  try {
+    // Validate required fields
+    const requiredFields = {
+      "Final Diagnosis": finalDiagnosis,
+      Complaints: complaints,
+      "Exam Findings": examFindings,
+      "Condition on Discharge": conditionOnDischarge,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(
+        ([key, value]) =>
+          !value ||
+          (Array.isArray(value) && value.length === 0) ||
+          (typeof value === "string" && value.trim() === "")
+      )
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+        code: "MISSING_REQUIRED_FIELDS",
+        missingFields,
+      });
+    }
+
+    // Fetch patient history for basic info
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name specialization license")
+      .populate("history.section.id", "name type department");
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient history not found",
+        code: "PATIENT_HISTORY_NOT_FOUND",
+      });
+    }
+
+    // Get latest admission for default values
+    let latestAdmission = null;
+    if (patientHistory.history && patientHistory.history.length > 0) {
+      latestAdmission =
+        patientHistory.history[patientHistory.history.length - 1];
+    }
+
+    // Helper function to format arrays into readable text
+    const formatArrayToText = (arr) => {
+      if (!arr || !Array.isArray(arr)) return "N/A";
+      return arr.join("\n");
+    };
+
+    // Helper function to format General Exam object
+    const formatGeneralExam = (examObj) => {
+      if (!examObj || typeof examObj !== "object") return "N/A";
+      const examParts = [];
+      if (examObj.Temp) examParts.push(`Temp : ${examObj.Temp}`);
+      if (examObj.Pulse) examParts.push(`Pulse : ${examObj.Pulse}`);
+      if (examObj.BP) examParts.push(`BP : ${examObj.BP}`);
+      if (examObj.SPO2) examParts.push(`SPO2 : ${examObj.SPO2}`);
+      return examParts.length > 0 ? examParts.join(", ") : "N/A";
+    };
+
+    // Helper function to format Operation object
+    const formatOperation = (opObj) => {
+      if (!opObj || typeof opObj !== "object") return "N/A";
+      let operationText = "";
+
+      if (opObj.Type) operationText += `${opObj.Type}`;
+      if (opObj.Date) operationText += ` On : ${opObj.Date}`;
+      if (opObj.Surgeon) operationText += `\nSurgeon : ${opObj.Surgeon}`;
+      if (opObj.Anaesthetist)
+        operationText += `\nAnaesthetist : ${opObj.Anaesthetist}`;
+      if (opObj["Anaesthesia Type"])
+        operationText += `, Type : ${opObj["Anaesthesia Type"]}`;
+
+      if (opObj.Procedure && Array.isArray(opObj.Procedure)) {
+        operationText += "\nPROCEDURE -" + opObj.Procedure.join("\n");
+      }
+
+      return operationText || "N/A";
+    };
+
+    // Prepare summary data extracting from patient history
+    const summaryData = {
+      // Extract patient basic info from patient history
+      patientName: patientHistory.name,
+      age: patientHistory.age || "N/A",
+      sex: patientHistory.gender || "N/A",
+      address: patientHistory.address || "N/A",
+
+      // Extract admission details from latest admission
+      ipdNo: latestAdmission?.admissionId?.toString().slice(-4) || "N/A",
+      consultant: latestAdmission?.doctor?.name || "N/A",
+      admissionDate: latestAdmission?.admissionDate
+        ? new Date(latestAdmission.admissionDate).toLocaleDateString("en-GB")
+        : "N/A",
+      admissionTime: latestAdmission?.admissionDate
+        ? new Date(latestAdmission.admissionDate).toLocaleTimeString("en-US", {
+            hour12: true,
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "N/A",
+      dischargeDate: latestAdmission?.dischargeDate
+        ? new Date(latestAdmission.dischargeDate).toLocaleDateString("en-GB")
+        : new Date().toLocaleDateString("en-GB"),
+      dischargeTime: latestAdmission?.dischargeDate
+        ? new Date(latestAdmission.dischargeDate).toLocaleTimeString("en-US", {
+            hour12: true,
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : new Date().toLocaleTimeString("en-US", {
+            hour12: true,
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+
+      // Format clinical data from manual input
+      finalDiagnosis: finalDiagnosis || "N/A",
+      complaints: formatArrayToText(complaints),
+      pastHistory:
+        formatArrayToText(pastHistory) || "NO H/O - ANY DRUG ALLERGY",
+      examFindings: formatArrayToText(examFindings),
+      generalExam: formatGeneralExam(generalExam),
+      radiology: formatArrayToText(radiology),
+      pathology: formatArrayToText(pathology),
+      operation: formatOperation(operation),
+      treatmentGiven: formatArrayToText(treatmentGiven),
+      conditionOnDischarge: conditionOnDischarge || "N/A",
+
+      // Meta info
+      generatedBy: userId,
+      generatedAt: new Date(),
+      isManuallyGenerated: true,
+    };
+
+    console.log(`Generating manual discharge summary for patient ${patientId}`);
+    console.log("Summary data prepared:", JSON.stringify(summaryData, null, 2));
+
+    // Generate HTML and PDF
+    const htmlContent = generateManualDischargeSummaryHTML(summaryData);
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Generate filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `Manual_Discharge_Summary_${sanitizedName}_${timestamp}.pdf`;
+
+    // Upload to Drive if requested
+    let driveLink = null;
+    if (uploadToDriveFlag) {
+      const folderId =
+        process.env.DISCHARGE_SUMMARY_FOLDER_ID ||
+        "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+      try {
+        driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        console.log(`Manual discharge summary uploaded to Drive: ${driveLink}`);
+      } catch (uploadError) {
+        console.error("Error uploading to Drive:", uploadError);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Manual discharge summary generated successfully",
+      data: {
+        fileName,
+        driveLink,
+        pdfSize: pdfBuffer.length,
+        generatedAt: summaryData.generatedAt,
+        isManuallyGenerated: true,
+        patientInfo: {
+          patientId: patientHistory.patientId,
+          name: summaryData.patientName,
+          age: summaryData.age,
+          gender: summaryData.sex,
+        },
+        summaryData: {
+          consultant: summaryData.consultant,
+          admissionDate: summaryData.admissionDate,
+          dischargeDate: summaryData.dischargeDate,
+          finalDiagnosis: summaryData.finalDiagnosis,
+          conditionOnDischarge: summaryData.conditionOnDischarge,
+        },
+        extractedFromHistory: {
+          patientName: patientHistory.name,
+          age: patientHistory.age,
+          gender: patientHistory.gender,
+          address: patientHistory.address,
+          consultant: latestAdmission?.doctor?.name,
+          admissionDate: latestAdmission?.admissionDate,
+          dischargeDate: latestAdmission?.dischargeDate,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error generating manual discharge summary:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate manual discharge summary",
+      code: "MANUAL_SUMMARY_GENERATION_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const getAllBills = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      billType,
+      paymentStatus,
+      status,
+      startDate,
+      endDate,
+      patientId,
+      search,
+    } = req.query;
+
+    // Build filter query
+    const filter = {};
+
+    if (billType) filter.billType = billType;
+    if (paymentStatus) filter.paymentStatus = paymentStatus;
+    if (status) filter.status = status;
+    if (patientId) filter["patient.patientId"] = patientId;
+
+    // Date range filter
+    if (startDate || endDate) {
+      filter.generatedAt = {};
+      if (startDate) filter.generatedAt.$gte = new Date(startDate);
+      if (endDate) filter.generatedAt.$lte = new Date(endDate);
+    }
+
+    // Search filter
+    if (search) {
+      filter.$or = [
+        { billNumber: new RegExp(search, "i") },
+        { "patient.name": new RegExp(search, "i") },
+        { "patient.patientId": new RegExp(search, "i") },
+      ];
+    }
+
+    // Execute query with pagination
+    const bills = await Bill.find(filter)
+      .sort({ generatedAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate("admission.attendingDoctor.id", "name specialization")
+      .lean();
+
+    const total = await Bill.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        bills,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching bills:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch bills",
+      code: "BILLS_FETCH_ERROR",
+    });
+  }
+};
+export const createDepositReceipt = async (req, res) => {
+  const {
+    patientId,
+    admissionId,
+    depositAmount,
+    paymentMethod,
+    transactionId,
+    chequeNumber,
+    bankName,
+    remarks,
+    hospitalDetails,
+  } = req.body;
+
+  // Validation
+  if (!patientId || !admissionId || !depositAmount || !paymentMethod) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: patientId, admissionId, depositAmount, paymentMethod",
+    });
+  }
+
+  if (depositAmount <= 0) {
+    return res.status(400).json({
+      error: "Deposit amount must be greater than 0",
+    });
+  }
+
+  try {
+    // Fetch patient and admission details
+    const patient = await patientSchema.findOne({ patientId }).lean();
+    if (!patient) {
+      return res.status(404).json({ error: "Patient not found" });
+    }
+
+    // Find the specific admission record
+    const admission = patient.admissionRecords.find(
+      (record) => record._id.toString() === admissionId
+    );
+
+    if (!admission) {
+      return res.status(404).json({ error: "Admission record not found" });
+    }
+
+    // Generate unique receipt ID
+    const receiptId = DepositReceipt.generateReceiptId();
+
+    // Prepare deposit receipt data
+    const depositReceiptData = {
+      receiptId,
+      patientId,
+      admissionId,
+      patientDetails: {
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        contact: patient.contact,
+        address: patient.address,
+        patientType: admission.patientType || "Internal",
+      },
+      admissionDetails: {
+        admissionDate: admission.admissionDate,
+        reasonForAdmission: admission.reasonForAdmission,
+        doctorName: admission.doctor?.name || "Not Assigned",
+        sectionName: admission.section?.name || "General",
+        bedNumber: admission.bedNumber,
+      },
+      depositDetails: {
+        depositAmount: parseFloat(depositAmount),
+        paymentMethod,
+        transactionId: transactionId || null,
+        chequeNumber: chequeNumber || null,
+        bankName: bankName || null,
+        remarks: remarks || "",
+      },
+      receiptDetails: {
+        generatedBy: {
+          userName: "Receptionist",
+          userType: "Reception",
+        },
+        generatedAt: new Date(),
+        isActive: true,
+      },
+      hospitalDetails: hospitalDetails || {
+        hospitalName: "Bhosale  Hospital",
+        hospitalAddress:
+          "1Shete mala, Near Ganesh Temple,Narayanwadi Road,Narayangaon,Tal Junnar,Dist Pune,Pin 410504",
+        hospitalContact: "+91-9876543210",
+        hospitalEmail: "info@cityhospital.com",
+        registrationNumber: "REG/2024/001",
+      },
+    };
+
+    // Create deposit receipt in database
+    const depositReceipt = new DepositReceipt(depositReceiptData);
+    await depositReceipt.save();
+
+    // Generate PDF receipt
+    const htmlContent = generateDepositReceiptHTML(depositReceipt);
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Upload PDF to Google Drive (optional)
+    let receiptUrl = null;
+    try {
+      const fileName = `deposit-receipt-${receiptId}.pdf`;
+      const folderId = "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV";
+      receiptUrl = await uploadToDrive(pdfBuffer, fileName, folderId);
+
+      // Update receipt with URL
+      depositReceipt.receiptDetails.receiptUrl = receiptUrl;
+      await depositReceipt.save();
+    } catch (uploadError) {
+      console.warn("Failed to upload receipt to Drive:", uploadError);
+      // Continue without failing the entire operation
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Deposit receipt generated successfully",
+      data: {
+        receiptId,
+        depositAmount: depositReceipt.getFormattedAmount(),
+        receiptUrl,
+        generatedAt: depositReceipt.receiptDetails.generatedAt,
+      },
+      receipt: depositReceipt,
+    });
+  } catch (error) {
+    console.error("Error creating deposit receipt:", error);
+    res.status(500).json({
+      error: "Failed to generate deposit receipt",
+      details: error.message,
+    });
+  }
+};
+
+// Get deposit receipt by ID
+export const getDepositReceiptById = async (req, res) => {
+  const { receiptId } = req.params;
+
+  try {
+    const receipt = await DepositReceipt.findOne({
+      receiptId,
+      "receiptDetails.isActive": true,
+    });
+
+    if (!receipt) {
+      return res.status(404).json({ error: "Deposit receipt not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: receipt,
+    });
+  } catch (error) {
+    console.error("Error fetching deposit receipt:", error);
+    res.status(500).json({
+      error: "Failed to fetch deposit receipt",
+      details: error.message,
+    });
+  }
+};
+export const checkDepositReceiptExists = async (req, res) => {
+  const { patientId, admissionId } = req.params;
+
+  try {
+    const depositReceipt = await DepositReceipt.findOne({
+      patientId,
+      admissionId,
+      "receiptDetails.isActive": true,
+    }).lean();
+
+    const exists = !!depositReceipt;
+
+    res.status(200).json({
+      success: true,
+      exists,
+      data: exists
+        ? {
+            receiptId: depositReceipt.receiptId,
+            depositAmount: depositReceipt.depositDetails.depositAmount,
+            paymentMethod: depositReceipt.depositDetails.paymentMethod,
+            generatedAt: depositReceipt.receiptDetails.generatedAt,
+            receiptUrl: depositReceipt.receiptDetails.receiptUrl,
+          }
+        : null,
+      message: exists
+        ? "Deposit receipt found for this admission"
+        : "No deposit receipt found for this admission",
+    });
+  } catch (error) {
+    console.error("Error checking deposit receipt:", error);
+    res.status(500).json({
+      error: "Failed to check deposit receipt status",
+      details: error.message,
+    });
+  }
+};
+export const cancelDepositReceipt = async (req, res) => {
+  const { receiptId } = req.params;
+  const { reason } = req.body;
+
+  try {
+    const receipt = await DepositReceipt.findOne({ receiptId });
+
+    if (!receipt) {
+      return res.status(404).json({ error: "Deposit receipt not found" });
+    }
+
+    if (!receipt.receiptDetails.isActive) {
+      return res.status(400).json({ error: "Receipt is already cancelled" });
+    }
+
+    // Update receipt status
+    receipt.receiptDetails.isActive = false;
+    receipt.metadata.updatedAt = new Date();
+
+    // Add cancellation details
+    receipt.cancellationDetails = {
+      cancelledAt: new Date(),
+      reason: reason || "Manual cancellation",
+    };
+
+    await receipt.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Deposit receipt cancelled successfully",
+      data: receipt,
+    });
+  } catch (error) {
+    console.error("Error cancelling deposit receipt:", error);
+    res.status(500).json({
+      error: "Failed to cancel deposit receipt",
+      details: error.message,
+    });
+  }
+};
+export const getAllDeposits = async (req, res) => {
+  try {
+    const deposits = await DepositReceipt.find().sort({
+      "receiptDetails.generatedAt": -1,
+    });
+    res.status(200).json({
+      success: true,
+      count: deposits.length,
+      data: deposits,
+    });
+  } catch (error) {
+    console.error("Error fetching deposits:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch deposits",
+      error: error.message,
+    });
+  }
+};
+export const getDepositSummaryDashboard = async (req, res) => {
+  try {
+    const { timeRange = "30" } = req.query; // Default last 30 days
+
+    const dateFilter = {
+      "receiptDetails.generatedAt": {
+        $gte: new Date(Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000),
+      },
+      "receiptDetails.isActive": true,
+    };
+
+    // Overall statistics
+    const [overallStats, recentDeposits, topDoctors, paymentMethodStats] =
+      await Promise.all([
+        // Overall statistics
+        DepositReceipt.aggregate([
+          { $match: { "receiptDetails.isActive": true } },
+          {
+            $group: {
+              _id: null,
+              totalReceipts: { $sum: 1 },
+              totalAmount: { $sum: "$depositDetails.depositAmount" },
+              avgAmount: { $avg: "$depositDetails.depositAmount" },
+              minAmount: { $min: "$depositDetails.depositAmount" },
+              maxAmount: { $max: "$depositDetails.depositAmount" },
+            },
+          },
+        ]),
+
+        // Recent deposits (last 10)
+        DepositReceipt.find({ "receiptDetails.isActive": true })
+          .sort({ "receiptDetails.generatedAt": -1 })
+          .limit(10)
+          .select(
+            "receiptId patientId patientDetails.name depositDetails.depositAmount depositDetails.paymentMethod receiptDetails.generatedAt"
+          )
+          .lean(),
+
+        // Top doctors by deposit count
+        DepositReceipt.aggregate([
+          { $match: dateFilter },
+          {
+            $group: {
+              _id: "$admissionDetails.doctorName",
+              count: { $sum: 1 },
+              totalAmount: { $sum: "$depositDetails.depositAmount" },
+            },
+          },
+          { $sort: { count: -1 } },
+          { $limit: 10 },
+        ]),
+
+        // Payment method statistics
+        DepositReceipt.aggregate([
+          { $match: dateFilter },
+          {
+            $group: {
+              _id: "$depositDetails.paymentMethod",
+              count: { $sum: 1 },
+              totalAmount: { $sum: "$depositDetails.depositAmount" },
+            },
+          },
+          { $sort: { count: -1 } },
+        ]),
+      ]);
+
+    // Daily deposit trends (last 30 days)
+    const dailyTrends = await DepositReceipt.aggregate([
+      { $match: dateFilter },
+      {
+        $group: {
+          _id: {
+            year: { $year: "$receiptDetails.generatedAt" },
+            month: { $month: "$receiptDetails.generatedAt" },
+            day: { $dayOfMonth: "$receiptDetails.generatedAt" },
+          },
+          count: { $sum: 1 },
+          amount: { $sum: "$depositDetails.depositAmount" },
+        },
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
+      {
+        $project: {
+          date: {
+            $dateFromParts: {
+              year: "$_id.year",
+              month: "$_id.month",
+              day: "$_id.day",
+            },
+          },
+          count: 1,
+          amount: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Deposit summary dashboard retrieved successfully",
+      data: {
+        overview: overallStats[0] || {
+          totalReceipts: 0,
+          totalAmount: 0,
+          avgAmount: 0,
+          minAmount: 0,
+          maxAmount: 0,
+        },
+        recentDeposits: recentDeposits.map((deposit) => ({
+          receiptId: deposit.receiptId,
+          patientId: deposit.patientId,
+          patientName: deposit.patientDetails.name,
+          amount: deposit.depositDetails.depositAmount,
+          formattedAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(deposit.depositDetails.depositAmount),
+          paymentMethod: deposit.depositDetails.paymentMethod,
+          generatedAt: deposit.receiptDetails.generatedAt,
+          daysAgo: Math.ceil(
+            (new Date() - new Date(deposit.receiptDetails.generatedAt)) /
+              (1000 * 60 * 60 * 24)
+          ),
+        })),
+        topDoctors: topDoctors.map((doctor) => ({
+          doctorName: doctor._id,
+          depositCount: doctor.count,
+          totalAmount: doctor.totalAmount,
+          formattedAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(doctor.totalAmount),
+        })),
+        paymentMethodStats: paymentMethodStats.map((method) => ({
+          paymentMethod: method._id,
+          count: method.count,
+          totalAmount: method.totalAmount,
+          formattedAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(method.totalAmount),
+          percentage: 0, // Will be calculated on frontend
+        })),
+        dailyTrends: dailyTrends.map((trend) => ({
+          date: trend.date,
+          count: trend.count,
+          amount: trend.amount,
+          formattedAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(trend.amount),
+        })),
+        timeRange: parseInt(timeRange),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching deposit summary dashboard:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch deposit summary dashboard",
+      details: error.message,
+    });
+  }
+};
+
+// Export deposit receipts to CSV
+export const exportDepositReceipts = async (req, res) => {
+  try {
+    const {
+      patientId,
+      receiptId,
+      paymentMethod,
+      doctorName,
+      sectionName,
+      dateFrom,
+      dateTo,
+      amountMin,
+      amountMax,
+      isActive = true,
+    } = req.query;
+
+    // Build filter object (same as getAllDepositReceipts)
+    const filter = {};
+    filter["receiptDetails.isActive"] = isActive === "true";
+
+    if (patientId) filter.patientId = { $regex: patientId, $options: "i" };
+    if (receiptId) filter.receiptId = { $regex: receiptId, $options: "i" };
+    if (paymentMethod) filter["depositDetails.paymentMethod"] = paymentMethod;
+    if (doctorName)
+      filter["admissionDetails.doctorName"] = {
+        $regex: doctorName,
+        $options: "i",
+      };
+    if (sectionName)
+      filter["admissionDetails.sectionName"] = {
+        $regex: sectionName,
+        $options: "i",
+      };
+
+    if (dateFrom || dateTo) {
+      filter["receiptDetails.generatedAt"] = {};
+      if (dateFrom)
+        filter["receiptDetails.generatedAt"].$gte = new Date(dateFrom);
+      if (dateTo) filter["receiptDetails.generatedAt"].$lte = new Date(dateTo);
+    }
+
+    if (amountMin || amountMax) {
+      filter["depositDetails.depositAmount"] = {};
+      if (amountMin)
+        filter["depositDetails.depositAmount"].$gte = parseFloat(amountMin);
+      if (amountMax)
+        filter["depositDetails.depositAmount"].$lte = parseFloat(amountMax);
+    }
+
+    // Get all matching deposits
+    const deposits = await DepositReceipt.find(filter)
+      .sort({ "receiptDetails.generatedAt": -1 })
+      .lean();
+
+    // Create CSV headers
+    const csvHeaders = [
+      "Receipt ID",
+      "Patient ID",
+      "Patient Name",
+      "Patient Contact",
+      "Age",
+      "Gender",
+      "Admission Date",
+      "Doctor Name",
+      "Section",
+      "Bed Number",
+      "Deposit Amount",
+      "Payment Method",
+      "Transaction ID",
+      "Cheque Number",
+      "Bank Name",
+      "Generated At",
+      "Generated By",
+      "Remarks",
+    ];
+
+    // Create CSV rows
+    const csvRows = deposits.map((deposit) => [
+      deposit.receiptId,
+      deposit.patientId,
+      deposit.patientDetails.name,
+      deposit.patientDetails.contact,
+      deposit.patientDetails.age,
+      deposit.patientDetails.gender,
+      new Date(deposit.admissionDetails.admissionDate).toLocaleDateString(
+        "en-IN"
+      ),
+      deposit.admissionDetails.doctorName,
+      deposit.admissionDetails.sectionName || "",
+      deposit.admissionDetails.bedNumber || "",
+      deposit.depositDetails.depositAmount,
+      deposit.depositDetails.paymentMethod,
+      deposit.depositDetails.transactionId || "",
+      deposit.depositDetails.chequeNumber || "",
+      deposit.depositDetails.bankName || "",
+      new Date(deposit.receiptDetails.generatedAt).toLocaleString("en-IN"),
+      `${deposit.receiptDetails.generatedBy.userName} (${deposit.receiptDetails.generatedBy.userType})`,
+      deposit.depositDetails.remarks || "",
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [csvHeaders, ...csvRows]
+      .map((row) =>
+        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    // Set response headers for CSV download
+    const fileName = `deposit-receipts-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error("Error exporting deposit receipts:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to export deposit receipts",
+      details: error.message,
+    });
+  }
+};

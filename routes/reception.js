@@ -6,7 +6,10 @@ import {
   admitPatientWithNotes,
   assignBedToPatient,
   assignDoctor,
+  cancelDepositReceipt,
+  checkDepositReceiptExists,
   createAppointment,
+  createDepositReceipt,
   dischargeByReception,
   dischargePatientByReception,
   generateBillForDischargedPatient,
@@ -14,17 +17,21 @@ import {
   generateDischargeSummary,
   generateFinalReceipt,
   generateIpdBill,
-  generateOpdBill,
+  generateManualDischargeSummary,
+  generateOPDBill,
   generateOpdReceipt,
   getAdmittedPatients,
   getAiSggestions,
   getAllAppointments,
+  getAllBills,
+  getAllDeposits,
   getAllPatientAmountDetails,
   getAllPatientAmountDetailsWithBilling,
   getAllPatientHistories,
   getAppointmentsForReceptionist,
   getAvailableBeds,
   getBasicPatientInfo,
+  getDepositSummaryDashboard,
   getDischargedPatientHistory,
   getDoctorAdvic1,
   getDoctorAdvice,
@@ -73,7 +80,16 @@ receiptionRouter.post("/acceptAppointment", acceptAppointment);
 receiptionRouter.post("/dischargePatient", dischargePatientByReception);
 receiptionRouter.post("/bill", generateBillForDischargedPatient);
 receiptionRouter.post("/generateIpdBill/:patientId", generateIpdBill);
+receiptionRouter.get(
+  "/checkDepositReceiptExists/:patientId/:admissionId",
+  checkDepositReceiptExists
+);
 receiptionRouter.post("/addDoctorToPatient");
+receiptionRouter.post("/createDepositReceipt", createDepositReceipt);
+receiptionRouter.patch(
+  "/cancelDepositReceipt/:receiptId",
+  cancelDepositReceipt
+);
 receiptionRouter.get(
   "/getDischargedPatient/:patientId",
   getDischargedPatientHistory
@@ -98,8 +114,9 @@ receiptionRouter.get(
   "/getLastFollowUps/:patientId",
   getLastRecordWithFollowUps
 );
-receiptionRouter.post("/generateOpdBill", generateOpdBill);
+receiptionRouter.post("/generateOPDBill/:patientId", generateOPDBill);
 receiptionRouter.post("/generateOpdReceipt", generateOpdReceipt);
+receiptionRouter.get("/getAllBills", getAllBills);
 receiptionRouter.post("/admitPatientWithNotes", admitPatientWithNotes);
 receiptionRouter.get("/info", getBasicPatientInfo);
 receiptionRouter.get("/suggestions", getPatientSuggestions);
@@ -128,8 +145,14 @@ receiptionRouter.post("/assignBedToPatient", assignBedToPatient);
 receiptionRouter.get("/occupiedBeds/:sectionId", getOccupiedBeds);
 receiptionRouter.get("/availableBeds/:sectionId", getAvailableBeds);
 receiptionRouter.post("/addIpdDetails", addIpdDetails);
+receiptionRouter.get("/getAllDeposits", getAllDeposits);
+receiptionRouter.get("/getDepositSummaryDashboard", getDepositSummaryDashboard);
 receiptionRouter.get("/getAllPatientHistories", getAllPatientHistories);
 receiptionRouter.get("/getAllPatientAmountDetails", getAllPatientAmountDetails);
+receiptionRouter.post(
+  "/generateManualDischargeSummary/:patientId",
+  generateManualDischargeSummary
+);
 receiptionRouter.get(
   "/generateDischargeSummary/:patientId",
   generateDischargeSummary
