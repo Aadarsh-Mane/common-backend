@@ -18,6 +18,7 @@ import PatientAppointment from "../models/appointmentSchema.js";
 import Medicine from "../models/doctorMedicines.js";
 import Investigation from "../models/investigationSchema.js";
 import EmergencyMedication from "../models/nurse/emergencySchema.js";
+import PatientCounter from "../models/patientCounter.js";
 export const getPatients = async (req, res) => {
   console.log(req.usertype);
   try {
@@ -816,13 +817,13 @@ export const assignPatientToLab = async (req, res) => {
   }
 };
 // Modified admitPatientByDoctor controller function
+
 export const admitPatientByDoctor = async (req, res) => {
   try {
-    const { admissionId, admitNote } = req.body; // Get admission ID and admit note from request
-    const doctorId = req.userId; // Get doctor ID from authenticated user
+    const { admissionId, admitNote } = req.body;
+    const doctorId = req.userId;
     console.log("doctor", doctorId);
 
-    // Validate admission ID
     if (!admissionId) {
       return res.status(400).json({ message: "Admission ID is required" });
     }
@@ -840,13 +841,16 @@ export const admitPatientByDoctor = async (req, res) => {
     const admissionRecord = patient.admissionRecords.find(
       (record) => record._id.toString() === admissionId
     );
-    console.log(admissionRecord.doctor.id.toString());
 
     if (!admissionRecord) {
       return res.status(404).json({ message: "Admission record not found" });
     }
 
-    if (admissionRecord.doctor.id.toString() !== doctorId) {
+    if (
+      admissionRecord.doctor &&
+      admissionRecord.doctor.id &&
+      admissionRecord.doctor.id.toString() !== doctorId
+    ) {
       return res.status(403).json({
         message: "You are not authorized to admit this patient",
       });
@@ -858,18 +862,26 @@ export const admitPatientByDoctor = async (req, res) => {
       });
     }
 
-    // Update the admission record with the doctor details and admit note
-    admissionRecord.status = "admitted"; // Update the status
-    admissionRecord.admitNotes = admitNote || "General Ward"; // Save the admit note, default to General Ward if not provided
+    // Get next IPD number when patient is being admitted to IPD
+    const ipdNumber = await PatientCounter.getNextSequenceValue("ipdNumber");
 
-    // Save the updated patient document
+    // Update the admission record with IPD details
+    admissionRecord.status = "admitted";
+    admissionRecord.admitNotes = admitNote || "General Ward";
+    admissionRecord.ipdNumber = ipdNumber; // Add IPD number
+
+    // If doctor info is not already set, you might want to add it here
+    // admissionRecord.doctor = { id: doctorId, name: doctorName, usertype: "Doctor" };
+
     await patient.save();
 
     res.status(200).json({
-      message: "Patient successfully admitted",
+      message: `Patient successfully admitted to IPD with IPD Number: ${ipdNumber}`,
       patient: {
         id: patient._id,
         name: patient.name,
+        opdNumber: admissionRecord.opdNumber,
+        ipdNumber: admissionRecord.ipdNumber,
         admissionRecord,
       },
     });
@@ -881,6 +893,7 @@ export const admitPatientByDoctor = async (req, res) => {
     });
   }
 };
+
 export const getAdmittedPatientsByDoctor = async (req, res) => {
   try {
     const doctorId = req.userId; // Get doctor ID from authenticated user
@@ -1086,7 +1099,6 @@ export const getPatientsAssignedByDoctor = async (req, res) => {
 //   }
 // };
 export const dischargePatient = async (req, res) => {
-  //latest one
   const doctorId = req.userId;
   const { patientId, admissionId } = req.body;
   console.log("here is the detail", req.body);
@@ -1132,11 +1144,9 @@ export const dischargePatient = async (req, res) => {
 
     // Check if this was the patient's last admission
     if (patient.admissionRecords.length === 0) {
-      // Mark patient as discharged if this was their last admission
       patient.discharged = true;
     }
 
-    // Save the updated patient document
     await patient.save();
 
     const updatedPatient = await patientSchema.findOne({ patientId });
@@ -1149,7 +1159,6 @@ export const dischargePatient = async (req, res) => {
     let patientHistory = await PatientHistory.findOne({ patientId });
 
     if (!patientHistory) {
-      // Create a new history document if it doesn't exist
       patientHistory = new PatientHistory({
         patientId: patient.patientId,
         name: patient.name,
@@ -1163,7 +1172,7 @@ export const dischargePatient = async (req, res) => {
       });
     }
 
-    // Process follow-ups, ensuring we capture all data
+    // Process all the existing data (keeping your existing logic)
     const followUps = admissionRecord.followUps.map((followUp) => ({
       ...followUp.toObject(),
     }));
@@ -1174,43 +1183,42 @@ export const dischargePatient = async (req, res) => {
       })
     );
 
-    // Process doctor notes
     const doctorNotes =
       admissionRecord.doctorNotes?.map((note) => ({
         ...note.toObject(),
       })) || [];
 
-    // Process medications
     const medications =
       admissionRecord.medications?.map((medication) => ({
         ...medication.toObject(),
       })) || [];
 
-    // Process IV fluids
     const ivFluids =
       admissionRecord.ivFluids?.map((fluid) => ({
         ...fluid.toObject(),
       })) || [];
 
-    // Process procedures
     const procedures =
       admissionRecord.procedures?.map((procedure) => ({
         ...procedure.toObject(),
       })) || [];
 
-    // Process special instructions
     const specialInstructions =
       admissionRecord.specialInstructions?.map((instruction) => ({
         ...instruction.toObject(),
       })) || [];
 
-    // Create the history entry with ALL fields from admissionRecord
+    // Create the history entry with ALL fields including OPD and IPD numbers
     const historyEntry = {
       admissionId,
       admissionDate: admissionRecord.admissionDate,
       dischargeDate: new Date(),
       status: admissionRecord.status,
-      patientType: admissionRecord.patientType || "Internal", // Default value if not present
+      patientType: admissionRecord.patientType || "Internal",
+
+      // Add OPD and IPD numbers to history
+      opdNumber: admissionRecord.opdNumber,
+      ipdNumber: admissionRecord.ipdNumber,
 
       admitNotes: admissionRecord.admitNotes,
       reasonForAdmission: admissionRecord.reasonForAdmission,
@@ -1223,33 +1231,25 @@ export const dischargePatient = async (req, res) => {
       initialDiagnosis: admissionRecord.initialDiagnosis,
       doctor: admissionRecord.doctor,
 
-      // Add section and bed number if present
       section: admissionRecord.section,
       bedNumber: admissionRecord.bedNumber,
-
-      // Add reports
       reports: admissionRecord.reports,
 
-      // Add follow-ups and monitoring data
       followUps: followUps,
       fourHrFollowUpSchema: fourHrFollowUpSchema,
 
-      // Add lab reports
       labReports: labReports.map((report) => ({
         labTestNameGivenByDoctor: report.labTestNameGivenByDoctor,
         reports: report.reports,
       })),
 
-      // Add doctor prescriptions and consulting
       doctorPrescriptions: admissionRecord.doctorPrescriptions,
       doctorConsulting: admissionRecord.doctorConsulting,
       symptomsByDoctor: admissionRecord.symptomsByDoctor,
       diagnosisByDoctor: admissionRecord.diagnosisByDoctor,
 
-      // Add vitals
       vitals: admissionRecord.vitals,
 
-      // Add treatment records
       doctorNotes: doctorNotes,
       medications: medications,
       ivFluids: ivFluids,
@@ -1257,19 +1257,18 @@ export const dischargePatient = async (req, res) => {
       specialInstructions: specialInstructions,
     };
 
-    // Push the complete history entry
     patientHistory.history.push(historyEntry);
-
-    // Save the history document
     await patientHistory.save();
 
-    // Notify the doctor about the discharge
-    notifyDoctor(doctorId, patientId, admissionRecord);
+    // Notify the doctor about the discharge (implement as needed)
+    // notifyDoctor(doctorId, patientId, admissionRecord);
 
     res.status(200).json({
       message: "Patient discharged successfully",
       updatedPatient: patient,
       updatedHistory: patientHistory,
+      opdNumber: admissionRecord.opdNumber,
+      ipdNumber: admissionRecord.ipdNumber,
     });
   } catch (error) {
     console.error("Error discharging patient:", error);
@@ -4791,6 +4790,235 @@ export const doctorBulkApproveEmergencyMedications = async (req, res) => {
         process.env.NODE_ENV === "development"
           ? error.message
           : "Internal server error",
+    });
+  }
+};
+export const getPatientAdmissionDetails = async (req, res, next) => {
+  try {
+    const { patientId, admissionId } = req.params;
+
+    // Validate required parameters
+    if (!patientId || !admissionId) {
+      return next(createError(400, "Patient ID and Admission ID are required"));
+    }
+
+    // Validate ObjectId format for admissionId
+    // if (!validateObjectId(admissionId)) {
+    //   return next(createError(400, "Invalid admission ID format"));
+    // }
+
+    // Find patient by patientId
+    const patient = await patientSchema
+      .findOne({ patientId })
+      .populate({
+        path: "admissionRecords.doctor.id",
+        select: "name specialization department",
+      })
+      .populate({
+        path: "admissionRecords.section.id",
+        select: "name type capacity",
+      })
+      .populate({
+        path: "admissionRecords.medications.administeredBy",
+        select: "name nurseId",
+      })
+      .populate({
+        path: "admissionRecords.ivFluids.administeredBy",
+        select: "name nurseId",
+      })
+      .populate({
+        path: "admissionRecords.procedures.administeredBy",
+        select: "name nurseId",
+      })
+      .populate({
+        path: "admissionRecords.specialInstructions.completedBy",
+        select: "name nurseId",
+      })
+      .lean();
+
+    if (!patient) {
+      return next(createError(404, "Patient not found"));
+    }
+
+    // Find the specific admission record
+    const admissionRecord = patient.admissionRecords.find(
+      (record) => record._id.toString() === admissionId
+    );
+
+    if (!admissionRecord) {
+      return next(createError(404, "Admission record not found"));
+    }
+
+    // Get patient history for this admission (if discharged)
+    let patientHistory = null;
+    if (
+      admissionRecord.conditionAtDischarge !== "Discharged" ||
+      admissionRecord.dischargeDate
+    ) {
+      patientHistory = await PatientHistory.findOne({
+        patientId: patient.patientId,
+        "admissionRecord._id": admissionId,
+      })
+        .populate({
+          path: "admissionRecord.doctor.id",
+          select: "name specialization department",
+        })
+        .lean();
+    }
+
+    // Format the response data
+    const responseData = {
+      patient: {
+        id: patient._id,
+        patientId: patient.patientId,
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        contact: patient.contact,
+        address: patient.address,
+        city: patient.city,
+        state: patient.state,
+        country: patient.country,
+        dob: patient.dob,
+        imageUrl: patient.imageUrl,
+        discharged: patient.discharged,
+        pendingAmount: patient.pendingAmount,
+      },
+      currentAdmission: {
+        ...admissionRecord,
+        // Calculate admission duration
+        admissionDuration: admissionRecord.dischargeDate
+          ? Math.ceil(
+              (new Date(admissionRecord.dischargeDate) -
+                new Date(admissionRecord.admissionDate)) /
+                (1000 * 60 * 60 * 24)
+            )
+          : Math.ceil(
+              (new Date() - new Date(admissionRecord.admissionDate)) /
+                (1000 * 60 * 60 * 24)
+            ),
+
+        // Get pending tasks summary
+        pendingTasks: {
+          medications:
+            admissionRecord.medications?.filter(
+              (med) => med.administrationStatus === "Pending"
+            ).length || 0,
+          ivFluids:
+            admissionRecord.ivFluids?.filter(
+              (iv) => iv.administrationStatus === "Pending"
+            ).length || 0,
+          procedures:
+            admissionRecord.procedures?.filter(
+              (proc) => proc.administrationStatus === "Pending"
+            ).length || 0,
+          specialInstructions:
+            admissionRecord.specialInstructions?.filter(
+              (inst) => inst.status === "Pending"
+            ).length || 0,
+        },
+
+        // Latest vitals
+        latestVitals:
+          admissionRecord.vitals?.length > 0
+            ? admissionRecord.vitals[admissionRecord.vitals.length - 1]
+            : null,
+
+        // Recent doctor notes (last 5)
+        recentDoctorNotes: admissionRecord.doctorNotes?.slice(-5) || [],
+      },
+      // Include history if patient was discharged
+      ...(patientHistory && {
+        dischargeHistory: {
+          dischargedAt: patientHistory.dischargedAt,
+          admissionRecord: patientHistory.admissionRecord,
+        },
+      }),
+
+      // Metadata
+      metadata: {
+        retrievedAt: new Date().toISOString(),
+        isCurrentAdmission: !admissionRecord.dischargeDate,
+        totalAdmissions: patient.admissionRecords.length,
+      },
+    };
+
+    // Success response
+    res.status(200).json({
+      success: true,
+      message: "Patient admission details retrieved successfully",
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("Error in getPatientAdmissionDetails:", error);
+    next(
+      createError(500, "Internal server error while retrieving patient details")
+    );
+  }
+};
+export const getCounterValues = async (req, res) => {
+  try {
+    const opdCount = await PatientCounter.getCurrentSequenceValue("opdNumber");
+    const ipdCount = await PatientCounter.getCurrentSequenceValue("ipdNumber");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        currentOPDNumber: opdCount,
+        currentIPDNumber: ipdCount,
+        nextOPDNumber: opdCount + 1,
+        nextIPDNumber: ipdCount + 1,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching counter values:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch counter values",
+    });
+  }
+};
+
+// Helper function to reset counters (admin only)
+export const resetCounters = async (req, res) => {
+  try {
+    const { counterType, newValue = 0 } = req.body;
+
+    if (!["opdNumber", "ipdNumber", "both"].includes(counterType)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid counter type. Use 'opdNumber', 'ipdNumber', or 'both'",
+      });
+    }
+
+    let result = {};
+
+    if (counterType === "both") {
+      result.opdNumber = await PatientCounter.resetCounter(
+        "opdNumber",
+        newValue
+      );
+      result.ipdNumber = await PatientCounter.resetCounter(
+        "ipdNumber",
+        newValue
+      );
+    } else {
+      result[counterType] = await PatientCounter.resetCounter(
+        counterType,
+        newValue
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Counter(s) reset successfully",
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error resetting counters:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to reset counters",
     });
   }
 };

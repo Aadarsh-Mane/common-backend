@@ -957,6 +957,12 @@ export const generateDischargeBillHTML = (
   }</td>
                 </tr>
                 <tr>
+                    <th>OPD Number</th>
+                    <td>${admissionHistory.opdNumber || "N/A"}</td>
+                    <th>IPD Number</th>
+                    <td>${admissionHistory.ipdNumber || "N/A"}</td>
+                </tr>
+                <tr>
                     <th>Admission Date</th>
                     <td>${formatDate(admissionHistory.admissionDate)}</td>
                     <th>Discharge Date</th>
@@ -1040,7 +1046,11 @@ export const generateDischargeBillHTML = (
                 <div>CASH MEMO (Continued)</div>
                 <div style="font-size: 11px; margin-top: 5px;">Patient: ${
                   patientHistory.name
-                } | ID: ${patientHistory.patientId}</div>
+                } | ID: ${patientHistory.patientId} | OPD: ${
+    admissionHistory.opdNumber || "N/A"
+  }${
+    admissionHistory.ipdNumber ? ` | IPD: ${admissionHistory.ipdNumber}` : ""
+  }</div>
             </div>
         </div>
     </body>
@@ -1161,6 +1171,35 @@ body {
   padding: 6px 0;
   background: #fff;
   border: 2px solid #000;
+}
+
+/* NEW: Patient numbers section for OPD */
+.patient-numbers {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin: 10px 0;
+  padding: 8px;
+  background-color: #f0f8ff;
+  border: 2px solid #007acc;
+  border-radius: 4px;
+}
+
+.number-item {
+  text-align: center;
+  padding: 5px 15px;
+}
+
+.number-label {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.number-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: #007acc;
 }
 
 .bill-info-section {
@@ -1362,6 +1401,24 @@ body {
           <div class="document-title">OPD BILL / RECEIPT</div>
         </div>
 
+        <!-- NEW: Patient Numbers Display -->
+        <div class="patient-numbers">
+          <div class="number-item">
+            <div class="number-label">OPD Number</div>
+            <div class="number-value">${data.opdNumber || "N/A"}</div>
+          </div>
+          ${
+            data.ipdNumber
+              ? `
+          <div class="number-item">
+            <div class="number-label">IPD Number</div>
+            <div class="number-value">${data.ipdNumber}</div>
+          </div>
+          `
+              : ""
+          }
+        </div>
+
         <!-- Patient & Bill Information -->
         <div class="bill-info-section">
           <div class="patient-info">
@@ -1526,7 +1583,9 @@ body {
         <!-- Footer -->
         <div class="footer">
           Generated on: ${data.generatedAt.toLocaleString("en-IN")} | 
-          Bill No: ${data.billNumber} | Thank you for choosing our services!
+          Bill No: ${data.billNumber} | OPD: ${data.opdNumber || "N/A"}${
+    data.ipdNumber ? ` | IPD: ${data.ipdNumber}` : ""
+  } | Thank you for choosing our services!
         </div>
       </div>
     </body>

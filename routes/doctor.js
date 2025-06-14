@@ -46,6 +46,7 @@ import {
   getDoctorTreatment,
   getLabReportsByAdmissionId,
   getOutbreakDetection,
+  getPatientAdmissionDetails,
   getPatientHistory1,
   getPatientInvestigationsByAdmission,
   getPatients,
@@ -81,6 +82,10 @@ doctorRouter.post("/admitPatient/:patientId", auth, admitPatient);
 doctorRouter.post("/assignPatient", auth, assignPatientToLab);
 doctorRouter.post("/dischargePatient", auth, dischargePatient);
 doctorRouter.get("/getdischargedPatient", getDischargedPatientsByDoctor);
+doctorRouter.get(
+  "/getPatientAdmissionDetails/:patientId/:admissionId",
+  getPatientAdmissionDetails
+);
 doctorRouter.get(
   "/getDoctorAssignedPatient",
   auth,

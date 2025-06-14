@@ -36,6 +36,7 @@ import {
 import Bill from "../../models/billtrachSchema.js";
 import DepositReceipt from "../../models/depositSchema.js";
 import { generateDepositReceiptHTML } from "../../utils/depositBill.js";
+import PatientCounter from "../../models/patientCounter.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -197,9 +198,13 @@ export const addPatient = async (req, res) => {
     isReadmission,
   } = req.body;
   const file = req.file;
+
   try {
     console.log(req.body);
     let patient;
+    let imageUrl = "";
+
+    // Handle file upload if present
     if (file) {
       const auth = new google.auth.GoogleAuth({
         credentials: ServiceAccount,
@@ -207,19 +212,17 @@ export const addPatient = async (req, res) => {
       });
       const drive = google.drive({ version: "v3", auth });
 
-      // Convert buffer to a readable stream
       const bufferStream = new Readable();
       bufferStream.push(file.buffer);
       bufferStream.push(null);
 
-      // Upload file to Google Drive
       const fileMetadata = {
-        name: file.originalname, // Use the original file name
-        parents: ["1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV"], // Replace with your shared folder ID
+        name: file.originalname,
+        parents: ["1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV"],
       };
       const media = {
         mimeType: file.mimetype,
-        body: bufferStream, // Stream the buffer directly
+        body: bufferStream,
       };
 
       const uploadResponse = await drive.files.create({
@@ -228,290 +231,144 @@ export const addPatient = async (req, res) => {
         fields: "id, webViewLink",
       });
 
-      const imageUrl = uploadResponse.data.webViewLink; // Link to the uploaded file
+      imageUrl = uploadResponse.data.webViewLink;
+    }
 
-      if (isReadmission === "true") {
-        // Fetch patient by name and contact (or implement different search criteria)
-        // patient = await patientSchema.findOne({ name, contact });
-        if (!req.body.patientId) {
-          return res
-            .status(404)
-            .json({ error: "Patient ID is required for readmission." });
-        }
-        patient = await patientSchema.findOne({
-          patientId: req.body.patientId,
-        }); // Assuming patientId is provided for readmission
-        if (!patient.discharged)
-          return res
-            .status(400)
-            .json({ message: "Patient is not discharged." });
-        if (patient) {
-          let daysSinceLastAdmission = null;
-
-          // Check if the patient has been discharged
-          if (!patient.discharged) {
-            // Calculate days since last admission if not discharged
-            if (patient.admissionRecords.length > 0) {
-              const lastAdmission =
-                patient.admissionRecords[patient.admissionRecords.length - 1]
-                  .admissionDate;
-              daysSinceLastAdmission = dayjs().diff(
-                dayjs(lastAdmission),
-                "day"
-              );
-            }
-          } else {
-            // If discharged, check discharge history
-            const patientHistory = await PatientHistory.findOne({
-              patientId: patient.patientId,
-            });
-
-            if (patientHistory) {
-              // Fetch the latest discharge date
-              const lastDischarge = patientHistory.history
-                .filter((entry) => entry.dischargeDate)
-                .sort((a, b) =>
-                  dayjs(b.dischargeDate).isBefore(a.dischargeDate) ? -1 : 1
-                )[0];
-
-              if (lastDischarge) {
-                daysSinceLastAdmission = dayjs().diff(
-                  dayjs(lastDischarge.dischargeDate),
-                  "day"
-                );
-              }
-            }
-
-            // Set discharged status to false for re-admission
-            patient.discharged = false;
-          }
-
-          // Update all patient details
-          patient.name = name;
-          patient.age = age;
-          patient.gender = gender;
-          patient.contact = contact;
-          patient.address = address;
-          patient.caste = caste;
-          patient.imageUrl = imageUrl;
-
-          // Add new admission record for re-admission
-          patient.admissionRecords.push({
-            admissionDate: new Date(),
-            reasonForAdmission,
-            weight,
-            symptoms,
-            initialDiagnosis,
-          });
-
-          // Save updated patient record
-          await patient.save();
-          // const messageBody = `Dear ${name}, welcome to our saideep hospital. Your patient ID is ${req.body.patientId}. Wishing you a speedy recovery!`;
-
-          // await client.messages.create({
-          //   from: "+14152149378", // Twilio phone number
-          //   to: `+91${contact}`, // Ensure the correct string interpolation
-          //   body: messageBody,
-          // });
-          return res.status(200).json({
-            message: `Patient ${name} re-admitted successfully.`,
-            patientDetails: patient,
-            daysSinceLastAdmission,
-            admissionRecords: patient.admissionRecords,
-          });
-        } else {
-          return res
-            .status(404)
-            .json({ message: "Patient not found for readmission." });
-        }
-      } else {
-        // If not a readmission, create a new patient
-        const patientId = name;
-
-        patient = new patientSchema({
-          patientId,
-          name,
-          age,
-          gender,
-          contact,
-          address,
-          caste,
-          imageUrl,
-          admissionRecords: [
-            {
-              admissionDate: new Date(),
-              reasonForAdmission,
-              symptoms,
-              initialDiagnosis,
-              weight,
-            },
-          ],
-        });
-
-        await patient.save();
-        // const messageBody = `Dear ${name}, welcome to our saideep hospital. Your patient ID is ${patientId}. Wishing you a speedy recovery!`;
-
-        // await client.messages.create({
-        //   from: "+14152149378", // Twilio phone number
-        //   to: `+91${contact}`, // Ensure the correct string interpolation
-        //   body: messageBody,
-        // });
-        return res.status(200).json({
-          message: `Patient ${name} added successfully with ID ${patientId}.`,
-          patientDetails: patient,
+    if (isReadmission === "true") {
+      // Handle readmission
+      if (!req.body.patientId) {
+        return res.status(404).json({
+          error: "Patient ID is required for readmission.",
         });
       }
-    } else {
-      if (isReadmission === "true") {
-        // Fetch patient by name and contact (or implement different search criteria)
-        // patient = await patientSchema.findOne({ name, contact });
-        if (!req.body.patientId)
-          return res
-            .status(404)
-            .json({ error: "Patient ID is required for readmission." });
-        patient = await patientSchema.findOne({
-          patientId: req.body.patientId,
-        }); // Assuming patientId is provided for readmission
-        if (!patient.discharged) {
-          return res
-            .status(400)
-            .json({ message: "Patient is not discharged." });
-        }
-        const addy = req.body.patientId;
-        const patientHistory = await PatientHistory.findOne({
-          patientId: addy,
+
+      patient = await patientSchema.findOne({
+        patientId: req.body.patientId,
+      });
+
+      if (!patient) {
+        return res.status(404).json({
+          message: "Patient not found for readmission.",
         });
+      }
+
+      if (!patient.discharged) {
+        return res.status(400).json({
+          message: "Patient is not discharged.",
+        });
+      }
+
+      // Check if patient has been discharged by reception
+      const patientHistory = await PatientHistory.findOne({
+        patientId: req.body.patientId,
+      });
+
+      if (patientHistory && patientHistory.history.length > 0) {
         const lastRecord =
           patientHistory.history[patientHistory.history.length - 1];
-
         if (!lastRecord.dischargedByReception) {
           return res.status(400).json({
             message: "Patient has not been discharged by reception.",
           });
         }
-        if (patient) {
-          let daysSinceLastAdmission = null;
+      }
 
-          // Check if the patient has been discharged
-          if (!patient.discharged) {
-            // Calculate days since last admission if not discharged
-            if (patient.admissionRecords.length > 0) {
-              const lastAdmission =
-                patient.admissionRecords[patient.admissionRecords.length - 1]
-                  .admissionDate;
-              daysSinceLastAdmission = dayjs().diff(
-                dayjs(lastAdmission),
-                "day"
-              );
-            }
-          } else {
-            // If discharged, check discharge history
-            const patientHistory = await PatientHistory.findOne({
-              patientId: patient.patientId,
-            });
+      let daysSinceLastAdmission = null;
 
-            if (patientHistory) {
-              // Fetch the latest discharge date
-              const lastDischarge = patientHistory.history
-                .filter((entry) => entry.dischargeDate)
-                .sort((a, b) =>
-                  dayjs(b.dischargeDate).isBefore(a.dischargeDate) ? -1 : 1
-                )[0];
+      // Calculate days since last discharge
+      if (patientHistory && patientHistory.history.length > 0) {
+        const lastDischarge = patientHistory.history
+          .filter((entry) => entry.dischargeDate)
+          .sort((a, b) =>
+            dayjs(b.dischargeDate).isBefore(a.dischargeDate) ? -1 : 1
+          )[0];
 
-              if (lastDischarge) {
-                daysSinceLastAdmission = dayjs().diff(
-                  dayjs(lastDischarge.dischargeDate),
-                  "day"
-                );
-              }
-            }
+        if (lastDischarge) {
+          daysSinceLastAdmission = dayjs().diff(
+            dayjs(lastDischarge.dischargeDate),
+            "day"
+          );
+        }
+      }
 
-            // Set discharged status to false for re-admission
-            patient.discharged = false;
-          }
+      // Get next OPD number for readmission
+      const opdNumber = await PatientCounter.getNextSequenceValue("opdNumber");
 
-          // Update all patient details
-          patient.name = name;
-          patient.age = age;
-          patient.gender = gender;
-          patient.contact = contact;
-          patient.address = address;
-          patient.caste = caste;
+      // Set discharged status to false for re-admission
+      patient.discharged = false;
 
-          // Add new admission record for re-admission
-          patient.admissionRecords.push({
+      // Update patient details
+      patient.name = name;
+      patient.age = age;
+      patient.gender = gender;
+      patient.contact = contact;
+      patient.address = address;
+      patient.caste = caste;
+      if (imageUrl) patient.imageUrl = imageUrl;
+
+      // Add new admission record for re-admission with OPD number
+      patient.admissionRecords.push({
+        admissionDate: new Date(),
+        reasonForAdmission,
+        weight,
+        symptoms,
+        initialDiagnosis,
+        opdNumber: opdNumber, // Add OPD number
+        status: "Pending", // Initial status for new admission
+      });
+
+      await patient.save();
+
+      return res.status(200).json({
+        message: `Patient ${name} re-admitted successfully with OPD Number: ${opdNumber}.`,
+        patientDetails: patient,
+        daysSinceLastAdmission,
+        opdNumber,
+        admissionRecords: patient.admissionRecords,
+      });
+    } else {
+      // Create new patient
+      const patientId = generatePatientId(name);
+      const opdNumber = await PatientCounter.getNextSequenceValue("opdNumber");
+
+      patient = new patientSchema({
+        patientId,
+        name,
+        age,
+        gender,
+        contact,
+        address,
+        caste,
+        imageUrl,
+        admissionRecords: [
+          {
             admissionDate: new Date(),
             reasonForAdmission,
-            weight,
             symptoms,
             initialDiagnosis,
-          });
+            weight,
+            opdNumber: opdNumber, // Add OPD number
+            status: "Pending",
+          },
+        ],
+      });
 
-          // Save updated patient record
-          await patient.save();
-          // const messageBody = `Dear ${name}, welcome to our saideep hospital. Your patient ID is ${req.body.patientId}. Wishing you a speedy recovery!`;
+      await patient.save();
 
-          // await client.messages.create({
-          //   from: "+14152149378", // Twilio phone number
-          //   to: `+91${contact}`, // Ensure the correct string interpolation
-          //   body: messageBody,
-          // });
-          return res.status(200).json({
-            message: `Patient ${name} re-admitted successfully.`,
-            patientDetails: patient,
-            daysSinceLastAdmission,
-            admissionRecords: patient.admissionRecords,
-          });
-        } else {
-          return res
-            .status(404)
-            .json({ message: "Patient not found for readmission." });
-        }
-      } else {
-        // If not a readmission, create a new patient
-        const patientId = generatePatientId(name);
-
-        patient = new patientSchema({
-          patientId,
-          name,
-          age,
-          gender,
-          contact,
-          address,
-          caste,
-          admissionRecords: [
-            {
-              admissionDate: new Date(),
-              reasonForAdmission,
-              symptoms,
-              initialDiagnosis,
-              weight,
-            },
-          ],
-        });
-
-        await patient.save();
-        // const messageBody = `Dear ${name}, welcome to our spandan hospital. Your patient ID is ${patientId}. Wishing you a speedy recovery!`;
-
-        // await client.messages.create({
-        //   from: "+14152149378", // Twilio phone number
-        //   to: `+91${contact}`, // Ensure the correct string interpolation
-        //   body: messageBody,
-        // });
-        return res.status(200).json({
-          message: `Patient ${name} added successfully with ID ${patientId}.`,
-          patientDetails: patient,
-        });
-      }
+      return res.status(200).json({
+        message: `Patient ${name} added successfully with ID ${patientId} and OPD Number: ${opdNumber}.`,
+        patientDetails: patient,
+        opdNumber,
+      });
     }
   } catch (error) {
     console.error("Error adding patient:", error);
-    res
-      .status(500)
-      .json({ message: "Error adding patient", error: error.message });
+    res.status(500).json({
+      message: "Error adding patient",
+      error: error.message,
+    });
   }
 };
-
 const generatePatientId = (name) => {
   const initials = name.slice(0, 3).toUpperCase(); // First three letters of the name
   const randomDigits = Math.floor(100 + Math.random() * 900); // Generate three random digits
@@ -2755,8 +2612,6 @@ export const generateOPDBill = async (req, res) => {
   } = req.body;
 
   try {
-    // Get doctor charges from latest record
-
     // Validate that at least one service, consultation fee, or doctor charges is provided
     const totalServices = Object.values({
       ecg,
@@ -2788,15 +2643,22 @@ export const generateOPDBill = async (req, res) => {
       });
     }
 
-    // Get latest admission/visit record for doctor info
+    // Get latest admission/visit record for doctor info and patient numbers
     let latestRecord = null;
+    let opdNumber = null;
+    let ipdNumber = null;
+
     if (patientHistory.history && patientHistory.history.length > 0) {
       latestRecord = patientHistory.history[patientHistory.history.length - 1];
+      opdNumber = latestRecord.opdNumber;
+      ipdNumber = latestRecord.ipdNumber; // May be null if patient was never admitted to IPD
     }
 
-    // Calculate service tota    const doctorCharges = latestRecord?.amountToBePayed || 0;
+    // Get doctor charges from latest record
     const doctorCharges = latestRecord?.amountToBePayed || 0;
     console.log("Doctor Charges:", doctorCharges);
+
+    // Calculate service totals
     const serviceCalculations = {
       ecg: {
         quantity: ecg.quantity || 0,
@@ -2830,8 +2692,6 @@ export const generateOPDBill = async (req, res) => {
       return sum + (charge.quantity || 0) * (charge.rate || 0);
     }, 0);
 
-    // Get doctor charges from latest record
-
     // Calculate totals
     const servicesSubTotal = Object.values(serviceCalculations).reduce(
       (sum, service) => sum + service.total,
@@ -2846,9 +2706,11 @@ export const generateOPDBill = async (req, res) => {
     const discountAmount = (discount / 100) * subTotal;
     const grandTotal = subTotal - discountAmount;
 
-    // Generate bill number
+    // Generate bill numbers
     const billNumber = `OPD${Date.now()}${Math.floor(Math.random() * 100)}`;
     const billNumber1 = await Bill.generateBillNumber("OPD");
+
+    // Create services array for Bill schema
     const servicesArray = [];
 
     // Add main services
@@ -2864,6 +2726,7 @@ export const generateOPDBill = async (req, res) => {
         });
       }
     });
+
     // Add consultation fee as service
     if (consultationFee > 0) {
       servicesArray.push({
@@ -2905,6 +2768,7 @@ export const generateOPDBill = async (req, res) => {
       }
     });
 
+    // Create bill record
     const billRecord = new Bill({
       billNumber: billNumber1,
       billType: "OPD",
@@ -2937,12 +2801,6 @@ export const generateOPDBill = async (req, res) => {
             attendingDoctor: { name: "OPD Doctor" },
             department: { name: "OPD", type: "OPD" },
           },
-
-      // Bill generation details
-      generatedBy: {
-        id: userId,
-        role: "Receptionist", // or get from user model
-      },
 
       // Services
       services: servicesArray,
@@ -2982,7 +2840,8 @@ export const generateOPDBill = async (req, res) => {
       // Status
       status: "Generated",
     });
-    // Prepare bill data
+
+    // Prepare bill data with OPD/IPD numbers
     const billData = {
       // Patient info (from patient history)
       patientName: patientHistory.name,
@@ -2991,6 +2850,10 @@ export const generateOPDBill = async (req, res) => {
       gender: patientHistory.gender || "N/A",
       address: patientHistory.address || "N/A",
       contact: patientHistory.contact || "N/A",
+
+      // IMPORTANT: Include OPD and IPD numbers
+      opdNumber: opdNumber,
+      ipdNumber: ipdNumber, // May be null if patient was never admitted to IPD
 
       // Doctor info (from latest record)
       consultantDoctor: latestRecord?.doctor?.name || "N/A",
@@ -3028,17 +2891,19 @@ export const generateOPDBill = async (req, res) => {
     };
 
     console.log(
-      `Generating OPD bill for patient ${patientId}, Bill No: ${billNumber}`
+      `Generating OPD bill for patient ${patientId}, Bill No: ${billNumber}, OPD: ${opdNumber}, IPD: ${
+        ipdNumber || "N/A"
+      }`
     );
 
-    // Generate HTML and PDF
+    // Generate HTML and PDF with OPD/IPD numbers
     const htmlContent = generateOPDBillHTML(billData);
     const pdfBuffer = await generatePdf(htmlContent);
 
-    // Generate filename
+    // Generate filename with OPD number
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
-    const fileName = `OPD_Bill_${billNumber}_${sanitizedName}_${timestamp}.pdf`;
+    const fileName = `OPD_Bill_${billNumber}_OPD${opdNumber}_${sanitizedName}_${timestamp}.pdf`;
 
     // Upload to Drive if requested
     let driveLink = null;
@@ -3052,6 +2917,8 @@ export const generateOPDBill = async (req, res) => {
         console.error("Error uploading to Drive:", uploadError);
       }
     }
+
+    // Update bill record with file info
     billRecord.files = {
       pdfFileName: fileName,
       driveLink: driveLink,
@@ -3073,6 +2940,8 @@ export const generateOPDBill = async (req, res) => {
         billInfo: {
           billNumber: billData.billNumber,
           patientName: billData.patientName,
+          opdNumber: opdNumber,
+          ipdNumber: ipdNumber,
           grandTotal: billData.grandTotal,
           paymentMode: billData.paymentMode,
         },
@@ -5427,6 +5296,7 @@ export const generateDischargeSummary = async (req, res) => {
  * Generate discharge bill for patient
  * Takes patientId and billing charges, uses most recent admission record
  */
+
 export const generateIpdBill = async (req, res) => {
   const { patientId } = req.params;
   const { charges, discount = 0, advance = 0 } = req.body;
@@ -5459,6 +5329,10 @@ export const generateIpdBill = async (req, res) => {
       patientHistory.history[patientHistory.history.length - 1];
     const admissionId = admissionHistory.admissionId.toString();
 
+    // IMPORTANT: Get OPD and IPD numbers from admission history
+    const opdNumber = admissionHistory.opdNumber;
+    const ipdNumber = admissionHistory.ipdNumber;
+
     // Calculate length of stay
     const admissionDate = new Date(admissionHistory.admissionDate);
     const dischargeDate = new Date(admissionHistory.dischargeDate);
@@ -5475,7 +5349,7 @@ export const generateIpdBill = async (req, res) => {
     );
     const billNumber = await Bill.generateBillNumber("IPD");
 
-    // Generate HTML content for bill
+    // Generate HTML content for bill with OPD/IPD numbers
     const htmlContent = generateDischargeBillHTML(
       patientHistory,
       admissionHistory,
@@ -5487,13 +5361,15 @@ export const generateIpdBill = async (req, res) => {
     // Generate PDF
     const pdfBuffer = await generatePdf(htmlContent);
 
-    // Generate unique filename
+    // Generate unique filename with OPD/IPD numbers
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
-    const fileName = `Discharge_Bill_${sanitizedName}_${timestamp}.pdf`;
+    const fileName = `Discharge_Bill_${sanitizedName}_OPD${opdNumber}${
+      ipdNumber ? `_IPD${ipdNumber}` : ""
+    }_${timestamp}.pdf`;
 
     // Upload to Google Drive (optional)
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"; // Replace with your folder ID;
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"; // Replace with your folder ID
     let driveLink = null;
 
     if (folderId) {
@@ -5504,6 +5380,8 @@ export const generateIpdBill = async (req, res) => {
         console.error("Error uploading bill to Drive:", uploadError);
       }
     }
+
+    // Create bill record
     const billRecord = new Bill({
       billNumber,
       billType: "IPD",
@@ -5518,7 +5396,7 @@ export const generateIpdBill = async (req, res) => {
         address: patientHistory.address,
       },
 
-      // Admission details
+      // Admission details with OPD/IPD numbers
       admission: {
         admissionId: admissionHistory.admissionId,
         admissionDate: admissionDate,
@@ -5535,9 +5413,10 @@ export const generateIpdBill = async (req, res) => {
         },
         bedNumber: admissionHistory.bedNumber,
         roomType: admissionHistory.section?.type || "General",
+        // IMPORTANT: Store OPD/IPD numbers in admission details
+        opdNumber: opdNumber,
+        ipdNumber: ipdNumber,
       },
-
-      // Bill generation details
 
       // Charges breakdown
       chargesBreakdown: processedCharges,
@@ -5577,8 +5456,6 @@ export const generateIpdBill = async (req, res) => {
         uploadedAt: new Date(),
       },
 
-      // Additional information
-
       // Status
       status: "Generated",
       paymentStatus:
@@ -5593,10 +5470,12 @@ export const generateIpdBill = async (req, res) => {
     await billRecord.save();
 
     console.log(
-      `IPD Bill generated and saved: ${billNumber} for patient ${patientId}`
+      `IPD Bill generated and saved: ${billNumber} for patient ${patientId}, OPD: ${opdNumber}, IPD: ${
+        ipdNumber || "N/A"
+      }`
     );
 
-    // Return JSON response with bill data
+    // Return JSON response with bill data including OPD/IPD numbers
     res.status(200).json({
       success: true,
       message: "Discharge bill generated successfully",
@@ -5618,6 +5497,9 @@ export const generateIpdBill = async (req, res) => {
           lengthOfStay: lengthOfStay,
           attendingDoctor: admissionHistory.doctor?.name || "Not specified",
           department: admissionHistory.section?.name || "Not specified",
+          // IMPORTANT: Include OPD/IPD numbers in response
+          opdNumber: opdNumber,
+          ipdNumber: ipdNumber,
         },
         billSummary: {
           totalCharges: billCalculations.totalCharges,

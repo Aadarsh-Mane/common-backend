@@ -94,6 +94,17 @@ const consultantSchema = new mongoose.Schema({
 });
 
 const admissionRecordSchema = new mongoose.Schema({
+  // OPD and IPD tracking numbers
+  opdNumber: {
+    type: Number,
+    required: true,
+    index: true,
+  }, // Auto-increment starting from 1
+  ipdNumber: {
+    type: Number,
+    index: true,
+  }, // Only set when patient is admitted to IPD
+
   admissionDate: { type: Date, default: Date.now },
   status: { type: String, default: "Pending" },
   patientType: {
@@ -231,6 +242,12 @@ const admissionRecordSchema = new mongoose.Schema({
   ipdDetailsUpdated: { type: Boolean, default: false },
 });
 
+// Add indexes for better query performance
+admissionRecordSchema.index({ opdNumber: 1 });
+admissionRecordSchema.index({ ipdNumber: 1 });
+admissionRecordSchema.index({ admissionDate: -1 });
+admissionRecordSchema.index({ status: 1 });
+
 const patientSchema1 = new mongoose.Schema({
   patientId: { type: String, unique: true }, // Unique Patient ID
   name: { type: String, required: true },
@@ -250,6 +267,37 @@ const patientSchema1 = new mongoose.Schema({
   pendingAmount: { type: Number, default: 0 },
   admissionRecords: [admissionRecordSchema],
 });
+
+// Add compound indexes for better query performance
+patientSchema1.index({ patientId: 1, discharged: 1 });
+patientSchema1.index({ "admissionRecords.opdNumber": 1 });
+patientSchema1.index({ "admissionRecords.ipdNumber": 1 });
+
+// Virtual to get latest admission record
+patientSchema1.virtual("latestAdmission").get(function () {
+  if (this.admissionRecords.length === 0) return null;
+  return this.admissionRecords[this.admissionRecords.length - 1];
+});
+
+// Method to get admission by OPD number
+patientSchema1.methods.getAdmissionByOPDNumber = function (opdNumber) {
+  return this.admissionRecords.find((record) => record.opdNumber === opdNumber);
+};
+
+// Method to get admission by IPD number
+patientSchema1.methods.getAdmissionByIPDNumber = function (ipdNumber) {
+  return this.admissionRecords.find((record) => record.ipdNumber === ipdNumber);
+};
+
+// Static method to find patient by OPD number
+patientSchema1.statics.findByOPDNumber = function (opdNumber) {
+  return this.findOne({ "admissionRecords.opdNumber": opdNumber });
+};
+
+// Static method to find patient by IPD number
+patientSchema1.statics.findByIPDNumber = function (ipdNumber) {
+  return this.findOne({ "admissionRecords.ipdNumber": ipdNumber });
+};
 
 const patientSchema = mongoose.model("Patient", patientSchema1);
 export default patientSchema;

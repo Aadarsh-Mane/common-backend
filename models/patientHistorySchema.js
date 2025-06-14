@@ -267,6 +267,18 @@ const patientHistorySchema = new mongoose.Schema({
   history: [
     {
       admissionId: { type: mongoose.Schema.Types.ObjectId, required: true }, // Reference to admission
+
+      // OPD and IPD tracking numbers
+      opdNumber: {
+        type: Number,
+        required: true,
+        index: true,
+      }, // OPD number from original admission
+      ipdNumber: {
+        type: Number,
+        index: true,
+      }, // IPD number if patient was admitted to IPD
+
       admissionDate: { type: Date },
       dischargeDate: { type: Date }, // When the patient was discharged
       status: { type: String },
@@ -386,6 +398,64 @@ const patientHistorySchema = new mongoose.Schema({
     },
   ],
 });
+
+// Add indexes for better query performance
+patientHistorySchema.index({ patientId: 1 });
+patientHistorySchema.index({ "history.opdNumber": 1 });
+patientHistorySchema.index({ "history.ipdNumber": 1 });
+patientHistorySchema.index({ "history.admissionDate": -1 });
+patientHistorySchema.index({ "history.dischargeDate": -1 });
+
+// Method to get history by OPD number
+patientHistorySchema.methods.getHistoryByOPDNumber = function (opdNumber) {
+  return this.history.find((record) => record.opdNumber === opdNumber);
+};
+
+// Method to get history by IPD number
+patientHistorySchema.methods.getHistoryByIPDNumber = function (ipdNumber) {
+  return this.history.find((record) => record.ipdNumber === ipdNumber);
+};
+
+// Static method to find patient history by OPD number
+patientHistorySchema.statics.findByOPDNumber = function (opdNumber) {
+  return this.findOne({ "history.opdNumber": opdNumber });
+};
+
+// Static method to find patient history by IPD number
+patientHistorySchema.statics.findByIPDNumber = function (ipdNumber) {
+  return this.findOne({ "history.ipdNumber": ipdNumber });
+};
+
+// Method to get latest admission/discharge record
+patientHistorySchema.methods.getLatestRecord = function () {
+  if (this.history.length === 0) return null;
+  return this.history.sort(
+    (a, b) => new Date(b.admissionDate) - new Date(a.admissionDate)
+  )[0];
+};
+
+// Method to get admission statistics
+patientHistorySchema.methods.getAdmissionStats = function () {
+  const totalAdmissions = this.history.length;
+  const ipdAdmissions = this.history.filter(
+    (record) => record.ipdNumber
+  ).length;
+  const opdOnlyAdmissions = totalAdmissions - ipdAdmissions;
+
+  return {
+    totalAdmissions,
+    ipdAdmissions,
+    opdOnlyAdmissions,
+    averageStayDuration: this.history
+      .filter((record) => record.dischargeDate && record.admissionDate)
+      .map((record) => {
+        const admission = new Date(record.admissionDate);
+        const discharge = new Date(record.dischargeDate);
+        return Math.ceil((discharge - admission) / (1000 * 60 * 60 * 24));
+      })
+      .reduce((sum, days, _, arr) => sum + days / arr.length, 0),
+  };
+};
 
 const PatientHistory = mongoose.model("PatientHistory", patientHistorySchema);
 export default PatientHistory;
