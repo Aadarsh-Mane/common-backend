@@ -97,7 +97,7 @@ const admissionRecordSchema = new mongoose.Schema({
   // OPD and IPD tracking numbers
   opdNumber: {
     type: Number,
-    required: true,
+    // required: true,
     index: true,
   }, // Auto-increment starting from 1
   ipdNumber: {
