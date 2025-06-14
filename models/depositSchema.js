@@ -30,6 +30,10 @@ const depositReceiptSchema = new mongoose.Schema({
     sectionName: { type: String },
     bedNumber: { type: Number },
   },
+  patientNumbers: {
+    opdNumber: { type: Number },
+    ipdNumber: { type: Number },
+  },
   depositDetails: {
     depositAmount: {
       type: Number,

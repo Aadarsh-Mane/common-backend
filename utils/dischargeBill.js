@@ -560,7 +560,7 @@ export const generateDischargeBillHTML = (
   const hospitalName = process.env.HOSPITAL_NAME || "BHOSALE HOSPITAL";
   const hospitalAddress =
     process.env.HOSPITAL_ADDRESS ||
-    "Shubham Prestige 1st Floor, Near Post Office, Khodad Road, Narayangaon, Tal-Junnar, Dist-Pune";
+    "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = process.env.HOSPITAL_PHONE || "Phone No.9923537180";
 
   const formatDate = (date) => {

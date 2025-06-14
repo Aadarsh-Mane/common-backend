@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const dbURI =
-  "mongodb+srv://20sdeveloper4209:vijay207@cluster0.yxnl8.mongodb.net/bhosle?retryWrites=true&w=majority&appName=doctorEcosystem";
+  "mongodb+srv://20sdeveloper4209:vijay207@cluster0.yxnl8.mongodb.net/sample?retryWrites=true&w=majority&appName=doctorEcosystem";
 
 export const connectDB = async () => {
   const options = {

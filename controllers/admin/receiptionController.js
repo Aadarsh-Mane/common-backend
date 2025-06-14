@@ -6012,6 +6012,8 @@ export const createDepositReceipt = async (req, res) => {
       return res.status(404).json({ error: "Patient not found" });
     }
 
+    console.log("Full patient record:", JSON.stringify(patient, null, 2));
+
     // Find the specific admission record
     const admission = patient.admissionRecords.find(
       (record) => record._id.toString() === admissionId
@@ -6021,8 +6023,19 @@ export const createDepositReceipt = async (req, res) => {
       return res.status(404).json({ error: "Admission record not found" });
     }
 
+    console.log("Admission record found:", JSON.stringify(admission, null, 2));
+    console.log("OPD Number from admission:", admission.opdNumber);
+    console.log("IPD Number from admission:", admission.ipdNumber);
+
     // Generate unique receipt ID
     const receiptId = DepositReceipt.generateReceiptId();
+
+    // Get Indian Standard Time (IST)
+    const istDate = new Date(
+      new Date().toLocaleString("en-US", {
+        timeZone: "Asia/Kolkata",
+      })
+    );
 
     // Prepare deposit receipt data
     const depositReceiptData = {
@@ -6057,7 +6070,7 @@ export const createDepositReceipt = async (req, res) => {
           userName: "Receptionist",
           userType: "Reception",
         },
-        generatedAt: new Date(),
+        generatedAt: istDate,
         isActive: true,
       },
       hospitalDetails: hospitalDetails || {
@@ -6068,11 +6081,26 @@ export const createDepositReceipt = async (req, res) => {
         hospitalEmail: "info@cityhospital.com",
         registrationNumber: "REG/2024/001",
       },
+      // Access OPD/IPD numbers directly from the admission record in patient schema
+      patientNumbers: {
+        opdNumber: admission.opdNumber ? Number(admission.opdNumber) : null,
+        ipdNumber: admission.ipdNumber ? Number(admission.ipdNumber) : null,
+      },
     };
+
+    console.log(
+      "Patient numbers being set:",
+      depositReceiptData.patientNumbers
+    );
 
     // Create deposit receipt in database
     const depositReceipt = new DepositReceipt(depositReceiptData);
     await depositReceipt.save();
+
+    console.log(
+      "Saved deposit receipt patient numbers:",
+      depositReceipt.patientNumbers
+    );
 
     // Generate PDF receipt
     const htmlContent = generateDepositReceiptHTML(depositReceipt);
@@ -6090,7 +6118,6 @@ export const createDepositReceipt = async (req, res) => {
       await depositReceipt.save();
     } catch (uploadError) {
       console.warn("Failed to upload receipt to Drive:", uploadError);
-      // Continue without failing the entire operation
     }
 
     res.status(201).json({
@@ -6101,6 +6128,8 @@ export const createDepositReceipt = async (req, res) => {
         depositAmount: depositReceipt.getFormattedAmount(),
         receiptUrl,
         generatedAt: depositReceipt.receiptDetails.generatedAt,
+        opdNumber: admission.opdNumber || null,
+        ipdNumber: admission.ipdNumber || null,
       },
       receipt: depositReceipt,
     });
@@ -6112,7 +6141,6 @@ export const createDepositReceipt = async (req, res) => {
     });
   }
 };
-
 // Get deposit receipt by ID
 export const getDepositReceiptById = async (req, res) => {
   const { receiptId } = req.params;
