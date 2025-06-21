@@ -37,6 +37,7 @@ import Bill from "../../models/billtrachSchema.js";
 import DepositReceipt from "../../models/depositSchema.js";
 import { generateDepositReceiptHTML } from "../../utils/depositBill.js";
 import PatientCounter from "../../models/patientCounter.js";
+import { DischargeSummary } from "../../models/dischargeSummarySchema.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -1767,7 +1768,7 @@ export const generateFinalReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Saideep Hospital</h1>
+    <h1>Bhosale Hospital</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -3149,7 +3150,7 @@ export const generateOpdReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Saideep Hospital</h1>
+    <h1>Bhosale Hospital</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -3370,7 +3371,7 @@ export const generateaIpddReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Saideep Hospital</h1>
+    <h1>Bhosale Hospital</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -5682,7 +5683,7 @@ function getChargeDescription(chargeType) {
  */
 export const generateManualDischargeSummary = async (req, res) => {
   const { patientId } = req.params;
-  const userId = req.userId;
+  const userId = req.userId; // From auth middleware
   const {
     "Final Diagnosis": finalDiagnosis,
     Complaints: complaints,
@@ -5793,7 +5794,8 @@ export const generateManualDischargeSummary = async (req, res) => {
       address: patientHistory.address || "N/A",
 
       // Extract admission details from latest admission
-      ipdNo: latestAdmission?.admissionId?.toString().slice(-4) || "N/A",
+      ipdNo: latestAdmission?.ipdNumber || "N/A",
+      opdNo: latestAdmission?.opdNumber || "N/A",
       consultant: latestAdmission?.doctor?.name || "N/A",
       admissionDate: latestAdmission?.admissionDate
         ? new Date(latestAdmission.admissionDate).toLocaleDateString("en-GB")
@@ -5859,6 +5861,15 @@ export const generateManualDischargeSummary = async (req, res) => {
         "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
       try {
         driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        await DischargeSummary.create({
+          patientId,
+          patientName: summaryData.patientName,
+          fileName,
+          driveLink,
+          generatedBy: userId,
+          generatedAt: summaryData.generatedAt,
+          isManuallyGenerated: true,
+        });
         console.log(`Manual discharge summary uploaded to Drive: ${driveLink}`);
       } catch (uploadError) {
         console.error("Error uploading to Drive:", uploadError);
@@ -5879,6 +5890,8 @@ export const generateManualDischargeSummary = async (req, res) => {
           name: summaryData.patientName,
           age: summaryData.age,
           gender: summaryData.sex,
+          opdNumber: summaryData.opdNo,
+          ipdNumber: summaryData.ipdNo,
         },
         summaryData: {
           consultant: summaryData.consultant,
@@ -5895,6 +5908,8 @@ export const generateManualDischargeSummary = async (req, res) => {
           consultant: latestAdmission?.doctor?.name,
           admissionDate: latestAdmission?.admissionDate,
           dischargeDate: latestAdmission?.dischargeDate,
+          opdNumber: latestAdmission?.opdNumber,
+          ipdNumber: latestAdmission?.ipdNumber,
         },
       },
     });
@@ -6024,11 +6039,33 @@ export const createDepositReceipt = async (req, res) => {
     }
 
     console.log("Admission record found:", JSON.stringify(admission, null, 2));
-    console.log("OPD Number from admission:", admission.opdNumber);
-    console.log("IPD Number from admission:", admission.ipdNumber);
 
-    // Generate unique receipt ID
-    const receiptId = DepositReceipt.generateReceiptId();
+    // Check existing deposits for this admission
+    const existingDeposits = await DepositReceipt.find({
+      patientId,
+      admissionId,
+      "receiptDetails.isActive": true,
+    }).sort({ "receiptDetails.generatedAt": -1 });
+
+    // Calculate total deposits made so far
+    const totalPreviousDeposits = existingDeposits.reduce(
+      (sum, receipt) => sum + receipt.depositDetails.depositAmount,
+      0
+    );
+
+    console.log(`Previous deposits for admission ${admissionId}:`, {
+      count: existingDeposits.length,
+      totalAmount: totalPreviousDeposits,
+      deposits: existingDeposits.map((d) => ({
+        receiptId: d.receiptId,
+        amount: d.depositDetails.depositAmount,
+        date: d.receiptDetails.generatedAt,
+      })),
+    });
+
+    // Generate unique receipt ID with sequence number
+    const sequenceNumber = existingDeposits.length + 1;
+    const receiptId = DepositReceipt.generateReceiptId(sequenceNumber);
 
     // Get Indian Standard Time (IST)
     const istDate = new Date(
@@ -6064,6 +6101,9 @@ export const createDepositReceipt = async (req, res) => {
         chequeNumber: chequeNumber || null,
         bankName: bankName || null,
         remarks: remarks || "",
+        // Add sequence and cumulative tracking
+        sequenceNumber,
+        cumulativeAmount: totalPreviousDeposits + parseFloat(depositAmount),
       },
       receiptDetails: {
         generatedBy: {
@@ -6074,14 +6114,14 @@ export const createDepositReceipt = async (req, res) => {
         isActive: true,
       },
       hospitalDetails: hospitalDetails || {
-        hospitalName: "Bhosale  Hospital",
+        hospitalName: "Bhosale Hospital",
         hospitalAddress:
           "1Shete mala, Near Ganesh Temple,Narayanwadi Road,Narayangaon,Tal Junnar,Dist Pune,Pin 410504",
         hospitalContact: "+91-9876543210",
         hospitalEmail: "info@cityhospital.com",
         registrationNumber: "REG/2024/001",
       },
-      // Access OPD/IPD numbers directly from the admission record in patient schema
+      // Access OPD/IPD numbers directly from the admission record
       patientNumbers: {
         opdNumber: admission.opdNumber ? Number(admission.opdNumber) : null,
         ipdNumber: admission.ipdNumber ? Number(admission.ipdNumber) : null,
@@ -6097,13 +6137,18 @@ export const createDepositReceipt = async (req, res) => {
     const depositReceipt = new DepositReceipt(depositReceiptData);
     await depositReceipt.save();
 
-    console.log(
-      "Saved deposit receipt patient numbers:",
-      depositReceipt.patientNumbers
-    );
+    console.log("Saved deposit receipt:", {
+      receiptId: depositReceipt.receiptId,
+      sequenceNumber: depositReceipt.depositDetails.sequenceNumber,
+      amount: depositReceipt.depositDetails.depositAmount,
+      cumulativeAmount: depositReceipt.depositDetails.cumulativeAmount,
+    });
 
-    // Generate PDF receipt
-    const htmlContent = generateDepositReceiptHTML(depositReceipt);
+    // Generate PDF receipt with deposit history context
+    const htmlContent = generateDepositReceiptHTML(depositReceipt, {
+      previousDeposits: existingDeposits,
+      isFirstDeposit: sequenceNumber === 1,
+    });
     const pdfBuffer = await generatePdf(htmlContent);
 
     // Upload PDF to Google Drive (optional)
@@ -6122,14 +6167,29 @@ export const createDepositReceipt = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Deposit receipt generated successfully",
+      message: `Deposit receipt generated successfully (${sequenceNumber}${
+        sequenceNumber === 1
+          ? "st"
+          : sequenceNumber === 2
+          ? "nd"
+          : sequenceNumber === 3
+          ? "rd"
+          : "th"
+      } deposit)`,
       data: {
         receiptId,
+        sequenceNumber,
         depositAmount: depositReceipt.getFormattedAmount(),
+        cumulativeAmount: new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+        }).format(depositReceipt.depositDetails.cumulativeAmount),
         receiptUrl,
         generatedAt: depositReceipt.receiptDetails.generatedAt,
         opdNumber: admission.opdNumber || null,
         ipdNumber: admission.ipdNumber || null,
+        totalDeposits: sequenceNumber,
+        previousDepositsCount: existingDeposits.length,
       },
       receipt: depositReceipt,
     });
@@ -6137,6 +6197,47 @@ export const createDepositReceipt = async (req, res) => {
     console.error("Error creating deposit receipt:", error);
     res.status(500).json({
       error: "Failed to generate deposit receipt",
+      details: error.message,
+    });
+  }
+};
+
+// Additional helper function to get all deposits for a patient/admission
+export const getDepositHistory = async (req, res) => {
+  const { patientId, admissionId } = req.params;
+
+  try {
+    const deposits = await DepositReceipt.find({
+      patientId,
+      ...(admissionId && { admissionId }),
+      "receiptDetails.isActive": true,
+    }).sort({ "receiptDetails.generatedAt": -1 });
+
+    const totalAmount = deposits.reduce(
+      (sum, deposit) => sum + deposit.depositDetails.depositAmount,
+      0
+    );
+
+    res.json({
+      success: true,
+      data: {
+        deposits,
+        summary: {
+          totalDeposits: deposits.length,
+          totalAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(totalAmount),
+          firstDeposit:
+            deposits[deposits.length - 1]?.receiptDetails.generatedAt,
+          lastDeposit: deposits[0]?.receiptDetails.generatedAt,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching deposit history:", error);
+    res.status(500).json({
+      error: "Failed to fetch deposit history",
       details: error.message,
     });
   }
@@ -6546,6 +6647,281 @@ export const exportDepositReceipts = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to export deposit receipts",
+      details: error.message,
+    });
+  }
+};
+export const getAdmissionDepositSummary = async (req, res) => {
+  const { admissionId } = req.params;
+
+  try {
+    const deposits = await DepositReceipt.find({
+      admissionId,
+      "receiptDetails.isActive": true,
+    }).sort({ "receiptDetails.generatedAt": 1 });
+
+    if (deposits.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          hasDeposits: false,
+          totalAmount: 0,
+          depositsCount: 0,
+          deposits: [],
+        },
+      });
+    }
+
+    const totalAmount = deposits.reduce(
+      (sum, deposit) => sum + deposit.depositDetails.depositAmount,
+      0
+    );
+
+    res.json({
+      success: true,
+      data: {
+        hasDeposits: true,
+        totalAmount,
+        formattedTotalAmount: new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+        }).format(totalAmount),
+        depositsCount: deposits.length,
+        deposits: deposits.map((deposit) => ({
+          receiptId: deposit.receiptId,
+          amount: deposit.depositDetails.depositAmount,
+          formattedAmount: deposit.getFormattedAmount(),
+          paymentMethod: deposit.depositDetails.paymentMethod,
+          generatedAt: deposit.receiptDetails.generatedAt,
+          sequenceNumber:
+            deposit.depositDetails.sequenceNumber ||
+            deposits.indexOf(deposit) + 1,
+        })),
+        firstDeposit: deposits[0].receiptDetails.generatedAt,
+        lastDeposit: deposits[deposits.length - 1].receiptDetails.generatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admission deposit summary:", error);
+    res.status(500).json({
+      error: "Failed to fetch admission deposit summary",
+      details: error.message,
+    });
+  }
+};
+export const getAllPatientsDeposits = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = "totalAmount",
+      sortOrder = "desc",
+      patientName,
+      minAmount,
+      maxAmount,
+      startDate,
+      endDate,
+      patientType,
+    } = req.query;
+
+    // Build match conditions for filtering
+    const matchConditions = {
+      "receiptDetails.isActive": true,
+    };
+
+    // Date range filter
+    if (startDate || endDate) {
+      matchConditions["receiptDetails.generatedAt"] = {};
+      if (startDate) {
+        matchConditions["receiptDetails.generatedAt"]["$gte"] = new Date(
+          startDate
+        );
+      }
+      if (endDate) {
+        matchConditions["receiptDetails.generatedAt"]["$lte"] = new Date(
+          endDate
+        );
+      }
+    }
+
+    // Patient type filter
+    if (patientType) {
+      matchConditions["patientDetails.patientType"] = patientType;
+    }
+
+    // Amount range filter (will be applied after aggregation)
+    const amountFilter = {};
+    if (minAmount) amountFilter["$gte"] = parseFloat(minAmount);
+    if (maxAmount) amountFilter["$lte"] = parseFloat(maxAmount);
+
+    // Aggregation pipeline
+    const pipeline = [
+      { $match: matchConditions },
+      {
+        $group: {
+          _id: "$patientId",
+          patientName: { $first: "$patientDetails.name" },
+          patientAge: { $first: "$patientDetails.age" },
+          patientGender: { $first: "$patientDetails.gender" },
+          patientContact: { $first: "$patientDetails.contact" },
+          patientType: { $first: "$patientDetails.patientType" },
+          totalDeposits: { $sum: 1 },
+          totalAmount: { $sum: "$depositDetails.depositAmount" },
+          firstDepositDate: { $min: "$receiptDetails.generatedAt" },
+          lastDepositDate: { $max: "$receiptDetails.generatedAt" },
+          admissions: { $addToSet: "$admissionId" },
+          paymentMethods: { $addToSet: "$depositDetails.paymentMethod" },
+          deposits: {
+            $push: {
+              receiptId: "$receiptId",
+              admissionId: "$admissionId",
+              amount: "$depositDetails.depositAmount",
+              paymentMethod: "$depositDetails.paymentMethod",
+              sequenceNumber: "$depositDetails.sequenceNumber",
+              generatedAt: "$receiptDetails.generatedAt",
+              receiptUrl: "$receiptDetails.receiptUrl",
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          totalAdmissions: { $size: "$admissions" },
+          formattedTotalAmount: {
+            $concat: [
+              "₹",
+              {
+                $toString: {
+                  $round: ["$totalAmount", 2],
+                },
+              },
+            ],
+          },
+          averageDepositAmount: {
+            $round: [{ $divide: ["$totalAmount", "$totalDeposits"] }, 2],
+          },
+        },
+      },
+    ];
+
+    // Apply patient name filter if provided
+    if (patientName) {
+      pipeline.push({
+        $match: {
+          patientName: { $regex: patientName, $options: "i" },
+        },
+      });
+    }
+
+    // Apply amount filter if provided
+    if (Object.keys(amountFilter).length > 0) {
+      pipeline.push({
+        $match: {
+          totalAmount: amountFilter,
+        },
+      });
+    }
+
+    // Sort
+    const sortField = sortBy === "patientName" ? "patientName" : "totalAmount";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+    pipeline.push({
+      $sort: { [sortField]: sortDirection },
+    });
+
+    // Get total count for pagination
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await DepositReceipt.aggregate(countPipeline);
+    const totalRecords = countResult[0]?.total || 0;
+
+    // Add pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: parseInt(limit) });
+
+    // Execute aggregation
+    const patientsDeposits = await DepositReceipt.aggregate(pipeline);
+
+    // Calculate overall statistics
+    const overallStats = await DepositReceipt.aggregate([
+      { $match: matchConditions },
+      {
+        $group: {
+          _id: null,
+          totalPatients: { $addToSet: "$patientId" },
+          totalDeposits: { $sum: 1 },
+          totalAmount: { $sum: "$depositDetails.depositAmount" },
+          averageDepositAmount: { $avg: "$depositDetails.depositAmount" },
+          minDepositAmount: { $min: "$depositDetails.depositAmount" },
+          maxDepositAmount: { $max: "$depositDetails.depositAmount" },
+        },
+      },
+      {
+        $addFields: {
+          totalPatients: { $size: "$totalPatients" },
+        },
+      },
+    ]);
+
+    const stats = overallStats[0] || {
+      totalPatients: 0,
+      totalDeposits: 0,
+      totalAmount: 0,
+      averageDepositAmount: 0,
+      minDepositAmount: 0,
+      maxDepositAmount: 0,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        patients: patientsDeposits,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalRecords / parseInt(limit)),
+          totalRecords,
+          recordsPerPage: parseInt(limit),
+          hasNextPage:
+            parseInt(page) < Math.ceil(totalRecords / parseInt(limit)),
+          hasPrevPage: parseInt(page) > 1,
+        },
+        summary: {
+          totalPatients: stats.totalPatients,
+          totalDeposits: stats.totalDeposits,
+          totalAmount: stats.totalAmount,
+          formattedTotalAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(stats.totalAmount),
+          averageDepositAmount: Math.round(stats.averageDepositAmount || 0),
+          formattedAverageDepositAmount: new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+          }).format(stats.averageDepositAmount || 0),
+          minDepositAmount: stats.minDepositAmount,
+          maxDepositAmount: stats.maxDepositAmount,
+          averageDepositsPerPatient:
+            stats.totalPatients > 0
+              ? Math.round((stats.totalDeposits / stats.totalPatients) * 100) /
+                100
+              : 0,
+        },
+        filters: {
+          applied: {
+            patientName: patientName || null,
+            minAmount: minAmount || null,
+            maxAmount: maxAmount || null,
+            startDate: startDate || null,
+            endDate: endDate || null,
+            patientType: patientType || null,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patients deposits:", error);
+    res.status(500).json({
+      error: "Failed to fetch patients deposits",
       details: error.message,
     });
   }

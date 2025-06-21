@@ -32,6 +32,7 @@ import {
   fetchSymptoms,
   fetchVitals,
   getAdmittedPatientsByDoctor,
+  getAllDischargeSummaries,
   getAllDoctorsProfiles,
   getAllNurses,
   getAssignedPatients,
@@ -51,6 +52,7 @@ import {
   getPatientInvestigationsByAdmission,
   getPatients,
   getPatientsAssignedByDoctor,
+  getPatientsList,
   getPatientSuggestions,
   getSeasonalSymptoms,
   getSymptomAnalytics,
@@ -92,6 +94,8 @@ doctorRouter.get(
   getPatientsAssignedByDoctor
 );
 doctorRouter.post("/addPresciption", addPrescription);
+doctorRouter.get("/getPatientsList", getPatientsList);
+doctorRouter.get("/getAllDischargeSummaries", getAllDischargeSummaries);
 doctorRouter.get("/getPrescription/:patientId/:admissionId", fetchPrescription);
 doctorRouter.post("/addSymptoms", addSymptomsByDoctor);
 doctorRouter.get("/fetchSymptoms/:patientId/:admissionId", fetchSymptoms);

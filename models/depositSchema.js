@@ -18,7 +18,11 @@ const depositReceiptSchema = new mongoose.Schema({
   patientDetails: {
     name: { type: String, required: true },
     age: { type: Number, required: true },
-    gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+      required: true,
+    },
     contact: { type: String, required: true },
     address: { type: String },
     patientType: { type: String, default: "Internal" },
@@ -49,6 +53,24 @@ const depositReceiptSchema = new mongoose.Schema({
     chequeNumber: { type: String }, // For cheque payments
     bankName: { type: String }, // For cheque/bank transfer
     remarks: { type: String },
+    // New fields for multiple deposits tracking
+    sequenceNumber: {
+      type: Number,
+      required: true,
+      min: 1,
+      default: 1,
+    },
+    cumulativeAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    // Reference to previous deposit if applicable
+    previousDepositId: {
+      type: String,
+      ref: "DepositReceipt",
+      default: null,
+    },
   },
   receiptDetails: {
     generatedBy: {
@@ -58,6 +80,13 @@ const depositReceiptSchema = new mongoose.Schema({
     generatedAt: { type: Date, default: Date.now },
     receiptUrl: { type: String }, // URL to the generated PDF
     isActive: { type: Boolean, default: true },
+    // Additional tracking for multiple deposits
+    isFirstDeposit: { type: Boolean, default: true },
+    depositType: {
+      type: String,
+      enum: ["Initial", "Additional", "Top-up", "Emergency"],
+      default: "Initial",
+    },
   },
   hospitalDetails: {
     hospitalName: { type: String, required: true },
@@ -73,23 +102,44 @@ const depositReceiptSchema = new mongoose.Schema({
   },
 });
 
-// Indexes for better query performance
+// Compound indexes for better query performance
 depositReceiptSchema.index({ patientId: 1, admissionId: 1 });
 depositReceiptSchema.index({ receiptId: 1 });
 depositReceiptSchema.index({ "receiptDetails.generatedAt": -1 });
 depositReceiptSchema.index({ "depositDetails.depositAmount": 1 });
+// New indexes for multiple deposits
+depositReceiptSchema.index({
+  patientId: 1,
+  admissionId: 1,
+  "depositDetails.sequenceNumber": 1,
+});
+depositReceiptSchema.index({ patientId: 1, "receiptDetails.isActive": 1 });
+depositReceiptSchema.index({ admissionId: 1, "receiptDetails.isActive": 1 });
 
-// Pre-save middleware to update the updatedAt field
-depositReceiptSchema.pre("save", function (next) {
+// Pre-save middleware to update the updatedAt field and set deposit type
+depositReceiptSchema.pre("save", async function (next) {
   this.metadata.updatedAt = new Date();
+
+  // Set deposit type based on sequence number
+  if (this.isNew) {
+    if (this.depositDetails.sequenceNumber === 1) {
+      this.receiptDetails.isFirstDeposit = true;
+      this.receiptDetails.depositType = "Initial";
+    } else {
+      this.receiptDetails.isFirstDeposit = false;
+      this.receiptDetails.depositType = "Additional";
+    }
+  }
+
   next();
 });
 
-// Method to generate receipt ID
-depositReceiptSchema.statics.generateReceiptId = function () {
+// Enhanced method to generate receipt ID with sequence support
+depositReceiptSchema.statics.generateReceiptId = function (sequenceNumber = 1) {
   const timestamp = Date.now().toString(36);
   const randomPart = Math.random().toString(36).substr(2, 5);
-  return `DEP-${timestamp}-${randomPart}`.toUpperCase();
+  const sequence = sequenceNumber.toString().padStart(2, "0");
+  return `DEP-${timestamp}-${sequence}-${randomPart}`.toUpperCase();
 };
 
 // Method to format deposit amount
@@ -98,6 +148,14 @@ depositReceiptSchema.methods.getFormattedAmount = function () {
     style: "currency",
     currency: "INR",
   }).format(this.depositDetails.depositAmount);
+};
+
+// Method to format cumulative amount
+depositReceiptSchema.methods.getFormattedCumulativeAmount = function () {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+  }).format(this.depositDetails.cumulativeAmount);
 };
 
 // Virtual to get receipt age
@@ -109,5 +167,66 @@ depositReceiptSchema.virtual("receiptAge").get(function () {
   return diffDays;
 });
 
+// Static method to get all deposits for an admission
+depositReceiptSchema.statics.getAdmissionDeposits = function (
+  admissionId,
+  includeInactive = false
+) {
+  const query = { admissionId };
+  if (!includeInactive) {
+    query["receiptDetails.isActive"] = true;
+  }
+  return this.find(query).sort({ "depositDetails.sequenceNumber": 1 });
+};
+
+// Static method to get total deposits for an admission
+depositReceiptSchema.statics.getTotalDepositsForAdmission = async function (
+  admissionId
+) {
+  const result = await this.aggregate([
+    {
+      $match: {
+        admissionId: new mongoose.Types.ObjectId(admissionId),
+        "receiptDetails.isActive": true,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: "$depositDetails.depositAmount" },
+        count: { $sum: 1 },
+        lastDeposit: { $max: "$receiptDetails.generatedAt" },
+      },
+    },
+  ]);
+
+  return result[0] || { totalAmount: 0, count: 0, lastDeposit: null };
+};
+
+// Static method to get patient's deposit history across all admissions
+depositReceiptSchema.statics.getPatientDepositHistory = function (
+  patientId,
+  includeInactive = false
+) {
+  const query = { patientId };
+  if (!includeInactive) {
+    query["receiptDetails.isActive"] = true;
+  }
+  return this.find(query).sort({ "receiptDetails.generatedAt": -1 });
+};
+
+// Method to check if this is the latest deposit for the admission
+depositReceiptSchema.methods.isLatestDeposit = async function () {
+  const latestDeposit = await this.constructor
+    .findOne({
+      admissionId: this.admissionId,
+      "receiptDetails.isActive": true,
+    })
+    .sort({ "depositDetails.sequenceNumber": -1 });
+
+  return latestDeposit && latestDeposit._id.toString() === this._id.toString();
+};
+
 const DepositReceipt = mongoose.model("DepositReceipt", depositReceiptSchema);
+
 export default DepositReceipt;

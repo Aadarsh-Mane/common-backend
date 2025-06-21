@@ -19,6 +19,7 @@ import Medicine from "../models/doctorMedicines.js";
 import Investigation from "../models/investigationSchema.js";
 import EmergencyMedication from "../models/nurse/emergencySchema.js";
 import PatientCounter from "../models/patientCounter.js";
+import { DischargeSummary } from "../models/dischargeSummarySchema.js";
 export const getPatients = async (req, res) => {
   console.log(req.usertype);
   try {
@@ -5019,6 +5020,553 @@ export const resetCounters = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to reset counters",
+    });
+  }
+};
+
+export const getAllDischargeSummaries = async (req, res) => {
+  try {
+    // Extract query parameters with defaults
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "generatedAt",
+      sortOrder = "desc",
+      search = "",
+      patientId,
+      isManuallyGenerated,
+      dateFrom,
+      dateTo,
+      fileName,
+    } = req.query;
+
+    // Validate and sanitize inputs
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit))); // Cap at 100 items per page
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filter object
+    const filter = {};
+
+    // Search functionality (searches in patientId and fileName)
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      filter.$or = [{ patientId: searchRegex }, { fileName: searchRegex }];
+    }
+
+    // Specific filters
+    if (patientId) {
+      filter.patientId = patientId;
+    }
+
+    if (fileName) {
+      filter.fileName = new RegExp(fileName, "i");
+    }
+
+    if (isManuallyGenerated !== undefined) {
+      filter.isManuallyGenerated = isManuallyGenerated === "true";
+    }
+
+    // Date range filtering
+    if (dateFrom || dateTo) {
+      filter.generatedAt = {};
+      if (dateFrom) {
+        filter.generatedAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        // Add 1 day to include the entire dateTo day
+        const endDate = new Date(dateTo);
+        endDate.setDate(endDate.getDate() + 1);
+        filter.generatedAt.$lt = endDate;
+      }
+    }
+
+    // Validate sort field to prevent NoSQL injection
+    const allowedSortFields = [
+      "generatedAt",
+      "patientId",
+      "fileName",
+      "isManuallyGenerated",
+    ];
+    const sortField = allowedSortFields.includes(sortBy)
+      ? sortBy
+      : "generatedAt";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+    // Execute query with aggregation for better performance
+    const [summaries, totalCount] = await Promise.all([
+      DischargeSummary.find(filter)
+        .select("-__v") // Exclude version field
+        .sort({ [sortField]: sortDirection })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(), // Use lean() for better performance as we don't need Mongoose document methods
+
+      DischargeSummary.countDocuments(filter),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limitNum);
+    const hasNextPage = pageNum < totalPages;
+    const hasPrevPage = pageNum > 1;
+
+    // Response object
+    const response = {
+      success: true,
+      data: {
+        summaries,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalCount,
+          hasNextPage,
+          hasPrevPage,
+          limit: limitNum,
+          skip,
+        },
+        filters: {
+          search: search || null,
+          patientId: patientId || null,
+          fileName: fileName || null,
+          isManuallyGenerated: isManuallyGenerated
+            ? isManuallyGenerated === "true"
+            : null,
+          dateFrom: dateFrom || null,
+          dateTo: dateTo || null,
+          sortBy: sortField,
+          sortOrder,
+        },
+      },
+      message: `Retrieved ${summaries.length} discharge summaries`,
+    };
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching discharge summaries:", error);
+
+    // Handle specific MongoDB errors
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid date format provided",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch discharge summaries",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const getPatientsList = async (req, res) => {
+  try {
+    // Extract query parameters with defaults
+    const {
+      page = 1,
+      limit = 20,
+      sortBy = "opdNumber",
+      sortOrder = "desc",
+      search = "",
+      filterType = "all", // all, today, yesterday, ipd, opd, date-range
+      dateFrom,
+      dateTo,
+      status,
+      doctorId,
+      sectionId,
+    } = req.query;
+
+    // Validate and sanitize inputs
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build date filter based on filterType
+    let dateFilter = {};
+    const today = new Date();
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    const yesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+    const endOfYesterday = new Date(startOfToday.getTime());
+
+    switch (filterType) {
+      case "today":
+        dateFilter = {
+          "admissionRecords.admissionDate": {
+            $gte: startOfToday,
+            $lt: endOfToday,
+          },
+        };
+        break;
+      case "yesterday":
+        dateFilter = {
+          "admissionRecords.admissionDate": {
+            $gte: yesterday,
+            $lt: endOfYesterday,
+          },
+        };
+        break;
+      case "date-range":
+        if (dateFrom || dateTo) {
+          dateFilter["admissionRecords.admissionDate"] = {};
+          if (dateFrom) {
+            dateFilter["admissionRecords.admissionDate"].$gte = new Date(
+              dateFrom
+            );
+          }
+          if (dateTo) {
+            const endDate = new Date(dateTo);
+            endDate.setDate(endDate.getDate() + 1);
+            dateFilter["admissionRecords.admissionDate"].$lt = endDate;
+          }
+        }
+        break;
+    }
+
+    // Build aggregation pipeline
+    const pipeline = [
+      // Match basic filters
+      {
+        $match: {
+          ...dateFilter,
+          ...(search && search.trim()
+            ? {
+                $or: [
+                  { name: new RegExp(search.trim(), "i") },
+                  { patientId: new RegExp(search.trim(), "i") },
+                  { contact: new RegExp(search.trim(), "i") },
+                ],
+              }
+            : {}),
+        },
+      },
+
+      // Add latest admission record for each patient
+      {
+        $addFields: {
+          latestAdmission: {
+            $arrayElemAt: [
+              {
+                $sortArray: {
+                  input: "$admissionRecords",
+                  sortBy: { admissionDate: -1 },
+                },
+              },
+              0,
+            ],
+          },
+          totalAdmissions: { $size: "$admissionRecords" },
+          ipdAdmissions: {
+            $size: {
+              $filter: {
+                input: "$admissionRecords",
+                cond: { $ne: ["$$this.ipdNumber", null] },
+              },
+            },
+          },
+        },
+      },
+
+      // Filter by patient type (IPD/OPD) if specified
+      ...(filterType === "ipd"
+        ? [
+            {
+              $match: { "latestAdmission.ipdNumber": { $ne: null } },
+            },
+          ]
+        : []),
+
+      ...(filterType === "opd"
+        ? [
+            {
+              $match: { "latestAdmission.ipdNumber": null },
+            },
+          ]
+        : []),
+
+      // Filter by status if specified
+      ...(status
+        ? [
+            {
+              $match: { "latestAdmission.status": status },
+            },
+          ]
+        : []),
+
+      // Filter by doctor if specified
+      ...(doctorId
+        ? [
+            {
+              $match: {
+                "latestAdmission.doctor.id": new mongoose.Types.ObjectId(
+                  doctorId
+                ),
+              },
+            },
+          ]
+        : []),
+
+      // Filter by section if specified
+      ...(sectionId
+        ? [
+            {
+              $match: {
+                "latestAdmission.section.id": new mongoose.Types.ObjectId(
+                  sectionId
+                ),
+              },
+            },
+          ]
+        : []),
+
+      // Add patient history data
+      {
+        $lookup: {
+          from: "patienthistories",
+          localField: "patientId",
+          foreignField: "patientId",
+          as: "patientHistory",
+        },
+      },
+
+      // Add visit count and last visit info
+      {
+        $addFields: {
+          historyRecord: { $arrayElemAt: ["$patientHistory", 0] },
+          visitCount: {
+            $add: [
+              "$totalAdmissions",
+              {
+                $size: {
+                  $ifNull: [
+                    { $arrayElemAt: ["$patientHistory.history", 0] },
+                    [],
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+
+      // Add last discharge information
+      {
+        $addFields: {
+          lastDischarge: {
+            $cond: {
+              if: {
+                $gt: [
+                  { $size: { $ifNull: ["$historyRecord.history", []] } },
+                  0,
+                ],
+              },
+              then: {
+                $arrayElemAt: [
+                  {
+                    $sortArray: {
+                      input: "$historyRecord.history",
+                      sortBy: { dischargeDate: -1 },
+                    },
+                  },
+                  0,
+                ],
+              },
+              else: null,
+            },
+          },
+        },
+      },
+
+      // Project final fields
+      {
+        $project: {
+          patientId: 1,
+          name: 1,
+          age: 1,
+          gender: 1,
+          contact: 1,
+          address: 1,
+          city: 1,
+          state: 1,
+          discharged: 1,
+          pendingAmount: 1,
+          imageUrl: 1,
+
+          // Latest admission info
+          currentOpdNumber: "$latestAdmission.opdNumber",
+          currentIpdNumber: "$latestAdmission.ipdNumber",
+          currentAdmissionDate: "$latestAdmission.admissionDate",
+          currentStatus: "$latestAdmission.status",
+          currentDoctor: "$latestAdmission.doctor",
+          currentSection: "$latestAdmission.section",
+          currentBedNumber: "$latestAdmission.bedNumber",
+          currentDischargeDate: "$latestAdmission.dischargeDate",
+          reasonForAdmission: "$latestAdmission.reasonForAdmission",
+          conditionAtDischarge: "$latestAdmission.conditionAtDischarge",
+
+          // Visit statistics
+          totalVisits: "$visitCount",
+          totalAdmissions: 1,
+          ipdAdmissions: 1,
+          opdOnlyVisits: { $subtract: ["$totalAdmissions", "$ipdAdmissions"] },
+
+          // Last discharge info
+          lastDischargeDate: "$lastDischarge.dischargeDate",
+          lastDischargeCondition: "$lastDischarge.conditionAtDischarge",
+          lastDischargeDoctor: "$lastDischarge.doctor",
+
+          // Patient type indicator
+          patientType: {
+            $cond: {
+              if: { $ne: ["$latestAdmission.ipdNumber", null] },
+              then: "IPD",
+              else: "OPD",
+            },
+          },
+
+          // Serial number based on OPD/IPD
+          serialNumber: {
+            $cond: {
+              if: { $ne: ["$latestAdmission.ipdNumber", null] },
+              then: "$latestAdmission.ipdNumber",
+              else: "$latestAdmission.opdNumber",
+            },
+          },
+        },
+      },
+    ];
+
+    // Add sorting
+    const validSortFields = [
+      "serialNumber",
+      "currentOpdNumber",
+      "currentIpdNumber",
+      "currentAdmissionDate",
+      "name",
+      "totalVisits",
+    ];
+    const sortField = validSortFields.includes(sortBy)
+      ? sortBy
+      : "serialNumber";
+    const sortDirection = sortOrder === "asc" ? 1 : -1;
+
+    pipeline.push({
+      $sort: { [sortField]: sortDirection },
+    });
+
+    // Execute aggregation with pagination
+    const [patients, totalCountResult] = await Promise.all([
+      patientSchema.aggregate([
+        ...pipeline,
+        { $skip: skip },
+        { $limit: limitNum },
+      ]),
+      patientSchema.aggregate([...pipeline, { $count: "total" }]),
+    ]);
+
+    const totalCount = totalCountResult[0]?.total || 0;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    // Get summary statistics
+    const summaryStats = await patientSchema.aggregate([
+      {
+        $addFields: {
+          latestAdmission: {
+            $arrayElemAt: [
+              {
+                $sortArray: {
+                  input: "$admissionRecords",
+                  sortBy: { admissionDate: -1 },
+                },
+              },
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPatients: { $sum: 1 },
+          ipdPatients: {
+            $sum: {
+              $cond: [{ $ne: ["$latestAdmission.ipdNumber", null] }, 1, 0],
+            },
+          },
+          opdPatients: {
+            $sum: {
+              $cond: [{ $eq: ["$latestAdmission.ipdNumber", null] }, 1, 0],
+            },
+          },
+          todayAdmissions: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ["$latestAdmission.admissionDate", startOfToday] },
+                    { $lt: ["$latestAdmission.admissionDate", endOfToday] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const stats = summaryStats[0] || {
+      totalPatients: 0,
+      ipdPatients: 0,
+      opdPatients: 0,
+      todayAdmissions: 0,
+    };
+
+    // Response object
+    const response = {
+      success: true,
+      data: {
+        patients,
+        pagination: {
+          currentPage: pageNum,
+          totalPages,
+          totalCount,
+          hasNextPage: pageNum < totalPages,
+          hasPrevPage: pageNum > 1,
+          limit: limitNum,
+          skip,
+        },
+        statistics: stats,
+        filters: {
+          search: search || null,
+          filterType,
+          dateFrom: dateFrom || null,
+          dateTo: dateTo || null,
+          status: status || null,
+          doctorId: doctorId || null,
+          sectionId: sectionId || null,
+          sortBy: sortField,
+          sortOrder,
+        },
+      },
+      message: `Retrieved ${patients.length} patients`,
+    };
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching patients list:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch patients list",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

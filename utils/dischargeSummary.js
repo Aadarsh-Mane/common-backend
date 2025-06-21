@@ -1068,7 +1068,9 @@ export const generateManualDischargeSummaryHTML = (
             </tr>
             <tr>
               <td class="label">Address :</td>
-              <td class="value" colspan="7">${data.address || "N/A"}</td>
+              <td class="value" colspan="5">${data.address || "N/A"}</td>
+              <td class="label">OPD No :</td>
+              <td class="value">${data.opdNo || "N/A"}</td>
             </tr>
             <tr>
               <td class="label">Consultant :</td>
