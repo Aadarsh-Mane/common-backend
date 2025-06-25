@@ -17,6 +17,7 @@ import {
   assignPatientToLab,
   createInvestigation,
   deleteDiagnosis,
+  deleteDoctorConsultant,
   deleteDoctorMedicine,
   deleteDoctorTreatment,
   deletedPrescription,
@@ -108,6 +109,7 @@ doctorRouter.post("/updateCondition", auth, updateConditionAtDischarge);
 doctorRouter.get("/allAttendees", seeAllAttendees);
 doctorRouter.get("/allNurses", getAllNurses);
 doctorRouter.get("/getPatientSuggestion/:patientId", getPatientSuggestions);
+doctorRouter.delete("/deleteDoctorConsultant", deleteDoctorConsultant);
 doctorRouter.get("/getDiagnosis/:patientId", getDiagnosis);
 doctorRouter.delete(
   "/deletePrescription/:patientId/:admissionId/:prescriptionId",

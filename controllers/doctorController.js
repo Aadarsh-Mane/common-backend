@@ -2093,7 +2093,7 @@ export const addDoctorConsultant = async (req, res) => {
   try {
     const { patientId, admissionId, consulting } = req.body;
     console.log("Request Body:", req.body.consulting); // Check the structure of the incoming data
-
+    console.log("Patient ID:", patientId, "Admission ID:", admissionId);
     // Find the patient by ID
     const patient = await patientSchema.findOne({ patientId });
     if (!patient) {
@@ -2151,6 +2151,49 @@ export const getDoctorConsulting = async (req, res) => {
     });
   }
 };
+export const deleteDoctorConsultant = async (req, res) => {
+  try {
+    const { patientId, admissionId, consultantId } = req.body;
+
+    // Find the patient by patientId
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({ message: "Patient not found" });
+    }
+
+    // Find the specific admission record
+    const admission = patient.admissionRecords.id(admissionId);
+    if (!admission) {
+      return res.status(404).json({ message: "Admission record not found" });
+    }
+
+    // Find index of the consultant entry
+    const index = admission.doctorConsulting.findIndex(
+      (doc) => doc._id.toString() === consultantId
+    );
+
+    if (index === -1) {
+      return res.status(404).json({ message: "Doctor consultant not found" });
+    }
+
+    // Remove the consultant
+    const removedConsultant = admission.doctorConsulting.splice(index, 1);
+
+    // Save updated document
+    await patient.save();
+
+    res.status(200).json({
+      message: "Doctor consultant deleted successfully",
+      removedConsultant,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to delete doctor consultant",
+      error: error.message,
+    });
+  }
+};
+
 export const amountToBePayed = async (req, res) => {
   try {
     const { patientId, admissionId, amount } = req.body;
