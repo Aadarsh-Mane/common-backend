@@ -2042,7 +2042,7 @@ export const updateConditionAtDischarge = async (req, res) => {
   const validConditions = [
     "Discharged",
     "Transferred",
-    "A.M.A.",
+    "D.M.A.",
     "Absconded",
     "Expired",
   ];

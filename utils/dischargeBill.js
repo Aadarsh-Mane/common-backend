@@ -562,7 +562,19 @@ export const generateDischargeBillHTML = (
     process.env.HOSPITAL_ADDRESS ||
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = process.env.HOSPITAL_PHONE || "Phone No.9923537180";
-
+  // Updated date formatting function to include time in IST
+  const formatDateWithTime = (date) => {
+    const istDate = new Date(date).toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return istDate;
+  };
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString("en-IN", {
       year: "numeric",
@@ -962,12 +974,12 @@ export const generateDischargeBillHTML = (
                     <th>IPD Number</th>
                     <td>${admissionHistory.ipdNumber || "N/A"}</td>
                 </tr>
-                <tr>
-                    <th>Admission Date</th>
-                    <td>${formatDate(admissionHistory.admissionDate)}</td>
-                    <th>Discharge Date</th>
-                    <td>${formatDate(admissionHistory.dischargeDate)}</td>
-                </tr>
+              <tr>
+    <th>Admission Date</th>
+    <td>${formatDateWithTime(admissionHistory.admissionDate)}</td>
+    <th>Discharge Date</th>
+    <td>${formatDateWithTime(admissionHistory.dischargeDate)}</td>
+</tr>
                 <tr>
                     <th>Length of Stay</th>
                     <td>${lengthOfStay} days</td>

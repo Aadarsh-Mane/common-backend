@@ -291,7 +291,7 @@ const patientHistorySchema = new mongoose.Schema({
       doctorConsultant: { type: [String] },
       conditionAtDischarge: {
         type: String,
-        enum: ["Discharged", "Transferred", "A.M.A.", "Absconded", "Expired"],
+        enum: ["Discharged", "Transferred", "D.M.A.", "Absconded", "Expired"],
         default: "Discharged",
       },
       amountToBePayed: { type: Number },
