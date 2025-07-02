@@ -38,6 +38,14 @@ import DepositReceipt from "../../models/depositSchema.js";
 import { generateDepositReceiptHTML } from "../../utils/depositBill.js";
 import PatientCounter from "../../models/patientCounter.js";
 import { DischargeSummary } from "../../models/dischargeSummarySchema.js";
+import {
+  generateConsultingHTML,
+  generateDiagnosisHTML,
+  generateDoctorNotesHTML,
+  generatePrescriptionsHTML,
+  generateSymptomsHTML,
+  generateVitalsHTML,
+} from "../../services/medicalRecordGenerator.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -5382,8 +5390,8 @@ export const generateIpdBill = async (req, res) => {
       }
     }
 
-    // Create bill record
-    const billRecord = new Bill({
+    // Prepare bill data for potential storage (but don't store yet)
+    const billData = {
       billNumber,
       billType: "IPD",
 
@@ -5465,18 +5473,15 @@ export const generateIpdBill = async (req, res) => {
           : advance > 0
           ? "Partial"
           : "Pending",
-    });
-
-    // Save bill record
-    await billRecord.save();
+    };
 
     console.log(
-      `IPD Bill generated and saved: ${billNumber} for patient ${patientId}, OPD: ${opdNumber}, IPD: ${
+      `IPD Bill generated (not stored): ${billNumber} for patient ${patientId}, OPD: ${opdNumber}, IPD: ${
         ipdNumber || "N/A"
       }`
     );
 
-    // Return JSON response with bill data including OPD/IPD numbers
+    // Return JSON response with bill data including OPD/IPD numbers + billData for storage
     res.status(200).json({
       success: true,
       message: "Discharge bill generated successfully",
@@ -5508,6 +5513,8 @@ export const generateIpdBill = async (req, res) => {
           advance: billCalculations.advance,
           finalAmount: billCalculations.finalAmount,
         },
+        // Add billData for potential storage
+        billData: billData,
       },
     });
   } catch (error) {
@@ -5596,6 +5603,163 @@ function processCharges(charges, lengthOfStay) {
 
   return processedCharges;
 }
+export const storeIpdBill = async (req, res) => {
+  try {
+    const { billData } = req.body;
+
+    if (!billData) {
+      return res.status(400).json({
+        success: false,
+        error: "Bill data is required",
+        code: "MISSING_BILL_DATA",
+      });
+    }
+
+    // Create bill record
+    const billRecord = new Bill(billData);
+
+    // Save bill record
+    await billRecord.save();
+
+    console.log(
+      `IPD Bill stored successfully: ${billData.billNumber} for patient ${billData.patient.patientId}`
+    );
+
+    // Return success response
+    res.status(201).json({
+      success: true,
+      message: "IPD bill stored successfully",
+      data: {
+        billId: billRecord._id,
+        billNumber: billRecord.billNumber,
+        billNo: billRecord.billNo,
+        patientId: billRecord.patient.patientId,
+        totalAmount: billRecord.financials.grandTotal,
+        status: billRecord.status,
+        paymentStatus: billRecord.paymentStatus,
+        storedAt: billRecord.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error storing IPD bill:", error);
+
+    // Handle duplicate bill number error
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        error: "Bill with this number already exists",
+        code: "DUPLICATE_BILL_NUMBER",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to store IPD bill",
+      code: "BILL_STORAGE_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const getLatestPatientRecord = async (req, res) => {
+  const { patientId } = req.params;
+
+  // Validate if the patientId is provided
+  if (!patientId) {
+    return res.status(400).json({
+      success: false,
+      error: "Patient ID is required",
+    });
+  }
+
+  try {
+    // Fetch the patient history
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name email specialization")
+      .populate("history.section.id", "name type")
+      .lean(); // Use lean() for better performance since we're only reading
+
+    // Check if history exists for the patient
+    if (
+      !patientHistory ||
+      !patientHistory.history ||
+      patientHistory.history.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        error: `No history found for patient ID: ${patientId}`,
+      });
+    }
+
+    // Get the latest record (most recent discharge)
+    // Sort by discharge date (most recent first), then by admission date as fallback
+    const latestRecord = patientHistory.history.sort((a, b) => {
+      // Primary sort: discharge date (most recent first)
+      if (a.dischargeDate && b.dischargeDate) {
+        return new Date(b.dischargeDate) - new Date(a.dischargeDate);
+      }
+      // If one has discharge date and other doesn't, prioritize the one with discharge date
+      if (a.dischargeDate && !b.dischargeDate) return -1;
+      if (!a.dischargeDate && b.dischargeDate) return 1;
+
+      // Fallback: sort by admission date (most recent first)
+      return new Date(b.admissionDate) - new Date(a.admissionDate);
+    })[0];
+
+    // Structure the response with patient basic info and latest record
+    const response = {
+      patientInfo: {
+        patientId: patientHistory.patientId,
+        name: patientHistory.name,
+        age: patientHistory.age,
+        gender: patientHistory.gender,
+        contact: patientHistory.contact,
+        address: patientHistory.address,
+        dob: patientHistory.dob,
+        imageUrl: patientHistory.imageUrl,
+      },
+      latestRecord: {
+        ...latestRecord,
+        // Calculate length of stay if both dates are available
+        lengthOfStay:
+          latestRecord.dischargeDate && latestRecord.admissionDate
+            ? Math.ceil(
+                (new Date(latestRecord.dischargeDate) -
+                  new Date(latestRecord.admissionDate)) /
+                  (1000 * 60 * 60 * 24)
+              )
+            : null,
+        // Add summary counts
+        summaryStats: {
+          totalFollowUps: latestRecord.followUps?.length || 0,
+          totalFourHrFollowUps: latestRecord.fourHrFollowUpSchema?.length || 0,
+          totalPrescriptions: latestRecord.doctorPrescriptions?.length || 0,
+          totalVitalsRecorded: latestRecord.vitals?.length || 0,
+          totalDoctorNotes: latestRecord.doctorNotes?.length || 0,
+          totalMedications: latestRecord.medications?.length || 0,
+          totalIvFluids: latestRecord.ivFluids?.length || 0,
+          totalProcedures: latestRecord.procedures?.length || 0,
+          totalLabReports: latestRecord.labReports?.length || 0,
+        },
+      },
+      totalAdmissions: patientHistory.history.length,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Latest patient record fetched successfully",
+      data: response,
+    });
+  } catch (error) {
+    console.error("Error fetching latest patient record:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
 
 /**
  * Calculate bill totals, discount, and final amount
@@ -6923,6 +7087,259 @@ export const getAllPatientsDeposits = async (req, res) => {
     res.status(500).json({
       error: "Failed to fetch patients deposits",
       details: error.message,
+    });
+  }
+};
+export const generatePatientRecordPDFs = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { reportTypes } = req.body;
+
+    // Validate required fields
+    if (
+      !reportTypes ||
+      !Array.isArray(reportTypes) ||
+      reportTypes.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "reportTypes array is required. Available types: symptoms, vitals, diagnosis, prescriptions, consulting, doctorNotes",
+      });
+    }
+
+    // Validate if the patientId is provided
+    if (!patientId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient ID is required",
+      });
+    }
+
+    // Fetch the patient history
+    const patientHistory = await PatientHistory.findOne({ patientId })
+      .populate("history.doctor.id", "name email specialization")
+      .populate("history.section.id", "name type")
+      .populate("history.followUps.nurseId", "name")
+      .lean(); // Use lean() for better performance since we're only reading
+
+    // Check if history exists for the patient
+    if (
+      !patientHistory ||
+      !patientHistory.history ||
+      patientHistory.history.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: `No history found for patient ID: ${patientId}`,
+      });
+    }
+
+    // Get the latest record (most recent discharge)
+    // Sort by discharge date (most recent first), then by admission date as fallback
+    const latestRecord = patientHistory.history.sort((a, b) => {
+      // Primary sort: discharge date (most recent first)
+      if (a.dischargeDate && b.dischargeDate) {
+        return new Date(b.dischargeDate) - new Date(a.dischargeDate);
+      }
+      // If one has discharge date and other doesn't, prioritize the one with discharge date
+      if (a.dischargeDate && !b.dischargeDate) return -1;
+      if (!a.dischargeDate && b.dischargeDate) return 1;
+
+      // Fallback: sort by admission date (most recent first)
+      return new Date(b.admissionDate) - new Date(a.admissionDate);
+    })[0];
+
+    // Hardcoded hospital information
+    const hospital = {
+      name: "Bhosale Hospital",
+      address:
+        "1Shete mala, Near Ganesh Temple,Narayanwadi Road,Narayangaon,Tal Junnar,Dist Pune,Pin 410504",
+      phone: "+91 9876543210",
+      email: "info@bhosalehospital.com",
+      website: "www.bhosalehospital.com",
+      bannerImageUrl:
+        "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png",
+      folderId: "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV", // Your Google Drive folder ID
+    };
+
+    const availableReports = {
+      symptoms: "Symptoms Report",
+      vitals: "Vital Signs Report",
+      diagnosis: "Diagnosis Report",
+      prescriptions: "Prescriptions Report",
+      consulting: "Consulting Report",
+      doctorNotes: "Doctor Notes Report",
+    };
+
+    // Validate report types
+    const invalidTypes = reportTypes.filter((type) => !availableReports[type]);
+    if (invalidTypes.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid report types: ${invalidTypes.join(
+          ", "
+        )}. Available types: ${Object.keys(availableReports).join(", ")}`,
+      });
+    }
+
+    const generatedPDFs = [];
+    const errors = [];
+
+    // Generate PDFs for each requested report type
+    for (const reportType of reportTypes) {
+      try {
+        let htmlContent = "";
+        let fileName = "";
+
+        switch (reportType) {
+          case "symptoms":
+            htmlContent = generateSymptomsHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Symptoms_${Date.now()}.pdf`;
+            break;
+
+          case "vitals":
+            htmlContent = generateVitalsHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Vitals_${Date.now()}.pdf`;
+            break;
+
+          case "diagnosis":
+            htmlContent = generateDiagnosisHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Diagnosis_${Date.now()}.pdf`;
+            break;
+
+          case "prescriptions":
+            htmlContent = generatePrescriptionsHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Prescriptions_${Date.now()}.pdf`;
+            break;
+
+          case "consulting":
+            htmlContent = generateConsultingHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Consulting_${Date.now()}.pdf`;
+            break;
+
+          case "doctorNotes":
+            htmlContent = generateDoctorNotesHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_DoctorNotes_${Date.now()}.pdf`;
+            break;
+        }
+
+        // Generate PDF
+        const pdfBuffer = await generatePdf(htmlContent);
+
+        // Upload to Google Drive
+        const driveLink = await uploadToDrive(
+          pdfBuffer,
+          fileName,
+          hospital.folderId
+        );
+
+        generatedPDFs.push({
+          reportType,
+          reportName: availableReports[reportType],
+          fileName,
+          driveLink,
+          generatedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error(`Error generating ${reportType} PDF:`, error);
+        errors.push({
+          reportType,
+          error: error.message,
+        });
+      }
+    }
+
+    // Calculate length of stay
+    const lengthOfStay =
+      latestRecord.dischargeDate && latestRecord.admissionDate
+        ? Math.ceil(
+            (new Date(latestRecord.dischargeDate) -
+              new Date(latestRecord.admissionDate)) /
+              (1000 * 60 * 60 * 24)
+          )
+        : null;
+
+    // Response
+    const response = {
+      success: true,
+      message: "PDF generation completed",
+      patientInfo: {
+        patientId: patientHistory.patientId,
+        name: patientHistory.name,
+        age: patientHistory.age,
+        gender: patientHistory.gender,
+        contact: patientHistory.contact,
+        address: patientHistory.address,
+        dob: patientHistory.dob,
+        imageUrl: patientHistory.imageUrl,
+      },
+      latestAdmission: {
+        opdNumber: latestRecord.opdNumber,
+        ipdNumber: latestRecord.ipdNumber,
+        admissionDate: latestRecord.admissionDate,
+        dischargeDate: latestRecord.dischargeDate,
+        doctor: latestRecord.doctor?.name,
+        status: latestRecord.status,
+        conditionAtDischarge: latestRecord.conditionAtDischarge,
+        lengthOfStay,
+        summaryStats: {
+          totalFollowUps: latestRecord.followUps?.length || 0,
+          totalFourHrFollowUps: latestRecord.fourHrFollowUpSchema?.length || 0,
+          totalPrescriptions: latestRecord.doctorPrescriptions?.length || 0,
+          totalVitalsRecorded: latestRecord.vitals?.length || 0,
+          totalDoctorNotes: latestRecord.doctorNotes?.length || 0,
+          totalMedications: latestRecord.medications?.length || 0,
+          totalIvFluids: latestRecord.ivFluids?.length || 0,
+          totalProcedures: latestRecord.procedures?.length || 0,
+          totalLabReports: latestRecord.labReports?.length || 0,
+        },
+      },
+      totalAdmissions: patientHistory.history.length,
+      generatedPDFs,
+      totalGenerated: generatedPDFs.length,
+      totalRequested: reportTypes.length,
+    };
+
+    if (errors.length > 0) {
+      response.errors = errors;
+      response.message += ` with ${errors.length} error(s)`;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error in generatePatientRecordPDFs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while generating PDFs",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Internal server error",
     });
   }
 };

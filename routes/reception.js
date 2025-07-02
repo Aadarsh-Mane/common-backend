@@ -20,6 +20,7 @@ import {
   generateManualDischargeSummary,
   generateOPDBill,
   generateOpdReceipt,
+  generatePatientRecordPDFs,
   getAdmissionDepositSummary,
   getAdmittedPatients,
   getAiSggestions,
@@ -41,6 +42,7 @@ import {
   getDoctorSheet,
   getDoctorsPatient,
   getLastRecordWithFollowUps,
+  getLatestPatientRecord,
   getOccupiedBeds,
   getPatientSuggestions,
   listAllPatientsWithLastRecord,
@@ -49,6 +51,7 @@ import {
   listPatients,
   rescheduleAppointmentByReceptionist,
   searchPatientAppointment,
+  storeIpdBill,
 } from "../controllers/admin/receiptionController.js";
 import {
   deleteDoctor,
@@ -122,6 +125,15 @@ receiptionRouter.get(
   getLastRecordWithFollowUps
 );
 receiptionRouter.post("/generateOPDBill/:patientId", generateOPDBill);
+receiptionRouter.post(
+  "/generatePatientRecordPDFs/:patientId",
+  generatePatientRecordPDFs
+);
+receiptionRouter.post("/storeIpdBill", storeIpdBill);
+receiptionRouter.get(
+  "/getLatestPatientRecord/:patientId",
+  getLatestPatientRecord
+);
 receiptionRouter.post("/generateOpdReceipt", generateOpdReceipt);
 receiptionRouter.get("/getAllBills", getAllBills);
 receiptionRouter.post("/admitPatientWithNotes", admitPatientWithNotes);

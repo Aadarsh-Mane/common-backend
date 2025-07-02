@@ -2042,7 +2042,7 @@ export const updateConditionAtDischarge = async (req, res) => {
   const validConditions = [
     "Discharged",
     "Transferred",
-    "D.M.A.",
+    "D.A.M.A.",
     "Absconded",
     "Expired",
   ];
@@ -5206,11 +5206,11 @@ export const getAllDischargeSummaries = async (req, res) => {
 };
 export const getPatientsList = async (req, res) => {
   try {
-    // Extract query parameters with defaults
+    // Extract and validate query parameters
     const {
       page = 1,
       limit = 20,
-      sortBy = "opdNumber",
+      sortBy = "serialNumber",
       sortOrder = "desc",
       search = "",
       filterType = "all", // all, today, yesterday, ipd, opd, date-range
@@ -5226,6 +5226,21 @@ export const getPatientsList = async (req, res) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
     const skip = (pageNum - 1) * limitNum;
 
+    // Validate ObjectIds if provided
+    if (doctorId && !mongoose.Types.ObjectId.isValid(doctorId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid doctor ID format",
+      });
+    }
+
+    if (sectionId && !mongoose.Types.ObjectId.isValid(sectionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid section ID format",
+      });
+    }
+
     // Build date filter based on filterType
     let dateFilter = {};
     const today = new Date();
@@ -5235,9 +5250,7 @@ export const getPatientsList = async (req, res) => {
       today.getDate()
     );
     const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
-
     const yesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
-    const endOfYesterday = new Date(startOfToday.getTime());
 
     switch (filterType) {
       case "today":
@@ -5252,7 +5265,7 @@ export const getPatientsList = async (req, res) => {
         dateFilter = {
           "admissionRecords.admissionDate": {
             $gte: yesterday,
-            $lt: endOfYesterday,
+            $lt: startOfToday,
           },
         };
         break;
@@ -5260,38 +5273,54 @@ export const getPatientsList = async (req, res) => {
         if (dateFrom || dateTo) {
           dateFilter["admissionRecords.admissionDate"] = {};
           if (dateFrom) {
-            dateFilter["admissionRecords.admissionDate"].$gte = new Date(
-              dateFrom
-            );
+            const fromDate = new Date(dateFrom);
+            if (isNaN(fromDate.getTime())) {
+              return res.status(400).json({
+                success: false,
+                message: "Invalid dateFrom format",
+              });
+            }
+            dateFilter["admissionRecords.admissionDate"].$gte = fromDate;
           }
           if (dateTo) {
-            const endDate = new Date(dateTo);
-            endDate.setDate(endDate.getDate() + 1);
-            dateFilter["admissionRecords.admissionDate"].$lt = endDate;
+            const toDate = new Date(dateTo);
+            if (isNaN(toDate.getTime())) {
+              return res.status(400).json({
+                success: false,
+                message: "Invalid dateTo format",
+              });
+            }
+            toDate.setDate(toDate.getDate() + 1);
+            dateFilter["admissionRecords.admissionDate"].$lt = toDate;
           }
         }
         break;
     }
 
+    // Build search filter
+    const searchFilter = search?.trim()
+      ? {
+          $or: [
+            { name: new RegExp(search.trim(), "i") },
+            { patientId: new RegExp(search.trim(), "i") },
+            { contact: new RegExp(search.trim(), "i") },
+            { "admissionRecords.opdNumber": parseInt(search.trim()) || 0 },
+            { "admissionRecords.ipdNumber": parseInt(search.trim()) || 0 },
+          ],
+        }
+      : {};
+
     // Build aggregation pipeline
     const pipeline = [
-      // Match basic filters
+      // Initial match with basic filters
       {
         $match: {
           ...dateFilter,
-          ...(search && search.trim()
-            ? {
-                $or: [
-                  { name: new RegExp(search.trim(), "i") },
-                  { patientId: new RegExp(search.trim(), "i") },
-                  { contact: new RegExp(search.trim(), "i") },
-                ],
-              }
-            : {}),
+          ...searchFilter,
         },
       },
 
-      // Add latest admission record for each patient
+      // Add latest admission record and statistics
       {
         $addFields: {
           latestAdmission: {
@@ -5310,7 +5339,13 @@ export const getPatientsList = async (req, res) => {
             $size: {
               $filter: {
                 input: "$admissionRecords",
-                cond: { $ne: ["$$this.ipdNumber", null] },
+                cond: {
+                  $and: [
+                    { $ne: ["$$this.ipdNumber", null] },
+                    { $ne: ["$$this.ipdNumber", undefined] },
+                    { $gt: ["$$this.ipdNumber", 0] },
+                  ],
+                },
               },
             },
           },
@@ -5321,7 +5356,13 @@ export const getPatientsList = async (req, res) => {
       ...(filterType === "ipd"
         ? [
             {
-              $match: { "latestAdmission.ipdNumber": { $ne: null } },
+              $match: {
+                $and: [
+                  { "latestAdmission.ipdNumber": { $ne: null } },
+                  { "latestAdmission.ipdNumber": { $ne: undefined } },
+                  { "latestAdmission.ipdNumber": { $gt: 0 } },
+                ],
+              },
             },
           ]
         : []),
@@ -5329,7 +5370,14 @@ export const getPatientsList = async (req, res) => {
       ...(filterType === "opd"
         ? [
             {
-              $match: { "latestAdmission.ipdNumber": null },
+              $match: {
+                $or: [
+                  { "latestAdmission.ipdNumber": null },
+                  { "latestAdmission.ipdNumber": undefined },
+                  { "latestAdmission.ipdNumber": 0 },
+                  { "latestAdmission.ipdNumber": { $exists: false } },
+                ],
+              },
             },
           ]
         : []),
@@ -5369,7 +5417,7 @@ export const getPatientsList = async (req, res) => {
           ]
         : []),
 
-      // Add patient history data
+      // Lookup patient history
       {
         $lookup: {
           from: "patienthistories",
@@ -5379,7 +5427,7 @@ export const getPatientsList = async (req, res) => {
         },
       },
 
-      // Add visit count and last visit info
+      // Add computed fields
       {
         $addFields: {
           historyRecord: { $arrayElemAt: ["$patientHistory", 0] },
@@ -5389,7 +5437,12 @@ export const getPatientsList = async (req, res) => {
               {
                 $size: {
                   $ifNull: [
-                    { $arrayElemAt: ["$patientHistory.history", 0] },
+                    {
+                      $getField: {
+                        field: "history",
+                        input: { $arrayElemAt: ["$patientHistory", 0] },
+                      },
+                    },
                     [],
                   ],
                 },
@@ -5427,7 +5480,7 @@ export const getPatientsList = async (req, res) => {
         },
       },
 
-      // Project final fields
+      // Project final fields with corrected patient type logic
       {
         $project: {
           patientId: 1,
@@ -5438,6 +5491,7 @@ export const getPatientsList = async (req, res) => {
           address: 1,
           city: 1,
           state: 1,
+          dob: 1,
           discharged: 1,
           pendingAmount: 1,
           imageUrl: 1,
@@ -5453,6 +5507,9 @@ export const getPatientsList = async (req, res) => {
           currentDischargeDate: "$latestAdmission.dischargeDate",
           reasonForAdmission: "$latestAdmission.reasonForAdmission",
           conditionAtDischarge: "$latestAdmission.conditionAtDischarge",
+          patientType: "$latestAdmission.patientType",
+          admitNotes: "$latestAdmission.admitNotes",
+          amountToBePayed: "$latestAdmission.amountToBePayed",
 
           // Visit statistics
           totalVisits: "$visitCount",
@@ -5465,24 +5522,71 @@ export const getPatientsList = async (req, res) => {
           lastDischargeCondition: "$lastDischarge.conditionAtDischarge",
           lastDischargeDoctor: "$lastDischarge.doctor",
 
-          // Patient type indicator
+          // FIXED: Patient type indicator with proper null/undefined checking
           patientType: {
             $cond: {
-              if: { $ne: ["$latestAdmission.ipdNumber", null] },
+              if: {
+                $and: [
+                  { $ne: ["$latestAdmission.ipdNumber", null] },
+                  { $ne: ["$latestAdmission.ipdNumber", undefined] },
+                  { $gt: ["$latestAdmission.ipdNumber", 0] },
+                ],
+              },
               then: "IPD",
               else: "OPD",
             },
           },
 
-          // Serial number based on OPD/IPD
+          // FIXED: Serial number logic
           serialNumber: {
             $cond: {
-              if: { $ne: ["$latestAdmission.ipdNumber", null] },
+              if: {
+                $and: [
+                  { $ne: ["$latestAdmission.ipdNumber", null] },
+                  { $ne: ["$latestAdmission.ipdNumber", undefined] },
+                  { $gt: ["$latestAdmission.ipdNumber", 0] },
+                ],
+              },
               then: "$latestAdmission.ipdNumber",
               else: "$latestAdmission.opdNumber",
             },
           },
+
+          // Add more useful fields
+          daysSinceAdmission: {
+            $cond: {
+              if: "$latestAdmission.admissionDate",
+              then: {
+                $dateDiff: {
+                  startDate: "$latestAdmission.admissionDate",
+                  endDate: "$$NOW",
+                  unit: "day",
+                },
+              },
+              else: null,
+            },
+          },
+
+          // Check if patient has any pending medications
+          hasPendingTasks: {
+            $gt: [
+              {
+                $size: {
+                  $filter: {
+                    input: { $ifNull: ["$latestAdmission.medications", []] },
+                    cond: { $eq: ["$$this.administrationStatus", "Pending"] },
+                  },
+                },
+              },
+              0,
+            ],
+          },
         },
+      },
+
+      // Remove the patientHistory field as it's no longer needed
+      {
+        $unset: ["patientHistory", "historyRecord", "lastDischarge"],
       },
     ];
 
@@ -5494,6 +5598,7 @@ export const getPatientsList = async (req, res) => {
       "currentAdmissionDate",
       "name",
       "totalVisits",
+      "daysSinceAdmission",
     ];
     const sortField = validSortFields.includes(sortBy)
       ? sortBy
@@ -5540,12 +5645,32 @@ export const getPatientsList = async (req, res) => {
           totalPatients: { $sum: 1 },
           ipdPatients: {
             $sum: {
-              $cond: [{ $ne: ["$latestAdmission.ipdNumber", null] }, 1, 0],
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$latestAdmission.ipdNumber", null] },
+                    { $ne: ["$latestAdmission.ipdNumber", undefined] },
+                    { $gt: ["$latestAdmission.ipdNumber", 0] },
+                  ],
+                },
+                1,
+                0,
+              ],
             },
           },
           opdPatients: {
             $sum: {
-              $cond: [{ $eq: ["$latestAdmission.ipdNumber", null] }, 1, 0],
+              $cond: [
+                {
+                  $or: [
+                    { $eq: ["$latestAdmission.ipdNumber", null] },
+                    { $eq: ["$latestAdmission.ipdNumber", undefined] },
+                    { $eq: ["$latestAdmission.ipdNumber", 0] },
+                  ],
+                },
+                1,
+                0,
+              ],
             },
           },
           todayAdmissions: {
@@ -5562,6 +5687,8 @@ export const getPatientsList = async (req, res) => {
               ],
             },
           },
+          pendingAmount: { $sum: { $ifNull: ["$pendingAmount", 0] } },
+          avgAge: { $avg: "$age" },
         },
       },
     ]);
@@ -5571,9 +5698,11 @@ export const getPatientsList = async (req, res) => {
       ipdPatients: 0,
       opdPatients: 0,
       todayAdmissions: 0,
+      pendingAmount: 0,
+      avgAge: 0,
     };
 
-    // Response object
+    // Build response
     const response = {
       success: true,
       data: {
@@ -5587,7 +5716,11 @@ export const getPatientsList = async (req, res) => {
           limit: limitNum,
           skip,
         },
-        statistics: stats,
+        statistics: {
+          ...stats,
+          pendingAmount: Math.round(stats.pendingAmount * 100) / 100,
+          avgAge: Math.round(stats.avgAge * 10) / 10,
+        },
         filters: {
           search: search || null,
           filterType,
@@ -5599,16 +5732,41 @@ export const getPatientsList = async (req, res) => {
           sortBy: sortField,
           sortOrder,
         },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestedBy: req.userId,
+          userType: req.usertype,
+        },
       },
-      message: `Retrieved ${patients.length} patients`,
+      message: `Retrieved ${patients.length} patients successfully`,
     };
 
     return res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching patients list:", error);
+
+    // Different error responses based on error type
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid parameter format",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch patients list",
+      message: "Internal server error while fetching patients list",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
