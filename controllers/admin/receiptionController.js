@@ -2131,7 +2131,6 @@ export const getDoctorAdvic1 = async (req, res) => {
             </div>
         </div>
         <div class="footer">
-            <p>20s Developers</p>
         </div>
     </div>
 </body>
@@ -2621,24 +2620,6 @@ export const generateOPDBill = async (req, res) => {
   } = req.body;
 
   try {
-    // Validate that at least one service, consultation fee, or doctor charges is provided
-    const totalServices = Object.values({
-      ecg,
-      xray,
-      injection,
-      dialysis,
-      dressing,
-    }).reduce((sum, service) => sum + service.quantity * service.rate, 0);
-
-    if (totalServices === 0 && consultationFee === 0) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "At least one service, consultation fee, or doctor charges must be provided",
-        code: "NO_SERVICES_PROVIDED",
-      });
-    }
-
     // Fetch patient history for basic info
     const patientHistory = await PatientHistory.findOne({ patientId })
       .populate("history.doctor.id", "name specialization license")
@@ -2977,6 +2958,7 @@ export const generateOPDBill = async (req, res) => {
     });
   }
 };
+
 function getServiceDescription(serviceName) {
   const descriptions = {
     ecg: "Electrocardiogram",

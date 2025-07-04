@@ -2,7 +2,9 @@ import jwt from "jsonwebtoken";
 import Chat from "./models/chatSchema.js";
 import hospitalDoctors from "./models/hospitalDoctorSchema.js";
 
-const SECRET = "DOCTOR";
+// ✅ FIX 1: Use the same JWT secret as your HTTP API
+// Make sure this matches your HTTP API's JWT secret
+const SECRET = process.env.JWT_SECRET || "DOCTOR"; // Use environment variable
 
 // Store active users and their socket connections
 const activeUsers = new Map();
@@ -11,33 +13,99 @@ const userSockets = new Map();
 export const socketHandler = (io) => {
   io.use(async (socket, next) => {
     try {
+      console.log("🔍 === SOCKET AUTH DEBUG ===");
+      console.log("📨 Auth data received:", socket.handshake.auth);
+
       const token = socket.handshake.auth.token;
+      const userId = socket.handshake.auth.userId;
+
+      console.log(
+        "🔑 Token received:",
+        token ? token.substring(0, 50) + "..." : "No token"
+      );
+      console.log("👤 UserId received:", userId);
+
       if (!token) {
+        console.log("❌ No token provided");
         return next(new Error("Authentication error: No token provided"));
       }
 
-      const decoded = jwt.verify(token, SECRET);
-      const user = await hospitalDoctors
-        .findById(decoded.id)
-        .select("-password");
+      console.log("🔐 JWT Secret being used:", SECRET.substring(0, 10) + "...");
+      console.log("🔍 Attempting to verify token...");
 
-      if (!user) {
-        return next(new Error("Authentication error: User not found"));
+      try {
+        const decoded = jwt.verify(token, SECRET);
+        console.log("✅ Token verified successfully");
+        console.log("🔍 Decoded token:", decoded);
+        console.log("👤 Token userId:", decoded.id);
+        console.log("📧 Token email:", decoded.email);
+        console.log("🏥 Token usertype:", decoded.usertype);
+
+        // ✅ FIX 2: Check if the provided userId matches token userId
+        if (userId && userId !== decoded.id) {
+          console.log("❌ Provided userId does not match token userId");
+          console.log("🔍 Provided:", userId);
+          console.log("🔍 Token contains:", decoded.id);
+          return next(new Error("Authentication error: User ID mismatch"));
+        }
+
+        // ✅ FIX 3: Look up user in database
+        console.log("🔍 Looking up user in database...");
+        const user = await hospitalDoctors
+          .findById(decoded.id)
+          .select("-password");
+
+        console.log(
+          "👤 Database lookup result:",
+          user ? "User found" : "User not found"
+        );
+
+        if (!user) {
+          console.log("❌ User not found in database");
+          console.log("🔍 Searched for user ID:", decoded.id);
+          return next(new Error("Authentication error: User not found"));
+        }
+
+        console.log(
+          "✅ User authenticated successfully:",
+          user.doctorName || user.email
+        );
+        console.log("🔍 === SOCKET AUTH SUCCESS ===");
+
+        socket.userId = decoded.id;
+        socket.usertype = decoded.usertype;
+        socket.userData = user;
+        next();
+      } catch (jwtError) {
+        console.log("❌ JWT verification failed:", jwtError.message);
+        console.log("🔍 JWT Error type:", jwtError.name);
+
+        // ✅ Additional debugging for JWT errors
+        if (jwtError.name === "TokenExpiredError") {
+          console.log("⏰ Token has expired");
+        } else if (jwtError.name === "JsonWebTokenError") {
+          console.log("🔐 Invalid token signature or format");
+        } else if (jwtError.name === "NotBeforeError") {
+          console.log("⏰ Token not active yet");
+        }
+
+        return next(new Error("Authentication error: Invalid token"));
       }
-
-      socket.userId = decoded.id;
-      socket.usertype = decoded.usertype;
-      socket.userData = user;
-      next();
     } catch (error) {
-      next(new Error("Authentication error: Invalid token"));
+      console.log("❌ Socket auth error:", error.message);
+      console.log("🔍 Error stack:", error.stack);
+      next(new Error("Authentication error: " + error.message));
     }
   });
 
   io.on("connection", (socket) => {
     const userId = socket.userId;
 
-    console.log(`Doctor ${socket.userData.doctorName} connected: ${socket.id}`);
+    console.log(
+      `✅ Doctor ${
+        socket.userData.doctorName || socket.userData.email
+      } connected: ${socket.id}`
+    );
 
     // Store user connection
     activeUsers.set(userId, {
@@ -54,16 +122,24 @@ export const socketHandler = (io) => {
     // Emit user online status to all their chat partners
     emitUserStatusToContacts(socket, userId, "online");
 
+    // ✅ Send connection success confirmation
+    socket.emit("authenticated", {
+      success: true,
+      userId: userId,
+      message: "Successfully authenticated",
+    });
+
     // Handle joining a specific chat room
     socket.on("join_chat", async (data) => {
       try {
         const { chatId } = data;
+        console.log(`📥 User ${userId} attempting to join chat ${chatId}`);
 
         // Verify user is participant in this chat
         const chat = await Chat.findById(chatId);
         if (chat && chat.participants.some((p) => p.equals(userId))) {
           socket.join(`chat_${chatId}`);
-          console.log(`User ${userId} joined chat ${chatId}`);
+          console.log(`✅ User ${userId} joined chat ${chatId}`);
 
           // Mark chat as read when user joins
           await chat.markAsRead(userId);
@@ -71,9 +147,15 @@ export const socketHandler = (io) => {
           // Notify other participants that user joined
           socket.to(`chat_${chatId}`).emit("user_joined_chat", {
             userId,
-            userName: socket.userData.doctorName,
+            userName: socket.userData.doctorName || socket.userData.email,
             chatId,
           });
+
+          // Confirm successful join
+          socket.emit("joined_chat", { chatId, success: true });
+        } else {
+          console.log(`❌ User ${userId} not authorized for chat ${chatId}`);
+          socket.emit("error", { message: "Not authorized to join this chat" });
         }
       } catch (error) {
         console.error("Error joining chat:", error);
@@ -86,18 +168,25 @@ export const socketHandler = (io) => {
       try {
         const { chatId } = data;
         socket.leave(`chat_${chatId}`);
-        console.log(`User ${userId} left chat ${chatId}`);
+        console.log(`👋 User ${userId} left chat ${chatId}`);
 
         // Notify other participants that user left
         socket.to(`chat_${chatId}`).emit("user_left_chat", {
           userId,
-          userName: socket.userData.doctorName,
+          userName: socket.userData.doctorName || socket.userData.email,
           chatId,
         });
+
+        // Confirm successful leave
+        socket.emit("left_chat", { chatId, success: true });
       } catch (error) {
         console.error("Error leaving chat:", error);
       }
     });
+
+    // Rest of your existing socket handlers...
+    // (send_message, mark_messages_read, typing_start, etc.)
+    // I'll keep them as they are since they're working fine
 
     // Handle sending messages
     socket.on("send_message", async (data) => {
@@ -109,6 +198,8 @@ export const socketHandler = (io) => {
           fileUrl,
           fileName,
         } = data;
+
+        console.log(`📤 Message being sent by ${userId} in chat ${chatId}`);
 
         // Validate chat and user participation
         const chat = await Chat.findById(chatId);
@@ -125,7 +216,7 @@ export const socketHandler = (io) => {
         // Create message data
         const messageData = {
           senderId: userId,
-          senderName: socket.userData.doctorName,
+          senderName: socket.userData.doctorName || socket.userData.email,
           content: content.trim(),
           messageType,
           fileUrl,
@@ -160,14 +251,18 @@ export const socketHandler = (io) => {
         if (offlineParticipants.length > 0) {
           // Here you can implement push notification service
           sendPushNotifications(offlineParticipants, {
-            title: `New message from ${socket.userData.doctorName}`,
+            title: `New message from ${
+              socket.userData.doctorName || socket.userData.email
+            }`,
             body: content,
             chatId,
           });
         }
 
         console.log(
-          `Message sent in chat ${chatId} by ${socket.userData.doctorName}`
+          `✅ Message sent in chat ${chatId} by ${
+            socket.userData.doctorName || socket.userData.email
+          }`
         );
 
         // Acknowledge message sent
@@ -195,7 +290,7 @@ export const socketHandler = (io) => {
           socket.to(`chat_${chatId}`).emit("messages_read", {
             chatId,
             userId,
-            userName: socket.userData.doctorName,
+            userName: socket.userData.doctorName || socket.userData.email,
             readAt: new Date(),
           });
         }
@@ -209,7 +304,7 @@ export const socketHandler = (io) => {
       const { chatId } = data;
       socket.to(`chat_${chatId}`).emit("user_typing", {
         userId,
-        userName: socket.userData.doctorName,
+        userName: socket.userData.doctorName || socket.userData.email,
         chatId,
       });
     });
@@ -218,7 +313,7 @@ export const socketHandler = (io) => {
       const { chatId } = data;
       socket.to(`chat_${chatId}`).emit("user_stopped_typing", {
         userId,
-        userName: socket.userData.doctorName,
+        userName: socket.userData.doctorName || socket.userData.email,
         chatId,
       });
     });
@@ -255,7 +350,9 @@ export const socketHandler = (io) => {
     // Handle disconnect
     socket.on("disconnect", () => {
       console.log(
-        `Doctor ${socket.userData.doctorName} disconnected: ${socket.id}`
+        `👋 Doctor ${
+          socket.userData.doctorName || socket.userData.email
+        } disconnected: ${socket.id}`
       );
 
       // Update user status to offline
@@ -310,7 +407,7 @@ const emitUserStatusToContacts = async (socket, userId, status) => {
         const contactSocketId = activeUsers.get(contactId).socketId;
         socket.to(contactSocketId).emit("contact_status_update", {
           userId,
-          userName: socket.userData.doctorName,
+          userName: socket.userData.doctorName || socket.userData.email,
           status,
           lastSeen: new Date(),
         });
@@ -325,33 +422,12 @@ const emitUserStatusToContacts = async (socket, userId, status) => {
 const sendPushNotifications = async (userIds, notificationData) => {
   try {
     // Get FCM tokens for offline users
-    const users = await hospitalDoctor
+    const users = await hospitalDoctors
       .find({
         _id: { $in: userIds },
         fcmToken: { $exists: true, $ne: "" },
       })
       .select("fcmToken doctorName");
-
-    // Implement your push notification logic here
-    // Example with FCM:
-    /*
-    const admin = require('firebase-admin');
-    const tokens = users.map(user => user.fcmToken);
-    
-    if (tokens.length > 0) {
-      await admin.messaging().sendMulticast({
-        tokens,
-        notification: {
-          title: notificationData.title,
-          body: notificationData.body,
-        },
-        data: {
-          chatId: notificationData.chatId,
-          type: 'chat_message',
-        },
-      });
-    }
-    */
 
     console.log(
       `Would send push notification to ${users.length} offline users`
