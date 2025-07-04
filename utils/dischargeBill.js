@@ -1130,23 +1130,6 @@ export const generateOPDBillHTML = (
   data,
   bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png"
 ) => {
-  // Fix timezone issue by using Indian Standard Time
-  const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-  const istTime = new Date(now.getTime() + istOffset);
-
-  // Format time properly for Indian timezone
-  const formattedDateTime = istTime.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -1612,7 +1595,7 @@ body {
 
         <!-- Footer -->
         <div class="footer">
-          Generated on: ${formattedDateTime} | 
+          Generated on: ${data.generatedAt.toLocaleString("en-IN")} | 
           Bill No: ${data.billNumber} | OPD: ${data.opdNumber || "N/A"}${
     data.ipdNumber ? ` | IPD: ${data.ipdNumber}` : ""
   } | Thank you for choosing our services!
