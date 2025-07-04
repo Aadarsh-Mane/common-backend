@@ -3,23 +3,48 @@ export const generateDischargeSummaryHTML = (
   admissionHistory,
   options = {}
 ) => {
+  // Fix timezone issue by creating IST time functions
+  const getCurrentIST = () => {
+    const now = new Date();
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const istTime = new Date(utc + istOffset);
+    return istTime;
+  };
+
+  const convertToIST = (date) => {
+    if (!date) return null;
+    const inputDate = new Date(date);
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const utc = inputDate.getTime() + inputDate.getTimezoneOffset() * 60000;
+    return new Date(utc + istOffset);
+  };
+
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-US", {
+    const istDate = convertToIST(date);
+    if (!istDate) return "Not specified";
+    return istDate.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
       year: "numeric",
-      month: "long",
-      day: "numeric",
     });
   };
 
   const formatDateTime = (date) => {
-    return new Date(date).toLocaleString("en-US", {
+    const istDate = convertToIST(date);
+    if (!istDate) return "Not specified";
+    return istDate.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
       year: "numeric",
-      month: "short",
-      day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
   };
+
+  const currentIST = getCurrentIST();
 
   const hospitalBanner =
     "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
@@ -318,6 +343,7 @@ export const generateDischargeSummaryHTML = (
                 margin-top: 20px;
                 text-align: center;
                 font-size: 11px;
+                color: #000;
                 border-top: 1px solid #000;
                 padding-top: 10px;
                 page-break-inside: avoid;
@@ -405,8 +431,8 @@ export const generateDischargeSummaryHTML = (
                     <td>${formatDate(admissionHistory.dischargeDate)}</td>
                     <th>LOS</th>
                     <td>${Math.ceil(
-                      (new Date(admissionHistory.dischargeDate) -
-                        new Date(admissionHistory.admissionDate)) /
+                      (convertToIST(admissionHistory.dischargeDate) -
+                        convertToIST(admissionHistory.admissionDate)) /
                         (1000 * 60 * 60 * 24)
                     )} days</td>
                 </tr>
@@ -771,21 +797,21 @@ export const generateDischargeSummaryHTML = (
                         <div>Dr. ${
                           admissionHistory.doctor?.name || "_______________"
                         }</div>
-                        <div>Date: ${formatDate(new Date())}</div>
+                        <div>Date: ${formatDate(currentIST)}</div>
                     </div>
                 </div>
                 <div class="signature-right">
                     <div class="signature-line">
                         <div><strong>Medical Records</strong></div>
                         <div>_______________</div>
-                        <div>Date: ${formatDate(new Date())}</div>
+                        <div>Date: ${formatDate(currentIST)}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Footer -->
             <div class="footer">
-                <div>Generated: ${formatDateTime(new Date())} | Patient ID: ${
+                <div>Generated: ${formatDateTime(currentIST)} | Patient ID: ${
     patientHistory.patientId
   }</div>
                 <div>This document contains confidential medical information</div>
@@ -990,10 +1016,10 @@ export const generateManualDischargeSummaryHTML = (
           line-height: 1.3;
         }
         
-        .footer {
+  .footer {
           margin-top: 30px;
           font-size: 9px;
-          color: #666;
+          color: #000;
           text-align: center;
           border-top: 1px solid #ddd;
           padding-top: 10px;

@@ -2620,6 +2620,18 @@ export const generateOPDBill = async (req, res) => {
   } = req.body;
 
   try {
+    // Fix timezone issue by creating IST time
+    const getCurrentIST = () => {
+      const now = new Date();
+      // Convert to IST (UTC+5:30)
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istTime = new Date(utc + istOffset);
+      return istTime;
+    };
+
+    const currentIST = getCurrentIST();
+
     // Fetch patient history for basic info
     const patientHistory = await PatientHistory.findOne({ patientId })
       .populate("history.doctor.id", "name specialization license")
@@ -2818,7 +2830,7 @@ export const generateOPDBill = async (req, res) => {
                 transactionId: transactionId || undefined,
                 chequeNumber: chequeNumber || undefined,
                 bankName: bankName || undefined,
-                paymentDate: new Date(),
+                paymentDate: currentIST, // Use IST time
                 notes: `OPD payment via ${paymentMode}`,
               },
             ]
@@ -2831,7 +2843,7 @@ export const generateOPDBill = async (req, res) => {
       status: "Generated",
     });
 
-    // Prepare bill data with OPD/IPD numbers
+    // Prepare bill data with OPD/IPD numbers - USE IST TIME
     const billData = {
       // Patient info (from patient history)
       patientName: patientHistory.name,
@@ -2848,10 +2860,14 @@ export const generateOPDBill = async (req, res) => {
       // Doctor info (from latest record)
       consultantDoctor: latestRecord?.doctor?.name || "N/A",
 
-      // Bill details
+      // Bill details - USE IST TIME
       billNumber: billNumber,
-      billDate: new Date().toLocaleDateString("en-GB"),
-      billTime: new Date().toLocaleTimeString("en-US", {
+      billDate: currentIST.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      billTime: currentIST.toLocaleTimeString("en-IN", {
         hour12: true,
         hour: "2-digit",
         minute: "2-digit",
@@ -2874,9 +2890,9 @@ export const generateOPDBill = async (req, res) => {
       paymentMode: paymentMode,
       notes: notes,
 
-      // Meta info
+      // Meta info - USE IST TIME
       generatedBy: userId,
-      generatedAt: new Date(),
+      generatedAt: currentIST, // This is now in IST
       isOPDBill: true,
     };
 
@@ -2891,7 +2907,7 @@ export const generateOPDBill = async (req, res) => {
     const pdfBuffer = await generatePdf(htmlContent);
 
     // Generate filename with OPD number
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const timestamp = currentIST.toISOString().replace(/[:.]/g, "-");
     const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
     const fileName = `OPD_Bill_${billNumber}_OPD${opdNumber}_${sanitizedName}_${timestamp}.pdf`;
 
@@ -2913,7 +2929,7 @@ export const generateOPDBill = async (req, res) => {
       pdfFileName: fileName,
       driveLink: driveLink,
       pdfSize: pdfBuffer.length,
-      uploadedAt: new Date(),
+      uploadedAt: currentIST, // Use IST time
     };
 
     // Save bill record
@@ -5848,6 +5864,27 @@ export const generateManualDischargeSummary = async (req, res) => {
   } = req.body;
 
   try {
+    // Fix timezone issue by creating IST time
+    const getCurrentIST = () => {
+      const now = new Date();
+      // Convert to IST (UTC+5:30)
+      const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istTime = new Date(utc + istOffset);
+      return istTime;
+    };
+
+    const currentIST = getCurrentIST();
+
+    // Helper function to convert any date to IST
+    const convertToIST = (date) => {
+      if (!date) return null;
+      const inputDate = new Date(date);
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const utc = inputDate.getTime() + inputDate.getTimezoneOffset() * 60000;
+      return new Date(utc + istOffset);
+    };
+
     // Validate required fields
     const requiredFields = {
       "Final Diagnosis": finalDiagnosis,
@@ -5931,6 +5968,14 @@ export const generateManualDischargeSummary = async (req, res) => {
       return operationText || "N/A";
     };
 
+    // Convert admission and discharge dates to IST
+    const admissionDateIST = latestAdmission?.admissionDate
+      ? convertToIST(latestAdmission.admissionDate)
+      : null;
+    const dischargeDateIST = latestAdmission?.dischargeDate
+      ? convertToIST(latestAdmission.dischargeDate)
+      : currentIST;
+
     // Prepare summary data extracting from patient history
     const summaryData = {
       // Extract patient basic info from patient history
@@ -5939,34 +5984,34 @@ export const generateManualDischargeSummary = async (req, res) => {
       sex: patientHistory.gender || "N/A",
       address: patientHistory.address || "N/A",
 
-      // Extract admission details from latest admission
+      // Extract admission details from latest admission - USE IST TIME
       ipdNo: latestAdmission?.ipdNumber || "N/A",
       opdNo: latestAdmission?.opdNumber || "N/A",
       consultant: latestAdmission?.doctor?.name || "N/A",
-      admissionDate: latestAdmission?.admissionDate
-        ? new Date(latestAdmission.admissionDate).toLocaleDateString("en-GB")
+      admissionDate: admissionDateIST
+        ? admissionDateIST.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
         : "N/A",
-      admissionTime: latestAdmission?.admissionDate
-        ? new Date(latestAdmission.admissionDate).toLocaleTimeString("en-US", {
+      admissionTime: admissionDateIST
+        ? admissionDateIST.toLocaleTimeString("en-IN", {
             hour12: true,
             hour: "2-digit",
             minute: "2-digit",
           })
         : "N/A",
-      dischargeDate: latestAdmission?.dischargeDate
-        ? new Date(latestAdmission.dischargeDate).toLocaleDateString("en-GB")
-        : new Date().toLocaleDateString("en-GB"),
-      dischargeTime: latestAdmission?.dischargeDate
-        ? new Date(latestAdmission.dischargeDate).toLocaleTimeString("en-US", {
-            hour12: true,
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : new Date().toLocaleTimeString("en-US", {
-            hour12: true,
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+      dischargeDate: dischargeDateIST.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      dischargeTime: dischargeDateIST.toLocaleTimeString("en-IN", {
+        hour12: true,
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
 
       // Format clinical data from manual input
       finalDiagnosis: finalDiagnosis || "N/A",
@@ -5981,9 +6026,9 @@ export const generateManualDischargeSummary = async (req, res) => {
       treatmentGiven: formatArrayToText(treatmentGiven),
       conditionOnDischarge: conditionOnDischarge || "N/A",
 
-      // Meta info
+      // Meta info - USE IST TIME
       generatedBy: userId,
-      generatedAt: new Date(),
+      generatedAt: currentIST, // This is now in IST
       isManuallyGenerated: true,
     };
 
@@ -5994,8 +6039,8 @@ export const generateManualDischargeSummary = async (req, res) => {
     const htmlContent = generateManualDischargeSummaryHTML(summaryData);
     const pdfBuffer = await generatePdf(htmlContent);
 
-    // Generate filename
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    // Generate filename - USE IST TIME
+    const timestamp = currentIST.toISOString().replace(/[:.]/g, "-");
     const sanitizedName = patientHistory.name.replace(/[^a-zA-Z0-9]/g, "_");
     const fileName = `Manual_Discharge_Summary_${sanitizedName}_${timestamp}.pdf`;
 
@@ -6013,7 +6058,7 @@ export const generateManualDischargeSummary = async (req, res) => {
           fileName,
           driveLink,
           generatedBy: userId,
-          generatedAt: summaryData.generatedAt,
+          generatedAt: summaryData.generatedAt, // IST time
           isManuallyGenerated: true,
         });
         console.log(`Manual discharge summary uploaded to Drive: ${driveLink}`);
