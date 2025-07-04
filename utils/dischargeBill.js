@@ -1204,14 +1204,14 @@ body {
 
 .number-label {
   font-size: 10px;
-  color: #666;
+  color: #000;
   margin-bottom: 2px;
 }
 
 .number-value {
   font-size: 14px;
   font-weight: bold;
-  color: #007acc;
+  color: #000;
 }
 
 .bill-info-section {
