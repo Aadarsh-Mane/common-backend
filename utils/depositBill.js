@@ -2,18 +2,36 @@ export const generateDepositReceiptHTML = (
   receipt,
   bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png"
 ) => {
-  // UPDATED: Format date with Indian timezone
+  // Fix timezone issue by creating IST time functions
+  const getCurrentIST = () => {
+    const now = new Date();
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const istTime = new Date(utc + istOffset);
+    return istTime;
+  };
+
+  const convertToIST = (date) => {
+    if (!date) return null;
+    const inputDate = new Date(date);
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const utc = inputDate.getTime() + inputDate.getTimezoneOffset() * 60000;
+    return new Date(utc + istOffset);
+  };
+
+  // UPDATED: Format date with proper IST timezone
   const formatDate = (date) => {
-    const indianDate = new Date(date).toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
+    const istDate = convertToIST(date);
+    if (!istDate) return "Not specified";
+    return istDate.toLocaleString("en-IN", {
+      day: "2-digit",
       month: "long",
-      day: "numeric",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
-    return indianDate;
   };
 
   const formatCurrency = (amount) => {
@@ -23,13 +41,13 @@ export const generateDepositReceiptHTML = (
     }).format(amount);
   };
 
-  // Get current Indian time for footer
+  // Get current IST time for footer
   const getCurrentIndianTime = () => {
-    return new Date().toLocaleString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
+    const currentIST = getCurrentIST();
+    return currentIST.toLocaleString("en-IN", {
+      day: "2-digit",
       month: "long",
-      day: "numeric",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
@@ -170,6 +188,7 @@ export const generateDepositReceiptHTML = (
                 padding-top: 10px; 
                 border-top: 1px solid #ccc; 
                 font-size: 10px;
+                color: #000;
             }
             
             .note-box {
