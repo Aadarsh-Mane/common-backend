@@ -101,32 +101,61 @@ export const generateDischargeSummaryHTML = (
                 font-size: 18px;
                 font-weight: bold;
                 text-transform: uppercase;
+                text-decoration: underline;
+                margin-top: 12px;
+                padding: 8px 0;
+                background: #f8f8f8;
+                border: 2px solid #000;
             }
             
             /* Patient Info Table */
-            .patient-info {
-                width: 100%;
-                border: 1px solid #000;
-                border-collapse: collapse;
-                margin-bottom: 16px;
-                font-size: 12px;
-                page-break-inside: avoid;
-                page-break-after: avoid;
+            .patient-info-section {
+              margin: 20px 0;
+              page-break-inside: avoid;
             }
             
-            .patient-info th {
-                background: #f0f0f0;
-                padding: 8px;
-                text-align: left;
-                font-weight: bold;
-                border: 1px solid #000;
-                width: 15%;
+            .patient-info-table {
+              width: 100%;
+              border-collapse: collapse;
+              border: 2px solid #000;
+              font-size: 13px;
+              table-layout: fixed;
+              page-break-inside: avoid;
+              page-break-after: avoid;
             }
             
-            .patient-info td {
-                padding: 8px;
-                border: 1px solid #000;
-                width: 18%;
+            .patient-info-table td {
+              padding: 6px 4px;
+              border: 1px solid #000;
+              vertical-align: middle;
+              word-wrap: break-word;
+            }
+            
+            .patient-info-table .label {
+              font-weight: bold;
+              background-color: #f5f5f5;
+              width: 80px;
+              text-align: left;
+              font-size: 12px;
+            }
+            
+            .patient-info-table .value {
+              background-color: #fff;
+              text-align: left;
+            }
+            
+            .patient-info-table .label-small {
+              font-weight: bold;
+              background-color: #f5f5f5;
+              width: 60px;
+              text-align: left;
+              font-size: 12px;
+            }
+            
+            .patient-info-table .value-small {
+              background-color: #fff;
+              width: 80px;
+              text-align: left;
             }
             
             /* Section Dividers */
@@ -403,52 +432,70 @@ export const generateDischargeSummaryHTML = (
             <div class="header">
                 <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Banner" class="hospital-banner" onerror="this.style.display='none'">
                 <div class="hospital-info">${hospitalAddress}</div>
-                <div class="document-title">Medical Discharge Summary</div>
+                <div class="document-title"> Discharge Summary</div>
             </div>
 
             <!-- Patient Information Table -->
-            <table class="patient-info">
+            <div class="patient-info-section">
+              <table class="patient-info-table">
                 <tr>
-                    <th>Patient Name</th>
-                    <td>${patientHistory.name}</td>
-                    <th>Patient ID</th>
-                    <td>${patientHistory.patientId}</td>
-                    <th>Age/Gender</th>
-                    <td>${patientHistory.age}Y / ${patientHistory.gender}</td>
+                  <td class="label">Patient Name :</td>
+                  <td class="value" colspan="3">${
+                    patientHistory.name || "N/A"
+                  }</td>
+                  <td class="label">Age/Sex :</td>
+                  <td class="value">${patientHistory.age || "N/A"} / ${
+    patientHistory.gender || "N/A"
+  }</td>
+                  <td class="label">IPD No :</td>
+                  <td class="value">${admissionHistory.ipdNumber || "N/A"}</td>
                 </tr>
                 <tr>
-                    <th>DOB</th>
-                    <td>${patientHistory.dob || "Not specified"}</td>
-                    <th>Contact</th>
-                    <td>${patientHistory.contact}</td>
-                    <th>Bed No.</th>
-                    <td>${admissionHistory.bedNumber || "Not specified"}</td>
+                  <td class="label">Address :</td>
+                  <td class="value" colspan="5">${
+                    patientHistory.address || "N/A"
+                  }</td>
+                  <td class="label">OPD No :</td>
+                  <td class="value">${admissionHistory.opdNumber || "N/A"}</td>
                 </tr>
                 <tr>
-                    <th>Admission</th>
-                    <td>${formatDate(admissionHistory.admissionDate)}</td>
-                    <th>Discharge</th>
-                    <td>${formatDate(admissionHistory.dischargeDate)}</td>
-                    <th>LOS</th>
-                    <td>${Math.ceil(
-                      (convertToIST(admissionHistory.dischargeDate) -
-                        convertToIST(admissionHistory.admissionDate)) /
-                        (1000 * 60 * 60 * 24)
-                    )} days</td>
+                  <td class="label">Consultant :</td>
+                  <td class="value" colspan="7">${
+                    admissionHistory.doctor?.name || "N/A"
+                  }</td>
                 </tr>
                 <tr>
-                    <th>Doctor</th>
-                    <td>${admissionHistory.doctor?.name || "Not specified"}</td>
-                    <th>Department</th>
-                    <td>${
-                      admissionHistory.section?.name || "Not specified"
-                    }</td>
-                    <th>Condition</th>
-                    <td><strong>${
-                      admissionHistory.conditionAtDischarge
-                    }</strong></td>
+                  <td class="label-small">D.O.A. :</td>
+                  <td class="value-small">${formatDate(
+                    admissionHistory.admissionDate
+                  )}</td>
+                  <td class="label-small">Time :</td>
+                  <td class="value-small">${
+                    convertToIST(
+                      admissionHistory.admissionDate
+                    )?.toLocaleTimeString("en-IN", {
+                      hour12: true,
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }) || "N/A"
+                  }</td>
+                  <td class="label-small">D.O.D. :</td>
+                  <td class="value-small">${formatDate(
+                    admissionHistory.dischargeDate
+                  )}</td>
+                  <td class="label-small">Time :</td>
+                  <td class="value-small">${
+                    convertToIST(
+                      admissionHistory.dischargeDate
+                    )?.toLocaleTimeString("en-IN", {
+                      hour12: true,
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }) || "N/A"
+                  }</td>
                 </tr>
-            </table>
+              </table>
+            </div>
 
             <!-- Main Content in Two Columns -->
             <div class="content-row">
@@ -909,18 +956,22 @@ export const generateManualDischargeSummaryHTML = (
         }
         
         .patient-info-table td {
-          padding: 6px 4px;
+          padding: 7px 4px;
           border: 1px solid #000;
           vertical-align: middle;
           word-wrap: break-word;
         }
         
         .patient-info-table .label {
-          font-weight: bold;
+          font-weight: bold;  
+
+
           background-color: #f5f5f5;
-          width: 80px;
+          width: 90px;
           text-align: left;
           font-size: 12px;
+            white-space: nowrap;  /* Prevent text wrapping */
+
         }
         
         .patient-info-table .value {
@@ -930,8 +981,9 @@ export const generateManualDischargeSummaryHTML = (
         
         .patient-info-table .label-small {
           font-weight: bold;
+
           background-color: #f5f5f5;
-          width: 60px;
+          width: 70px;
           text-align: left;
           font-size: 12px;
         }
