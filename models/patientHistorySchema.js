@@ -252,6 +252,51 @@ const consultantSchema = new mongoose.Schema({
   pastMedicalHistory: { type: String },
   date: { type: String },
 });
+const dischargeSummaryHistorySchema = new mongoose.Schema({
+  isGenerated: { type: Boolean, default: false },
+  isDoctorGenerated: { type: Boolean, default: false },
+  fileName: { type: String },
+  driveLink: { type: String },
+  generatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "hospitalDoctor",
+  },
+  generatedAt: { type: Date },
+  savedAt: { type: Date },
+
+  // Clinical summary data - stored as arrays/objects for history preservation
+  finalDiagnosis: { type: String },
+  complaints: [{ type: String }],
+  pastHistory: [{ type: String }],
+  examFindings: [{ type: String }],
+  generalExam: {
+    Temp: { type: String },
+    Pulse: { type: String },
+    BP: { type: String },
+    SPO2: { type: String },
+  },
+  radiology: [{ type: String }],
+  pathology: [{ type: String }],
+  operation: {
+    Type: { type: String },
+    Date: { type: String },
+    Surgeon: { type: String },
+    Anaesthetist: { type: String },
+    "Anaesthesia Type": { type: String },
+    Procedure: [{ type: String }],
+  },
+  treatmentGiven: [{ type: String }],
+  conditionOnDischarge: { type: String },
+
+  // Metadata
+  template: { type: String, default: "standard" },
+  version: { type: String, default: "1.0" },
+
+  // Historical tracking
+  originalAdmissionId: { type: mongoose.Schema.Types.ObjectId },
+  archivedAt: { type: Date, default: Date.now },
+  archiveReason: { type: String, default: "Patient Discharged" },
+});
 
 const patientHistorySchema = new mongoose.Schema({
   patientId: { type: String, unique: true, required: true }, // Same patientId as in Patient schema
@@ -319,6 +364,7 @@ const patientHistorySchema = new mongoose.Schema({
       // Follow-ups and monitoring
       followUps: [followUpSchema], // Array of follow-up records for each admission
       fourHrFollowUpSchema: [fourHrFollowUpSchema], // Array of 4-hour follow-up records for each admission
+      dischargeSummary: dischargeSummaryHistorySchema,
 
       // Lab and diagnostic reports
       labReports: [

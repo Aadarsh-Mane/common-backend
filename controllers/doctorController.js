@@ -20,6 +20,10 @@ import Investigation from "../models/investigationSchema.js";
 import EmergencyMedication from "../models/nurse/emergencySchema.js";
 import PatientCounter from "../models/patientCounter.js";
 import { DischargeSummary } from "../models/dischargeSummarySchema.js";
+import { generateCertificateHTML } from "../utils/medicalCertificate.js";
+import { generatePdf } from "../services/pdfGenerator.js";
+import { uploadToDrive } from "../services/uploader.js";
+import { generateManualDischargeSummaryHTML } from "../utils/dischargeSummary.js";
 export const getPatients = async (req, res) => {
   console.log(req.usertype);
   try {
@@ -1208,6 +1212,42 @@ export const dischargePatient = async (req, res) => {
       admissionRecord.specialInstructions?.map((instruction) => ({
         ...instruction.toObject(),
       })) || [];
+    let dischargeSummaryHistory = null;
+    if (admissionRecord.dischargeSummary) {
+      const summary = admissionRecord.dischargeSummary;
+
+      // Create historical discharge summary with archive metadata
+      dischargeSummaryHistory = {
+        isGenerated: summary.isGenerated,
+        isDoctorGenerated: summary.isDoctorGenerated,
+        fileName: summary.fileName,
+        driveLink: summary.driveLink,
+        generatedBy: summary.generatedBy,
+        generatedAt: summary.generatedAt,
+        savedAt: summary.savedAt,
+
+        // Clinical summary data - preserved as arrays/objects
+        finalDiagnosis: summary.finalDiagnosis,
+        complaints: summary.complaints || [],
+        pastHistory: summary.pastHistory || [],
+        examFindings: summary.examFindings || [],
+        generalExam: summary.generalExam || {},
+        radiology: summary.radiology || [],
+        pathology: summary.pathology || [],
+        operation: summary.operation || {},
+        treatmentGiven: summary.treatmentGiven || [],
+        conditionOnDischarge: summary.conditionOnDischarge,
+
+        // Metadata
+        template: summary.template || "standard",
+        version: summary.version || "1.0",
+
+        // Historical tracking - new fields for archival
+        originalAdmissionId: admissionRecord._id,
+        archivedAt: new Date(),
+        archiveReason: "Patient Discharged",
+      };
+    }
 
     // Create the history entry with ALL fields including OPD and IPD numbers
     const historyEntry = {
@@ -1231,6 +1271,7 @@ export const dischargePatient = async (req, res) => {
       symptoms: admissionRecord.symptoms,
       initialDiagnosis: admissionRecord.initialDiagnosis,
       doctor: admissionRecord.doctor,
+      dischargeSummary: dischargeSummaryHistory,
 
       section: admissionRecord.section,
       bedNumber: admissionRecord.bedNumber,
@@ -5768,6 +5809,657 @@ export const getPatientsList = async (req, res) => {
       success: false,
       message: "Internal server error while fetching patients list",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const generateMedicalCertificate = async (req, res) => {
+  try {
+    const {
+      patientId,
+      admissionId,
+      diagnosis,
+      medicalLeaveStartDate,
+      expectedRestDuration,
+      expectedReturnDate,
+      additionalNotes = "",
+      certificateType = "illness",
+    } = req.body;
+
+    // Get doctor ID from auth middleware
+    const doctorId = req.userId;
+
+    // Validate required fields
+    if (!patientId || !admissionId || !diagnosis || !medicalLeaveStartDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields for medical certificate generation",
+        requiredFields: [
+          "patientId",
+          "admissionId",
+          "diagnosis",
+          "medicalLeaveStartDate",
+        ],
+      });
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(admissionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid admission ID format",
+      });
+    }
+
+    // Find doctor details
+    const doctor = await hospitalDoctors.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+    const doctorSignatureUrl =
+      "https://res.cloudinary.com/dnznafp2a/image/upload/v1751720742/WhatsApp_Image_2025-06-23_at_18.41.26_vimkib.jpg";
+    // Find patient and specific admission record
+    const patient = await patientSchema.findOne({ patientId });
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    // Find the specific admission record
+    const admissionRecord = patient.admissionRecords.find(
+      (record) => record._id.toString() === admissionId
+    );
+
+    if (!admissionRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    // Format dates in IST format
+    const formatDateIST = (date) => {
+      return new Date(date).toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    };
+    const formatDateTimeIST = (date) => {
+      return new Date(date).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+    };
+
+    const currentDate = formatDateIST(new Date());
+    const currentDateTime = formatDateTimeIST(new Date());
+
+    const leaveStartDate = formatDateIST(medicalLeaveStartDate);
+    const returnDate = expectedReturnDate
+      ? formatDateIST(expectedReturnDate)
+      : "To be determined based on medical assessment";
+
+    // Determine gender pronoun
+    const pronoun =
+      patient.gender === "Female"
+        ? "She"
+        : patient.gender === "Male"
+        ? "He"
+        : "They";
+    const possessivePronoun =
+      patient.gender === "Female"
+        ? "her"
+        : patient.gender === "Male"
+        ? "his"
+        : "their";
+
+    // Generate certificate HTML content
+    const certificateHtml = generateCertificateHTML({
+      patient,
+      admissionRecord,
+      diagnosis,
+      leaveStartDate,
+      expectedRestDuration,
+      returnDate,
+      doctor,
+      doctorSignatureUrl,
+      currentDate,
+      pronoun,
+      possessivePronoun,
+      additionalNotes,
+      certificateType,
+      currentDateTime,
+    });
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(certificateHtml);
+
+    // Create filename
+    const filename = `Medical_Certificate_${patient.name.replace(
+      /\s+/g,
+      "_"
+    )}_${patientId}_${Date.now()}.pdf`;
+
+    // Upload to Google Drive using configured folder ID
+    const certificateUrl = await uploadToDrive(
+      pdfBuffer,
+      filename,
+      "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV"
+    );
+
+    // Log certificate generation for audit trail
+    console.log(
+      `Medical certificate generated for patient ${patientId} by doctor ${
+        doctor.doctorName
+      } at ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}`
+    );
+
+    // Send response
+    res.status(200).json({
+      success: true,
+      message: "Medical certificate generated successfully",
+      data: {
+        certificateUrl,
+        filename,
+        patientDetails: {
+          name: patient.name,
+          patientId: patient.patientId,
+          age: patient.age,
+          gender: patient.gender,
+        },
+        certificateDetails: {
+          diagnosis,
+          medicalLeaveStartDate: leaveStartDate,
+          expectedRestDuration,
+          expectedReturnDate: returnDate,
+          issueDate: currentDate,
+          doctorName: doctor.doctorName,
+          doctorSpeciality: doctor.speciality,
+          doctorDepartment: doctor.department,
+        },
+        admissionInfo: {
+          opdNumber: admissionRecord.opdNumber,
+          ipdNumber: admissionRecord.ipdNumber,
+          admissionDate: admissionRecord.admissionDate,
+          reasonForAdmission: admissionRecord.reasonForAdmission,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error generating medical certificate:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate medical certificate",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const generateDischargeSummaryByDoctor = async (req, res) => {
+  const { patientId } = req.params;
+  const userId = req.userId; // From auth middleware
+
+  const {
+    "Final Diagnosis": finalDiagnosis,
+    Complaints: complaints,
+    "Past History": pastHistory,
+    "Exam Findings": examFindings,
+    "General Exam": generalExam,
+    Radiology: radiology,
+    Pathology: pathology,
+    Operation: operation,
+    "Treatment Given": treatmentGiven,
+    "Condition on Discharge": conditionOnDischarge,
+
+    // Options
+    uploadToDriveFlag = true,
+    template = "standard",
+  } = req.body;
+
+  try {
+    // Get current IST time
+    const getCurrentIST = () => {
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istTime = new Date(utc + istOffset);
+      return istTime;
+    };
+
+    const currentIST = getCurrentIST();
+
+    // Convert date to IST
+    const convertToIST = (date) => {
+      if (!date) return null;
+      const inputDate = new Date(date);
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const utc = inputDate.getTime() + inputDate.getTimezoneOffset() * 60000;
+      return new Date(utc + istOffset);
+    };
+
+    // Validate required fields
+    const requiredFields = {
+      "Final Diagnosis": finalDiagnosis,
+      Complaints: complaints,
+      "Exam Findings": examFindings,
+      "Condition on Discharge": conditionOnDischarge,
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(
+        ([key, value]) =>
+          !value ||
+          (Array.isArray(value) && value.length === 0) ||
+          (typeof value === "string" && value.trim() === "")
+      )
+      .map(([key]) => key);
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+        code: "MISSING_REQUIRED_FIELDS",
+        missingFields,
+      });
+    }
+
+    // Fetch current patient data (not history)
+    const patient = await patientSchema
+      .findOne({ patientId })
+      .populate("admissionRecords.doctor.id", "name specialization license")
+      .populate("admissionRecords.section.id", "name type department");
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient not found",
+        code: "PATIENT_NOT_FOUND",
+      });
+    }
+
+    // Get latest admission record from patient schema
+    const latestAdmission = patient.latestAdmission;
+
+    if (!latestAdmission) {
+      return res.status(404).json({
+        success: false,
+        error: "No active admission found for patient",
+        code: "NO_ACTIVE_ADMISSION",
+      });
+    }
+
+    // Check if patient is already discharged
+    if (latestAdmission.status === "Discharged") {
+      return res.status(400).json({
+        success: false,
+        error: "Patient is already discharged",
+        code: "PATIENT_ALREADY_DISCHARGED",
+      });
+    }
+
+    // Helper functions
+    const formatArrayToText = (arr) => {
+      if (!arr || !Array.isArray(arr)) return "N/A";
+      return arr.join("\n");
+    };
+
+    const formatGeneralExam = (examObj) => {
+      if (!examObj || typeof examObj !== "object") return "N/A";
+      const examParts = [];
+      if (examObj.Temp) examParts.push(`Temp : ${examObj.Temp}`);
+      if (examObj.Pulse) examParts.push(`Pulse : ${examObj.Pulse}`);
+      if (examObj.BP) examParts.push(`BP : ${examObj.BP}`);
+      if (examObj.SPO2) examParts.push(`SPO2 : ${examObj.SPO2}`);
+      return examParts.length > 0 ? examParts.join(", ") : "N/A";
+    };
+
+    const formatOperation = (opObj) => {
+      if (!opObj || typeof opObj !== "object") return "N/A";
+      let operationText = "";
+
+      if (opObj.Type) operationText += `${opObj.Type}`;
+      if (opObj.Date) operationText += ` On : ${opObj.Date}`;
+      if (opObj.Surgeon) operationText += `\nSurgeon : ${opObj.Surgeon}`;
+      if (opObj.Anaesthetist)
+        operationText += `\nAnaesthetist : ${opObj.Anaesthetist}`;
+      if (opObj["Anaesthesia Type"])
+        operationText += `, Type : ${opObj["Anaesthesia Type"]}`;
+
+      if (opObj.Procedure && Array.isArray(opObj.Procedure)) {
+        operationText += "\nPROCEDURE -" + opObj.Procedure.join("\n");
+      }
+
+      return operationText || "N/A";
+    };
+
+    // Convert dates to IST
+    const admissionDateIST = latestAdmission.admissionDate
+      ? convertToIST(latestAdmission.admissionDate)
+      : null;
+    const dischargeDateIST = currentIST; // Current time as projected discharge
+    const doctor = hospitalDoctors.findById(userId);
+    // Prepare summary data from current patient record
+    const summaryData = {
+      // Patient basic info
+      patientName: patient.name,
+      age: patient.age || "N/A",
+      sex: patient.gender || "N/A",
+      address: patient.address || "N/A",
+
+      // Admission details from current admission
+      ipdNo: latestAdmission.ipdNumber || "N/A",
+      opdNo: latestAdmission.opdNumber || "N/A",
+      consultant: latestAdmission.doctor?.name || "N/A",
+      admissionDate: admissionDateIST
+        ? admissionDateIST.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
+        : "N/A",
+      admissionTime: admissionDateIST
+        ? admissionDateIST.toLocaleTimeString("en-IN", {
+            hour12: true,
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "N/A",
+      dischargeDate: dischargeDateIST.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      dischargeTime: dischargeDateIST.toLocaleTimeString("en-IN", {
+        hour12: true,
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+
+      // Clinical data from doctor input
+      finalDiagnosis: finalDiagnosis || "N/A",
+      complaints: formatArrayToText(complaints),
+      pastHistory:
+        formatArrayToText(pastHistory) || "NO H/O - ANY DRUG ALLERGY",
+      examFindings: formatArrayToText(examFindings),
+      generalExam: formatGeneralExam(generalExam),
+      radiology: formatArrayToText(radiology),
+      pathology: formatArrayToText(pathology),
+      operation: formatOperation(operation),
+      treatmentGiven: formatArrayToText(treatmentGiven),
+      conditionOnDischarge: conditionOnDischarge || "N/A",
+
+      // Meta info
+      generatedBy: doctor.doctorName || "N/A",
+      generatedAt: currentIST,
+      isDoctorGenerated: true,
+      isPreview: true, // This is a preview, not saved yet
+    };
+
+    console.log(
+      `Generating discharge summary preview for patient ${patientId} by doctor ${userId}`
+    );
+
+    // Generate HTML and PDF
+    const htmlContent = generateManualDischargeSummaryHTML(summaryData);
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Generate filename
+    const timestamp = currentIST.toISOString().replace(/[:.]/g, "-");
+    const sanitizedName = patient.name.replace(/[^a-zA-Z0-9]/g, "_");
+    const fileName = `Discharge_Summary_Preview_${sanitizedName}_${timestamp}.pdf`;
+
+    // Upload to Drive if requested (for preview)
+    let driveLink = null;
+    if (uploadToDriveFlag) {
+      const folderId =
+        process.env.DISCHARGE_SUMMARY_FOLDER_ID ||
+        "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+      try {
+        driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+        console.log(
+          `Discharge summary preview uploaded to Drive: ${driveLink}`
+        );
+      } catch (uploadError) {
+        console.error("Error uploading preview to Drive:", uploadError);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Discharge summary generated successfully (Preview Mode)",
+      isPreview: true,
+      data: {
+        fileName,
+        driveLink,
+        pdfSize: pdfBuffer.length,
+        generatedAt: summaryData.generatedAt,
+        isDoctorGenerated: true,
+        patientInfo: {
+          patientId: patient.patientId,
+          name: summaryData.patientName,
+          age: summaryData.age,
+          gender: summaryData.sex,
+          opdNumber: summaryData.opdNo,
+          ipdNumber: summaryData.ipdNo,
+          currentStatus: latestAdmission.status,
+        },
+        summaryData: {
+          consultant: summaryData.consultant,
+          admissionDate: summaryData.admissionDate,
+          dischargeDate: summaryData.dischargeDate,
+          finalDiagnosis: summaryData.finalDiagnosis,
+          conditionOnDischarge: summaryData.conditionOnDischarge,
+        },
+        // Include full summary data for saving later
+        fullSummaryData: {
+          finalDiagnosis,
+          complaints,
+          pastHistory,
+          examFindings,
+          generalExam,
+          radiology,
+          pathology,
+          operation,
+          treatmentGiven,
+          conditionOnDischarge,
+          uploadToDriveFlag,
+          template,
+        },
+        // Additional metadata for save operation
+        metadata: {
+          admissionRecordId: latestAdmission._id,
+          generatedBy: userId,
+          generatedAt: currentIST,
+          patientId: patient.patientId,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error generating discharge summary:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate discharge summary",
+      code: "SUMMARY_GENERATION_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const confirmSaveSummaryToDB = async (req, res) => {
+  const userId = req.userId; // From auth middleware
+
+  const {
+    patientId,
+    driveLink,
+    fileName,
+    fullSummaryData,
+    metadata,
+    summaryData,
+  } = req.body;
+
+  try {
+    // Validate doctor access
+
+    // Validate required fields
+    if (
+      !patientId ||
+      !driveLink ||
+      !fileName ||
+      !fullSummaryData ||
+      !metadata
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields for saving summary",
+        code: "MISSING_SAVE_FIELDS",
+        required: [
+          "patientId",
+          "driveLink",
+          "fileName",
+          "fullSummaryData",
+          "metadata",
+        ],
+      });
+    }
+
+    // Get current IST time
+    const getCurrentIST = () => {
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istTime = new Date(utc + istOffset);
+      return istTime;
+    };
+
+    const currentIST = getCurrentIST();
+
+    // Find patient
+    const patient = await patientSchema.findOne({ patientId });
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: "Patient not found",
+        code: "PATIENT_NOT_FOUND",
+      });
+    }
+
+    // Find the specific admission record
+    const admissionRecord = patient.admissionRecords.id(
+      metadata.admissionRecordId
+    );
+
+    if (!admissionRecord) {
+      return res.status(404).json({
+        success: false,
+        error: "Admission record not found",
+        code: "ADMISSION_RECORD_NOT_FOUND",
+      });
+    }
+
+    // Check if summary already exists
+    if (
+      admissionRecord.dischargeSummary &&
+      admissionRecord.dischargeSummary.isGenerated
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Discharge summary already exists for this admission",
+        code: "SUMMARY_ALREADY_EXISTS",
+      });
+    }
+
+    // Save discharge summary data to admission record
+    admissionRecord.dischargeSummary = {
+      isGenerated: true,
+      isDoctorGenerated: true,
+      fileName: fileName,
+      driveLink: driveLink,
+      generatedBy: userId,
+      generatedAt: currentIST,
+      savedAt: currentIST,
+
+      // Clinical data
+      finalDiagnosis: fullSummaryData.finalDiagnosis,
+      complaints: fullSummaryData.complaints,
+      pastHistory: fullSummaryData.pastHistory,
+      examFindings: fullSummaryData.examFindings,
+      generalExam: fullSummaryData.generalExam,
+      radiology: fullSummaryData.radiology,
+      pathology: fullSummaryData.pathology,
+      operation: fullSummaryData.operation,
+      treatmentGiven: fullSummaryData.treatmentGiven,
+      conditionOnDischarge: fullSummaryData.conditionOnDischarge,
+
+      // Metadata
+      template: fullSummaryData.template || "standard",
+      version: "1.0",
+    };
+
+    // If finalizeDischarge is true, also update discharge status
+
+    // Save patient record
+    await patient.save();
+
+    console.log(
+      `Discharge summary saved to DB for patient ${patientId}, admission ${metadata.admissionRecordId}`
+    );
+
+    // Prepare response data
+    const responseData = {
+      success: true,
+      message: "Discharge summary saved and patient marked as discharged",
+      data: {
+        patientId: patient.patientId,
+        patientName: patient.name,
+        admissionId: admissionRecord._id,
+        opdNumber: admissionRecord.opdNumber,
+        ipdNumber: admissionRecord.ipdNumber,
+
+        dischargeSummary: {
+          fileName: admissionRecord.dischargeSummary.fileName,
+          driveLink: admissionRecord.dischargeSummary.driveLink,
+          generatedAt: admissionRecord.dischargeSummary.generatedAt,
+          savedAt: admissionRecord.dischargeSummary.savedAt,
+          isDoctorGenerated: true,
+        },
+
+        admissionStatus: {
+          status: admissionRecord.status,
+          dischargeDate: admissionRecord.dischargeDate,
+          conditionAtDischarge: admissionRecord.conditionAtDischarge,
+        },
+
+        clinicalSummary: {
+          finalDiagnosis: admissionRecord.dischargeSummary.finalDiagnosis,
+          conditionOnDischarge:
+            admissionRecord.dischargeSummary.conditionOnDischarge,
+        },
+      },
+    };
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error saving discharge summary:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to save discharge summary",
+      code: "SUMMARY_SAVE_ERROR",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

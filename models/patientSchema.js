@@ -92,6 +92,61 @@ const consultantSchema = new mongoose.Schema({
   pastMedicalHistory: { type: String },
   date: { type: String },
 });
+const dischargeSummarySchema = new mongoose.Schema({
+  isGenerated: { type: Boolean, default: false },
+  isDoctorGenerated: { type: Boolean, default: false },
+  fileName: { type: String },
+  driveLink: { type: String },
+  generatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "hospitalDoctor",
+  },
+  generatedAt: { type: Date },
+  savedAt: { type: Date },
+
+  // Clinical summary data
+  finalDiagnosis: { type: String },
+  complaints: [{ type: String }], // Array of complaints
+  pastHistory: [{ type: String }], // Array of past history items
+  examFindings: [{ type: String }], // Array of examination findings
+  generalExam: {
+    Temp: { type: String },
+    Pulse: { type: String },
+    BP: { type: String },
+    SPO2: { type: String },
+  },
+  radiology: [{ type: String }], // Array of radiology findings
+  pathology: [{ type: String }], // Array of pathology results
+  operation: {
+    Type: { type: String },
+    Date: { type: String },
+    Surgeon: { type: String },
+    Anaesthetist: { type: String },
+    "Anaesthesia Type": { type: String },
+    Procedure: [{ type: String }],
+  },
+  treatmentGiven: [{ type: String }], // Array of treatments
+  conditionOnDischarge: { type: String },
+
+  // Metadata
+  template: { type: String, default: "standard" },
+  version: { type: String, default: "1.0" },
+
+  // Additional fields for tracking
+  isPreview: { type: Boolean, default: false },
+  previewGeneratedAt: { type: Date },
+  lastModifiedAt: { type: Date, default: Date.now },
+  modificationHistory: [
+    {
+      modifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "hospitalDoctor",
+      },
+      modifiedAt: { type: Date, default: Date.now },
+      changes: { type: String }, // Description of changes made
+    },
+  ],
+});
 
 const admissionRecordSchema = new mongoose.Schema({
   // OPD and IPD tracking numbers
@@ -130,6 +185,8 @@ const admissionRecordSchema = new mongoose.Schema({
     name: { type: String },
     usertype: { type: String },
   },
+  dischargeSummary: dischargeSummarySchema,
+
   followUps: [followUpSchema], // Array of follow-up records for each admission
   fourHrFollowUpSchema: [fourHrFollowUpSchema], // Array of 4-hour follow-up records for each admission
 

@@ -15,6 +15,7 @@ import {
   askQuestion,
   askQuestionAI,
   assignPatientToLab,
+  confirmSaveSummaryToDB,
   createInvestigation,
   deleteDiagnosis,
   deleteDoctorConsultant,
@@ -32,6 +33,8 @@ import {
   fetchPrescription,
   fetchSymptoms,
   fetchVitals,
+  generateDischargeSummaryByDoctor,
+  generateMedicalCertificate,
   getAdmittedPatientsByDoctor,
   getAllDischargeSummaries,
   getAllDoctorsProfiles,
@@ -175,6 +178,11 @@ doctorRouter.get(
 );
 
 doctorRouter.post("/createInvestigation", auth, createInvestigation);
+doctorRouter.post(
+  "/generateMedicalCertificate",
+  auth,
+  generateMedicalCertificate
+);
 doctorRouter.get("/getDoctorInvestigations", auth, getDoctorInvestigations);
 doctorRouter.get(
   "/getPatientInvestigationsByAdmission/:patientId/:admissionId",
@@ -186,6 +194,12 @@ doctorRouter.patch(
   auth,
   doctorBulkApproveEmergencyMedications
 );
+doctorRouter.post(
+  "/generateDischargeSummaryByDoctor/:patientId",
+  auth,
+  generateDischargeSummaryByDoctor
+);
+doctorRouter.post("/confirmSaveSummaryToDB", auth, confirmSaveSummaryToDB);
 
 // userRouter.get("/profile", auth, getUserProfile);
 // userRouter.patch("/edit-profile", auth, upload.single("image"), editProfile);
