@@ -1,6 +1,6 @@
 export const generateDepositReceiptHTML = (
   receipt,
-  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png"
+  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
 ) => {
   // Fix timezone issue by creating IST time functions
   const getCurrentIST = () => {
@@ -209,7 +209,7 @@ export const generateDepositReceiptHTML = (
             <div class="header">
                 ${
                   bannerImageUrl
-                    ? `<img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Banner" class="banner-image">`
+                    ? `<img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" class="banner-image">`
                     : ""
                 }
                 <div class="hospital-details">

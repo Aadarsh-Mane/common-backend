@@ -1634,7 +1634,7 @@ export const getWardTreatmentTasks = async (req, res) => {
         // Get the ward name for this patient
         const patientWardName = currentAdmission.section.name;
 
-        // Process medications
+        // Process medications - REMOVED STATUS FILTER
         if (
           currentAdmission.medications &&
           currentAdmission.medications.length > 0
@@ -1644,63 +1644,60 @@ export const getWardTreatmentTasks = async (req, res) => {
           );
 
           for (const med of currentAdmission.medications) {
-            // Check if medication status is NOT "Administered"
-            if (
-              !med.administrationStatus ||
-              med.administrationStatus === "Pending"
-            ) {
-              treatmentTasks.push({
-                wardName: patientWardName,
-                type: "Medication",
-                patientId: patient.patientId,
-                patientName: patient.name,
-                age: patient.age,
-                gender: patient.gender,
-                bedNumber: currentAdmission.bedNumber,
-                admissionId: currentAdmission._id,
-                taskId: med._id || med.id,
-                name: med.name,
-                details: med.dosage || "",
-                status: med.administrationStatus || "Pending",
-                date: med.date || "",
-                time: med.time || "",
-              });
-            }
+            // Show ALL medications regardless of status
+            treatmentTasks.push({
+              wardName: patientWardName,
+              type: "Medication",
+              patientId: patient.patientId,
+              patientName: patient.name,
+              age: patient.age,
+              gender: patient.gender,
+              bedNumber: currentAdmission.bedNumber,
+              admissionId: currentAdmission._id,
+              taskId: med._id || med.id,
+              name: med.name,
+              details: med.dosage || "",
+              status: med.administrationStatus || "Pending",
+              date: med.date || "",
+              time: med.time || "",
+              administeredBy: med.administeredBy || null,
+              administeredAt: med.administeredAt || null,
+              administrationNotes: med.administrationNotes || "",
+            });
           }
         }
 
-        // Process IV fluids
+        // Process IV fluids - REMOVED STATUS FILTER
         if (currentAdmission.ivFluids && currentAdmission.ivFluids.length > 0) {
           console.log(
             `Processing ${currentAdmission.ivFluids.length} IV fluids for ${patient.name}`
           );
 
           for (const iv of currentAdmission.ivFluids) {
-            if (
-              !iv.administrationStatus ||
-              iv.administrationStatus === "Pending"
-            ) {
-              treatmentTasks.push({
-                wardName: patientWardName,
-                type: "IV Fluid",
-                patientId: patient.patientId,
-                patientName: patient.name,
-                age: patient.age,
-                gender: patient.gender,
-                bedNumber: currentAdmission.bedNumber,
-                admissionId: currentAdmission._id,
-                taskId: iv._id || iv.id,
-                name: iv.name,
-                details: `${iv.quantity || ""} ${iv.duration || ""}`,
-                status: iv.administrationStatus || "Pending",
-                date: iv.date || "",
-                time: iv.time || "",
-              });
-            }
+            // Show ALL IV fluids regardless of status
+            treatmentTasks.push({
+              wardName: patientWardName,
+              type: "IV Fluid",
+              patientId: patient.patientId,
+              patientName: patient.name,
+              age: patient.age,
+              gender: patient.gender,
+              bedNumber: currentAdmission.bedNumber,
+              admissionId: currentAdmission._id,
+              taskId: iv._id || iv.id,
+              name: iv.name,
+              details: `${iv.quantity || ""} ${iv.duration || ""}`,
+              status: iv.administrationStatus || "Pending",
+              date: iv.date || "",
+              time: iv.time || "",
+              administeredBy: iv.administeredBy || null,
+              administeredAt: iv.administeredAt || null,
+              administrationNotes: iv.administrationNotes || "",
+            });
           }
         }
 
-        // Process procedures
+        // Process procedures - REMOVED STATUS FILTER
         if (
           currentAdmission.procedures &&
           currentAdmission.procedures.length > 0
@@ -1710,31 +1707,30 @@ export const getWardTreatmentTasks = async (req, res) => {
           );
 
           for (const proc of currentAdmission.procedures) {
-            if (
-              !proc.administrationStatus ||
-              proc.administrationStatus === "Pending"
-            ) {
-              treatmentTasks.push({
-                wardName: patientWardName,
-                type: "Procedure",
-                patientId: patient.patientId,
-                patientName: patient.name,
-                age: patient.age,
-                gender: patient.gender,
-                bedNumber: currentAdmission.bedNumber,
-                admissionId: currentAdmission._id,
-                taskId: proc._id || proc.id,
-                name: proc.name,
-                details: proc.frequency || "",
-                status: proc.administrationStatus || "Pending",
-                date: proc.date || "",
-                time: proc.time || "",
-              });
-            }
+            // Show ALL procedures regardless of status
+            treatmentTasks.push({
+              wardName: patientWardName,
+              type: "Procedure",
+              patientId: patient.patientId,
+              patientName: patient.name,
+              age: patient.age,
+              gender: patient.gender,
+              bedNumber: currentAdmission.bedNumber,
+              admissionId: currentAdmission._id,
+              taskId: proc._id || proc.id,
+              name: proc.name,
+              details: proc.frequency || "",
+              status: proc.administrationStatus || "Pending",
+              date: proc.date || "",
+              time: proc.time || "",
+              administeredBy: proc.administeredBy || null,
+              administeredAt: proc.administeredAt || null,
+              administrationNotes: proc.administrationNotes || "",
+            });
           }
         }
 
-        // Process special instructions
+        // Process special instructions - REMOVED STATUS FILTER
         if (
           currentAdmission.specialInstructions &&
           currentAdmission.specialInstructions.length > 0
@@ -1744,24 +1740,26 @@ export const getWardTreatmentTasks = async (req, res) => {
           );
 
           for (const inst of currentAdmission.specialInstructions) {
-            if (!inst.status || inst.status === "Pending") {
-              treatmentTasks.push({
-                wardName: patientWardName,
-                type: "Special Instruction",
-                patientId: patient.patientId,
-                patientName: patient.name,
-                age: patient.age,
-                gender: patient.gender,
-                bedNumber: currentAdmission.bedNumber,
-                admissionId: currentAdmission._id,
-                taskId: inst._id || inst.id,
-                name: "Special Instruction",
-                details: inst.instruction || "",
-                status: inst.status || "Pending",
-                date: inst.date || "",
-                time: inst.time || "",
-              });
-            }
+            // Show ALL special instructions regardless of status
+            treatmentTasks.push({
+              wardName: patientWardName,
+              type: "Special Instruction",
+              patientId: patient.patientId,
+              patientName: patient.name,
+              age: patient.age,
+              gender: patient.gender,
+              bedNumber: currentAdmission.bedNumber,
+              admissionId: currentAdmission._id,
+              taskId: inst._id || inst.id,
+              name: "Special Instruction",
+              details: inst.instruction || "",
+              status: inst.status || "Pending",
+              date: inst.date || "",
+              time: inst.time || "",
+              completedBy: inst.completedBy || null,
+              completedAt: inst.completedAt || null,
+              completionNotes: inst.completionNotes || "",
+            });
           }
         }
 
@@ -3043,11 +3041,11 @@ export const getStaffAttendance = async (req, res) => {
 export const markAttendanceManually = async (req, res) => {
   try {
     // Verify if admin nurse
-    if (req.usertype !== "nurseadmin") {
-      return res
-        .status(403)
-        .json({ message: "Unauthorized: Admin nurse access required" });
-    }
+    // if (req.usertype !== "nurseadmin") {
+    //   return res
+    //     .status(403)
+    //     .json({ message: "Unauthorized: Admin nurse access required" });
+    // }
 
     const { nurseId, date, status, notes } = req.body;
 

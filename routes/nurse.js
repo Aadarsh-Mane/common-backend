@@ -31,7 +31,10 @@ import {
   getWardPatientsDetail,
   getWardTreatmentTasks,
   markAttendanceManually,
+  markInstructionCompleted,
+  markIVFluidAdministered,
   markMedicationAdministered,
+  markProcedureCompleted,
   recordEmergencyMedication,
   reviewEmergencyMedication,
 } from "../controllers/nurse/newNurseController.js";
@@ -84,10 +87,25 @@ nurseRouter.get("/getNurseWards", auth, getNurseWards);
 // // Patient care routes
 nurseRouter.get("/getWardPatients", auth, getWardPatients);
 nurseRouter.get("/getWardPatientsDetail", auth, getWardPatientsDetail);
-nurseRouter.get(
-  "/markMedicationAdministered",
+nurseRouter.post(
+  "/markMedicationAdministered/:patientId/:admissionId/:medicationId",
   auth,
   markMedicationAdministered
+);
+nurseRouter.post(
+  "/markIVFluidAdministered/:patientId/:admissionId/:ivFluidId",
+  auth,
+  markIVFluidAdministered
+);
+nurseRouter.post(
+  "/markProcedureCompleted/:patientId/:admissionId/:procedureId",
+  auth,
+  markProcedureCompleted
+);
+nurseRouter.post(
+  "/markInstructionCompleted/:patientId/:admissionId/:instructionId",
+  auth,
+  markInstructionCompleted
 );
 nurseRouter.get("/getAllNurseAttendance", getAllNurseAttendance);
 nurseRouter.get("/getAllActivePatients", getAllActivePatients);

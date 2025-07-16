@@ -2926,14 +2926,63 @@ export const getDoctorTreatment = async (req, res) => {
       return res.status(404).json({ message: "Admission record not found" });
     }
 
-    // Extract relevant details
-    const response = {
-      medications: admissionRecord.medications || [],
-      ivFluids: admissionRecord.ivFluids || [],
-      procedures: admissionRecord.procedures || [],
-      specialInstructions: admissionRecord.specialInstructions || [],
+    const getNurseName = async (nurseId) => {
+      if (!nurseId) return null;
+      try {
+        const nurse = await Nurse.findById(nurseId).select("nurseName");
+        return nurse ? nurse.nurseName : null;
+      } catch (error) {
+        console.error(`Error fetching nurse ${nurseId}:`, error);
+        return null;
+      }
     };
+    // Extract relevant details
+    const medications = await Promise.all(
+      (admissionRecord.medications || []).map(async (medication) => {
+        const nurseName = await getNurseName(medication.administeredBy);
+        return {
+          ...medication.toObject(),
+          nurseName,
+        };
+      })
+    );
 
+    // Add nurse names to IV fluids
+    const ivFluids = await Promise.all(
+      (admissionRecord.ivFluids || []).map(async (ivFluid) => {
+        const nurseName = await getNurseName(ivFluid.administeredBy);
+        return {
+          ...ivFluid.toObject(),
+          nurseName,
+        };
+      })
+    );
+
+    // Add nurse names to procedures
+    const procedures = await Promise.all(
+      (admissionRecord.procedures || []).map(async (procedure) => {
+        const nurseName = await getNurseName(procedure.administeredBy);
+        return {
+          ...procedure.toObject(),
+          nurseName,
+        };
+      })
+    );
+    const specialInstructions = await Promise.all(
+      (admissionRecord.specialInstructions || []).map(async (instruction) => {
+        const nurseName = await getNurseName(instruction.completedBy);
+        return {
+          ...instruction.toObject(),
+          nurseName,
+        };
+      })
+    );
+    const response = {
+      medications,
+      ivFluids,
+      procedures,
+      specialInstructions,
+    };
     res.status(200).json({
       message: "Doctor Treatment fetched successfully",
       data: response,
@@ -3400,7 +3449,245 @@ export const deleteDoctorMedicine = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+export const getEmergencyMedicationsForDoctor = async (req, res) => {
+  try {
+    const doctorId = req.userId;
 
+    // Validate doctor authentication
+
+    // Query parameters for filtering and pagination
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      patientId,
+      startDate,
+      endDate,
+      sortBy = "administeredAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    // Build the aggregation pipeline
+    const pipeline = [
+      // Stage 1: Lookup patient information
+      {
+        $lookup: {
+          from: "patients",
+          localField: "patientId",
+          foreignField: "patientId",
+          as: "patient",
+        },
+      },
+      // Stage 2: Unwind patient array
+      {
+        $unwind: "$patient",
+      },
+      // Stage 3: Match patients assigned to this doctor
+      {
+        $match: {
+          "patient.admissionRecords": {
+            $elemMatch: {
+              "doctor.id": new mongoose.Types.ObjectId(doctorId),
+            },
+          },
+        },
+      },
+      // Stage 4: Lookup nurse information for administeredBy
+      {
+        $lookup: {
+          from: "nurses",
+          localField: "administeredBy",
+          foreignField: "_id",
+          as: "nurse",
+        },
+      },
+      // Stage 5: Lookup reviewing nurse information
+      {
+        $lookup: {
+          from: "nurses",
+          localField: "reviewedBy",
+          foreignField: "_id",
+          as: "reviewingNurse",
+        },
+      },
+      // Stage 6: Lookup doctor approval information
+      {
+        $lookup: {
+          from: "hospitaldoctors",
+          localField: "doctorApproval.doctorId",
+          foreignField: "_id",
+          as: "approvingDoctor",
+        },
+      },
+    ];
+
+    // Add additional filters based on query parameters
+    const matchStage = {};
+
+    if (status) {
+      matchStage.status = status;
+    }
+
+    if (patientId) {
+      matchStage.patientId = patientId;
+    }
+
+    if (startDate || endDate) {
+      matchStage.administeredAt = {};
+      if (startDate) {
+        matchStage.administeredAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        matchStage.administeredAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Add match stage if filters exist
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    // Add project stage to format the output
+    pipeline.push({
+      $project: {
+        _id: 1,
+        patientId: 1,
+        admissionId: 1,
+        medicationName: 1,
+        dosage: 1,
+        administeredAt: 1,
+        nurseName: 1,
+        reason: 1,
+        status: 1,
+        reviewedAt: 1,
+        justification: 1,
+        patient: {
+          _id: "$patient._id",
+          name: "$patient.name",
+          age: "$patient.age",
+          gender: "$patient.gender",
+          contact: "$patient.contact",
+          patientId: "$patient.patientId",
+        },
+        nurse: {
+          $cond: {
+            if: { $gt: [{ $size: "$nurse" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$nurse._id", 0] },
+              name: { $arrayElemAt: ["$nurse.name", 0] },
+              employeeId: { $arrayElemAt: ["$nurse.employeeId", 0] },
+            },
+            else: null,
+          },
+        },
+        reviewingNurse: {
+          $cond: {
+            if: { $gt: [{ $size: "$reviewingNurse" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$reviewingNurse._id", 0] },
+              name: { $arrayElemAt: ["$reviewingNurse.name", 0] },
+              employeeId: { $arrayElemAt: ["$reviewingNurse.employeeId", 0] },
+            },
+            else: null,
+          },
+        },
+        doctorApproval: {
+          approved: "$doctorApproval.approved",
+          notes: "$doctorApproval.notes",
+          timestamp: "$doctorApproval.timestamp",
+          doctor: {
+            $cond: {
+              if: { $gt: [{ $size: "$approvingDoctor" }, 0] },
+              then: {
+                _id: { $arrayElemAt: ["$approvingDoctor._id", 0] },
+                name: { $arrayElemAt: ["$approvingDoctor.name", 0] },
+                employeeId: {
+                  $arrayElemAt: ["$approvingDoctor.employeeId", 0],
+                },
+              },
+              else: null,
+            },
+          },
+        },
+      },
+    });
+
+    // Add sorting
+    const sortStage = {};
+    sortStage[sortBy] = sortOrder === "desc" ? -1 : 1;
+    pipeline.push({ $sort: sortStage });
+
+    // Execute aggregation with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const emergencyMedications = await EmergencyMedication.aggregate([
+      ...pipeline,
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+    ]);
+
+    // Get total count for pagination
+    const totalCount = await EmergencyMedication.aggregate([
+      ...pipeline,
+      { $count: "total" },
+    ]);
+
+    const total = totalCount.length > 0 ? totalCount[0].total : 0;
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Group medications by status for summary
+    const statusSummary = await EmergencyMedication.aggregate([
+      ...pipeline.slice(0, -2), // Remove sort and project stages
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Format status summary
+    const summary = {
+      total,
+      pending: statusSummary.find((s) => s._id === "Pending")?.count || 0,
+      approved: statusSummary.find((s) => s._id === "Approved")?.count || 0,
+      rejected: statusSummary.find((s) => s._id === "Rejected")?.count || 0,
+      pendingDoctorApproval:
+        statusSummary.find((s) => s._id === "PendingDoctorApproval")?.count ||
+        0,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Emergency medications retrieved successfully",
+      data: {
+        emergencyMedications,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount: total,
+          hasNext: parseInt(page) < totalPages,
+          hasPrev: parseInt(page) > 1,
+        },
+        summary,
+        filters: {
+          status,
+          patientId,
+          startDate,
+          endDate,
+          sortBy,
+          sortOrder,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching emergency medications:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching emergency medications",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
 export const updateMedicine = async (req, res) => {
   try {
     const doctorId = req.userId;
@@ -6460,6 +6747,493 @@ export const confirmSaveSummaryToDB = async (req, res) => {
       code: "SUMMARY_SAVE_ERROR",
       details:
         process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const getMedicationStatus = async (req, res) => {
+  try {
+    const { patientId, admissionId } = req.params;
+    const userId = req.userId;
+    const userType = req.usertype;
+
+    // Validate required parameters
+    if (!patientId || !admissionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Patient ID and Admission ID are required",
+      });
+    }
+
+    // Validate MongoDB ObjectId format for admissionId
+    if (!mongoose.Types.ObjectId.isValid(admissionId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid admission ID format",
+      });
+    }
+
+    // Find the patient
+    const patient = await patientSchema.findOne({ patientId });
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    // Find the specific admission record
+    const admissionRecord = patient.admissionRecords.find(
+      (record) => record._id.toString() === admissionId
+    );
+
+    if (!admissionRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    // Get medications from the admission record
+    const medications = admissionRecord.medications || [];
+
+    // Get unique nurse IDs for population
+    const nurseIds = medications
+      .filter((med) => med.administeredBy)
+      .map((med) => med.administeredBy)
+      .filter((id, index, arr) => arr.indexOf(id) === index);
+
+    // Populate nurse data separately
+    const Nurse = mongoose.model("Nurse");
+    const nurses = await Nurse.find({
+      _id: { $in: nurseIds },
+    }).select("nurseName email usertype");
+
+    // Create a nurse lookup map
+    const nurseMap = {};
+    nurses.forEach((nurse) => {
+      nurseMap[nurse._id.toString()] = nurse;
+    });
+
+    if (medications.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No medications found for this admission",
+        data: {
+          patientInfo: {
+            patientId: patient.patientId,
+            name: patient.name,
+            age: patient.age,
+            gender: patient.gender,
+            contact: patient.contact,
+          },
+          admissionInfo: {
+            admissionId: admissionRecord._id,
+            opdNumber: admissionRecord.opdNumber,
+            ipdNumber: admissionRecord.ipdNumber,
+            admissionDate: admissionRecord.admissionDate,
+            status: admissionRecord.status,
+            doctor: admissionRecord.doctor,
+            section: admissionRecord.section,
+            bedNumber: admissionRecord.bedNumber,
+          },
+          medications: [],
+          summary: {
+            totalMedications: 0,
+            pendingCount: 0,
+            administeredCount: 0,
+            skippedCount: 0,
+          },
+        },
+      });
+    }
+
+    // Process medications with all necessary fields
+    const medicationDetails = medications.map((med) => {
+      const nurse = med.administeredBy
+        ? nurseMap[med.administeredBy.toString()]
+        : null;
+
+      return {
+        medicationId: med._id,
+        name: med.name,
+        dosage: med.dosage,
+        type: med.type,
+        scheduledDate: med.date,
+        scheduledTime: med.time,
+        administrationStatus: med.administrationStatus || "Pending",
+        administeredBy: nurse
+          ? {
+              id: nurse._id,
+              nurseName: nurse.nurseName,
+              email: nurse.email,
+              usertype: nurse.usertype,
+            }
+          : null,
+        administeredAt: med.administeredAt,
+        administrationNotes: med.administrationNotes || "",
+        createdAt: med.createdAt || null,
+        updatedAt: med.updatedAt || null,
+      };
+    });
+
+    // Calculate summary statistics
+    const summary = {
+      totalMedications: medications.length,
+      pendingCount: medications.filter(
+        (med) =>
+          !med.administrationStatus || med.administrationStatus === "Pending"
+      ).length,
+      administeredCount: medications.filter(
+        (med) => med.administrationStatus === "Administered"
+      ).length,
+      skippedCount: medications.filter(
+        (med) => med.administrationStatus === "Skipped"
+      ).length,
+    };
+
+    // Sort medications by scheduled date and time
+    medicationDetails.sort((a, b) => {
+      // First sort by date
+      if (a.scheduledDate && b.scheduledDate) {
+        const dateA = new Date(a.scheduledDate);
+        const dateB = new Date(b.scheduledDate);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA - dateB;
+        }
+      }
+
+      // Then by time
+      if (a.scheduledTime && b.scheduledTime) {
+        return a.scheduledTime.localeCompare(b.scheduledTime);
+      }
+
+      // Finally by medication name
+      return a.name.localeCompare(b.name);
+    });
+
+    // Group medications by status for easier frontend handling
+    const medicationsByStatus = {
+      pending: medicationDetails.filter(
+        (med) => med.administrationStatus === "Pending"
+      ),
+      administered: medicationDetails.filter(
+        (med) => med.administrationStatus === "Administered"
+      ),
+      skipped: medicationDetails.filter(
+        (med) => med.administrationStatus === "Skipped"
+      ),
+    };
+
+    // Prepare response data
+    const responseData = {
+      patientInfo: {
+        patientId: patient.patientId,
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        contact: patient.contact,
+        address: patient.address,
+        imageUrl: patient.imageUrl,
+      },
+      admissionInfo: {
+        admissionId: admissionRecord._id,
+        opdNumber: admissionRecord.opdNumber,
+        ipdNumber: admissionRecord.ipdNumber,
+        admissionDate: admissionRecord.admissionDate,
+        status: admissionRecord.status,
+        doctor: admissionRecord.doctor,
+        section: admissionRecord.section,
+        bedNumber: admissionRecord.bedNumber,
+        reasonForAdmission: admissionRecord.reasonForAdmission,
+      },
+      medications: medicationDetails,
+      medicationsByStatus,
+      summary,
+      metadata: {
+        requestedBy: userId,
+        requestedByType: userType,
+        timestamp: new Date(),
+        totalRecords: medications.length,
+      },
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Medication status retrieved successfully",
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("Error getting medication status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+export const getPatientEmergencyMedicationsForDoctor = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+
+    // Validate doctor authentication
+
+    // Get specific patient and admission from params
+    const { patientId: paramPatientId, admissionId: paramAdmissionId } =
+      req.params;
+
+    // Query parameters for filtering and pagination
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      patientId: queryPatientId,
+      startDate,
+      endDate,
+      sortBy = "administeredAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    // Use param patientId if provided, otherwise use query patientId
+    const finalPatientId = paramPatientId || queryPatientId;
+
+    // Build the aggregation pipeline
+    const pipeline = [
+      // Stage 1: Initial match for specific patient if provided
+      ...(finalPatientId ? [{ $match: { patientId: finalPatientId } }] : []),
+
+      // Stage 2: Match for specific admission if provided
+      ...(paramAdmissionId
+        ? [
+            {
+              $match: {
+                admissionId: new mongoose.Types.ObjectId(paramAdmissionId),
+              },
+            },
+          ]
+        : []),
+
+      // Stage 3: Lookup patient information
+      {
+        $lookup: {
+          from: "patients",
+          localField: "patientId",
+          foreignField: "patientId",
+          as: "patient",
+        },
+      },
+      // Stage 4: Unwind patient array
+      {
+        $unwind: "$patient",
+      },
+      // Stage 5: Match patients assigned to this doctor
+      {
+        $match: {
+          "patient.admissionRecords": {
+            $elemMatch: {
+              "doctor.id": new mongoose.Types.ObjectId(doctorId),
+              ...(paramAdmissionId
+                ? { _id: new mongoose.Types.ObjectId(paramAdmissionId) }
+                : {}),
+            },
+          },
+        },
+      },
+      // Stage 6: Lookup nurse information for administeredBy
+      {
+        $lookup: {
+          from: "nurses",
+          localField: "administeredBy",
+          foreignField: "_id",
+          as: "nurse",
+        },
+      },
+      // Stage 7: Lookup reviewing nurse information
+      {
+        $lookup: {
+          from: "nurses",
+          localField: "reviewedBy",
+          foreignField: "_id",
+          as: "reviewingNurse",
+        },
+      },
+      // Stage 8: Lookup doctor approval information
+      {
+        $lookup: {
+          from: "hospitaldoctors",
+          localField: "doctorApproval.doctorId",
+          foreignField: "_id",
+          as: "approvingDoctor",
+        },
+      },
+    ];
+
+    // Add additional filters based on query parameters
+    const matchStage = {};
+
+    if (status) {
+      matchStage.status = status;
+    }
+
+    // Don't add patientId to matchStage if it's already filtered in pipeline
+    if (queryPatientId && !finalPatientId) {
+      matchStage.patientId = queryPatientId;
+    }
+
+    if (startDate || endDate) {
+      matchStage.administeredAt = {};
+      if (startDate) {
+        matchStage.administeredAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        matchStage.administeredAt.$lte = new Date(endDate);
+      }
+    }
+
+    // Add match stage if filters exist
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    // Add project stage to format the output
+    pipeline.push({
+      $project: {
+        _id: 1,
+        patientId: 1,
+        admissionId: 1,
+        medicationName: 1,
+        dosage: 1,
+        administeredAt: 1,
+        nurseName: 1,
+        reason: 1,
+        status: 1,
+        reviewedAt: 1,
+        justification: 1,
+        patient: {
+          _id: "$patient._id",
+          name: "$patient.name",
+          age: "$patient.age",
+          gender: "$patient.gender",
+          contact: "$patient.contact",
+          patientId: "$patient.patientId",
+        },
+        nurse: {
+          $cond: {
+            if: { $gt: [{ $size: "$nurse" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$nurse._id", 0] },
+              name: { $arrayElemAt: ["$nurse.name", 0] },
+              employeeId: { $arrayElemAt: ["$nurse.employeeId", 0] },
+            },
+            else: null,
+          },
+        },
+        reviewingNurse: {
+          $cond: {
+            if: { $gt: [{ $size: "$reviewingNurse" }, 0] },
+            then: {
+              _id: { $arrayElemAt: ["$reviewingNurse._id", 0] },
+              name: { $arrayElemAt: ["$reviewingNurse.name", 0] },
+              employeeId: { $arrayElemAt: ["$reviewingNurse.employeeId", 0] },
+            },
+            else: null,
+          },
+        },
+        doctorApproval: {
+          approved: "$doctorApproval.approved",
+          notes: "$doctorApproval.notes",
+          timestamp: "$doctorApproval.timestamp",
+          doctor: {
+            $cond: {
+              if: { $gt: [{ $size: "$approvingDoctor" }, 0] },
+              then: {
+                _id: { $arrayElemAt: ["$approvingDoctor._id", 0] },
+                name: { $arrayElemAt: ["$approvingDoctor.name", 0] },
+                employeeId: {
+                  $arrayElemAt: ["$approvingDoctor.employeeId", 0],
+                },
+              },
+              else: null,
+            },
+          },
+        },
+      },
+    });
+
+    // Add sorting
+    const sortStage = {};
+    sortStage[sortBy] = sortOrder === "desc" ? -1 : 1;
+    pipeline.push({ $sort: sortStage });
+
+    // Execute aggregation with pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const emergencyMedications = await EmergencyMedication.aggregate([
+      ...pipeline,
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+    ]);
+
+    // Get total count for pagination
+    const totalCount = await EmergencyMedication.aggregate([
+      ...pipeline,
+      { $count: "total" },
+    ]);
+
+    const total = totalCount.length > 0 ? totalCount[0].total : 0;
+    const totalPages = Math.ceil(total / parseInt(limit));
+
+    // Group medications by status for summary
+    const statusSummary = await EmergencyMedication.aggregate([
+      ...pipeline.slice(0, -2), // Remove sort and project stages
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Format status summary
+    const summary = {
+      total,
+      pending: statusSummary.find((s) => s._id === "Pending")?.count || 0,
+      approved: statusSummary.find((s) => s._id === "Approved")?.count || 0,
+      rejected: statusSummary.find((s) => s._id === "Rejected")?.count || 0,
+      pendingDoctorApproval:
+        statusSummary.find((s) => s._id === "PendingDoctorApproval")?.count ||
+        0,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Emergency medications retrieved successfully",
+      data: {
+        emergencyMedications,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount: total,
+          hasNext: parseInt(page) < totalPages,
+          hasPrev: parseInt(page) > 1,
+        },
+        summary,
+        filters: {
+          status,
+          patientId: finalPatientId,
+          admissionId: paramAdmissionId,
+          startDate,
+          endDate,
+          sortBy,
+          sortOrder,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching emergency medications:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching emergency medications",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };

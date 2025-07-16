@@ -6,7 +6,7 @@
 //   lengthOfStay
 // ) => {
 //   const hospitalBanner =
-//     "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+//     "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
 //   const hospitalName = process.env.HOSPITAL_NAME || "BHOSALE HOSPITAL";
 //   const hospitalAddress =
 //     process.env.HOSPITAL_ADDRESS ||
@@ -556,12 +556,13 @@ export const generateDischargeBillHTML = (
   lengthOfStay
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalName = process.env.HOSPITAL_NAME || "BHOSALE HOSPITAL";
   const hospitalAddress =
     process.env.HOSPITAL_ADDRESS ||
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = process.env.HOSPITAL_PHONE || "Phone No.9923537180";
+
   // Updated date formatting function to include time in IST
   const formatDateWithTime = (date) => {
     const istDate = new Date(date).toLocaleString("en-IN", {
@@ -575,6 +576,7 @@ export const generateDischargeBillHTML = (
     });
     return istDate;
   };
+
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString("en-IN", {
       year: "numeric",
@@ -654,12 +656,12 @@ export const generateDischargeBillHTML = (
     return "Amount too large";
   };
 
-  // ✅ UPDATED: Generate charge rows - ONLY NON-ZERO CHARGES
+  // ✅ UPDATED: Generate charge rows - ONLY NON-ZERO CHARGES INCLUDING CUSTOM CHARGES
   let chargeRows = "";
   let serialNumber = 1;
 
-  // All possible charges in order (keep your original array)
-  const allCharges = [
+  // All possible regular charges in order (keep your original array)
+  const allRegularCharges = [
     "admissionFees",
     "icuCharges",
     "specialCharges",
@@ -708,10 +710,14 @@ export const generateDischargeBillHTML = (
     "bslCharges",
     "icdtCharges",
     "ophthalmologistCharges",
+    // NEW: Add the new fixed charges
+    "pharmacyCharges",
+    "pathologyCharges",
+    "otherCharges",
   ];
 
-  // ✅ KEY CHANGE: Only show charges with amount > 0
-  allCharges.forEach((chargeType) => {
+  // ✅ Process regular charges first
+  allRegularCharges.forEach((chargeType) => {
     if (
       processedCharges[chargeType] &&
       processedCharges[chargeType].total > 0
@@ -736,7 +742,37 @@ export const generateDischargeBillHTML = (
       `;
       serialNumber++;
     }
-    // ❌ REMOVED: The else block that adds zero-amount rows
+  });
+
+  // ✅ NEW: Process custom charges
+  Object.keys(processedCharges).forEach((chargeKey) => {
+    // Check if it's a custom charge (starts with 'custom_')
+    if (
+      chargeKey.startsWith("custom_") &&
+      processedCharges[chargeKey].total > 0
+    ) {
+      const charge = processedCharges[chargeKey];
+      chargeRows += `
+        <tr style="background-color: #f0f9ff;">
+          <td style="text-align: center; padding: 4px; border: 1px solid #000; font-size: 11px;">${serialNumber}</td>
+          <td style="padding: 4px; border: 1px solid #000; font-size: 11px;">
+            <span style="color: #0369a1; font-weight: 600;">★</span> ${
+              charge.description
+            }
+          </td>
+          <td style="text-align: center; padding: 4px; border: 1px solid #000; font-size: 11px;">${
+            charge.rate
+          }</td>
+          <td style="text-align: center; padding: 4px; border: 1px solid #000; font-size: 11px;">${
+            charge.days
+          }</td>
+          <td style="text-align: right; padding: 4px; border: 1px solid #000; font-size: 11px; color: #0369a1; font-weight: 600;">${formatCurrency(
+            charge.total
+          )}</td>
+        </tr>
+      `;
+      serialNumber++;
+    }
   });
 
   // ✅ Optional: Add message if no charges found
@@ -855,6 +891,16 @@ export const generateDischargeBillHTML = (
                 page-break-inside: avoid;
             }
             
+            /* Custom charge styling */
+            .custom-charge-row {
+                background-color: #f0f9ff !important;
+            }
+            
+            .custom-charge-indicator {
+                color: #0369a1;
+                font-weight: 600;
+            }
+            
             /* Totals section - always at bottom */
             .totals-section {
                 page-break-inside: avoid;
@@ -917,6 +963,10 @@ export const generateDischargeBillHTML = (
                 
                 .amount-words {
                     page-break-inside: avoid;
+                }
+                
+                .custom-charge-row {
+                    background-color: #f0f9ff !important;
                 }
                 
                 /* Ensure proper margins on new pages */
@@ -988,7 +1038,7 @@ export const generateDischargeBillHTML = (
                 </tr>
             </table>
 
-            <!-- Charges Table (Only Non-Zero Charges) -->
+            <!-- Charges Table (Including Custom Charges) -->
             <table class="bill-table">
                 <thead>
                     <tr>
@@ -1128,7 +1178,7 @@ function getChargeDescription(chargeType) {
 
 export const generateOPDBillHTML = (
   data,
-  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png"
+  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
 ) => {
   return `
     <!DOCTYPE html>

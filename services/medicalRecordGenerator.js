@@ -6,7 +6,7 @@ export const generateSymptomsHTML = (
   hospital
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalName = "BHOSALE HOSPITAL";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
@@ -374,7 +374,7 @@ export const generateSymptomsHTML = (
 
 export const generateVitalsHTML = (patientHistory, latestRecord, hospital) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -701,7 +701,7 @@ export const generateDiagnosisHTML = (
   hospital
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1109,7 +1109,7 @@ export const generatePrescriptionsHTML = (
   hospital
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1480,7 +1480,7 @@ export const generateConsultingHTML = (
   hospital
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1875,7 +1875,7 @@ export const generateDoctorNotesHTML = (
   hospital
 ) => {
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";

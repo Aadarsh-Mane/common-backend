@@ -297,7 +297,7 @@ body {
           </div>
           
           <div class="header">
-              <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Banner" class="hospital-banner">
+              <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" class="hospital-banner">
               <div class="certificate-title">Medical Certificate for ${certificateType}</div>
               <div class="certificate-subtitle">To Whom It May Concern</div>
           </div>

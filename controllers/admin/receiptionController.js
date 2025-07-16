@@ -992,7 +992,7 @@ export const generateBillForDischargedPatient = async (req, res) => {
 </head>
 <body>
     <div class="header">
-        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Logo" />
+        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Logo" />
         <h1>Hospital Bill</h1>
     </div>
     <div class="patient-details">
@@ -1480,7 +1480,7 @@ export const getDoctorAdvice = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -2028,7 +2028,7 @@ export const getDoctorAdvic1 = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -2330,7 +2330,7 @@ export const getDoctorSheet = async (req, res) => {
 <body>
     <div class="container" id="page-1">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="header">
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
             <h3>DOCTOR INITIAL ASSESSMENT SHEET</h3>
         </div>
         <div class="section">
@@ -5306,7 +5306,7 @@ export const generateDischargeSummary = async (req, res) => {
 
 export const generateIpdBill = async (req, res) => {
   const { patientId } = req.params;
-  const { charges, discount = 0, advance = 0 } = req.body;
+  const { charges, discount = 0, advance = 0, customCharges = [] } = req.body;
 
   try {
     // Fetch patient history
@@ -5349,18 +5349,21 @@ export const generateIpdBill = async (req, res) => {
 
     // Process charges and calculate totals
     const processedCharges = processCharges(charges, lengthOfStay);
-    const billCalculations = calculateBillTotals(
-      processedCharges,
-      discount,
-      advance
-    );
+
+    // Process custom charges
+    const processedCustomCharges = processCustomCharges(customCharges);
+
+    // Combine all charges
+    const allCharges = { ...processedCharges, ...processedCustomCharges };
+
+    const billCalculations = calculateBillTotals(allCharges, discount, advance);
     const billNumber = await Bill.generateBillNumber("IPD");
 
     // Generate HTML content for bill with OPD/IPD numbers
     const htmlContent = generateDischargeBillHTML(
       patientHistory,
       admissionHistory,
-      processedCharges,
+      allCharges,
       billCalculations,
       lengthOfStay
     );
@@ -5425,8 +5428,8 @@ export const generateIpdBill = async (req, res) => {
         ipdNumber: ipdNumber,
       },
 
-      // Charges breakdown
-      chargesBreakdown: processedCharges,
+      // Charges breakdown including custom charges
+      chargesBreakdown: allCharges,
 
       // Financial calculations
       financials: {
@@ -5580,6 +5583,10 @@ function processCharges(charges, lengthOfStay) {
     "bslCharges",
     "icdtCharges",
     "ophthalmologistCharges",
+    // NEW: Add the new fixed charges
+    "pharmacyCharges",
+    "pathologyCharges",
+    "otherCharges",
   ];
 
   const processedCharges = {};
@@ -5600,6 +5607,123 @@ function processCharges(charges, lengthOfStay) {
   });
 
   return processedCharges;
+}
+
+/**
+ * Process custom charges added by user
+ */
+function processCustomCharges(customCharges) {
+  const processedCustomCharges = {};
+
+  if (Array.isArray(customCharges)) {
+    customCharges.forEach((charge, index) => {
+      if (charge && charge.description && charge.rate) {
+        const rate = parseFloat(charge.rate) || 0;
+        const days = parseInt(charge.days) || 1;
+        const total = rate * days;
+
+        const key = `custom_${index}_${charge.description.replace(
+          /[^a-zA-Z0-9]/g,
+          "_"
+        )}`;
+
+        processedCustomCharges[key] = {
+          rate: rate,
+          days: days,
+          total: total,
+          description: charge.description,
+          isCustom: true,
+        };
+      }
+    });
+  }
+
+  return processedCustomCharges;
+}
+
+/**
+ * Calculate bill totals including custom charges
+ */
+function calculateBillTotals(allCharges, discount, advance) {
+  let totalCharges = 0;
+
+  // Sum all charges (including custom charges)
+  Object.values(allCharges).forEach((charge) => {
+    totalCharges += charge.total;
+  });
+
+  const discountAmount = parseFloat(discount) || 0;
+  const advanceAmount = parseFloat(advance) || 0;
+  const finalAmount = totalCharges - discountAmount - advanceAmount;
+
+  return {
+    totalCharges,
+    discount: discountAmount,
+    advance: advanceAmount,
+    finalAmount: Math.max(0, finalAmount), // Ensure non-negative
+  };
+}
+
+/**
+ * Get user-friendly description for charge types
+ */
+function getChargeDescription(chargeType) {
+  const descriptions = {
+    admissionFees: "Admission Fees",
+    icuCharges: "ICU",
+    specialCharges: "Special",
+    generalWardCharges: "General ward",
+    surgeonCharges: "Surgeon Charges",
+    assistantSurgeonCharges: "Assistant Surgeon Charges",
+    operationTheatreCharges: "Operation Theatre charges",
+    operationTheatreMedicines: "Operation Theatre Medicines",
+    anaesthesiaCharges: "Anaesthesia charges",
+    localAnaesthesiaCharges: "Local Anaesthesia charges",
+    o2Charges: "O2 Charges",
+    monitorCharges: "Monitor Charges",
+    tapping: "Tapping",
+    ventilatorCharges: "Ventilator Charges",
+    emergencyCharges: "Emergency charges",
+    micCharges: "M.I.C Charges",
+    ivFluids: "IV Fluids",
+    bloodTransfusionCharges: "Blood Transfusion Service Charges",
+    physioTherapyCharges: "Physio/Occupation Therapy Charges",
+    xrayFilmCharges: "X-Ray Film Charges",
+    ecgCharges: "E.C.G. Charges",
+    specialVisitCharges: "Special Visit Charges",
+    doctorCharges: "Doctor Charges",
+    nursingCharges: "Nursing Charges",
+    injMedicines: "Inj & Medicines",
+    catheterCharges: "Catheter Charges",
+    rylesTubeCharges: "Ryles Tube Charges",
+    miscellaneousCharges: "Miscellaneous Charges",
+    dressingCharges: "Dressing Charges",
+    professionalCharges: "Professional Charges",
+    serviceTaxCharges: "Service Tax Charges @ 15%",
+    tractionCharges: "Traction/SWD/L.F.T.",
+    gastricLavageCharges: "Gastric Lavage Charges",
+    plateletCharges: "Platelet Charges",
+    nebulizerCharges: "Nebulizer Charges",
+    implantCharges: "Implant Charges",
+    physicianCharges: "Physician Charges",
+    slabCastCharges: "Slab/Cast Charges",
+    mrfCharges: "M.R.F./Debridement Proc. Charges",
+    procCharges: "Proc. Charges / Hydro Therapy",
+    staplingCharges: "Stapling/Thomas Splint",
+    enemaCharges: "Enema/Proctoscopy",
+    gastroscopyCharges: "Gastroscopy/Colonoscopy",
+    endoscopicCharges: "Endoscopic Dilatation",
+    velixCharges: "Velix /Solumedrol / A.S.V. drip charges",
+    bslCharges: "B.S.L. charges",
+    icdtCharges: "I.C.D.T. Proc. Charges",
+    ophthalmologistCharges: "Ophthalmologist Charges",
+    // NEW: Add the new fixed charges
+    pharmacyCharges: "Pharmacy Charges",
+    pathologyCharges: "Pathology Charges",
+    otherCharges: "Other Charges",
+  };
+
+  return descriptions[chargeType] || chargeType;
 }
 export const storeIpdBill = async (req, res) => {
   try {
@@ -5762,83 +5886,6 @@ export const getLatestPatientRecord = async (req, res) => {
 /**
  * Calculate bill totals, discount, and final amount
  */
-function calculateBillTotals(processedCharges, discount, advance) {
-  let totalCharges = 0;
-
-  // Sum all charges
-  Object.values(processedCharges).forEach((charge) => {
-    totalCharges += charge.total;
-  });
-
-  const discountAmount = parseFloat(discount) || 0;
-  const advanceAmount = parseFloat(advance) || 0;
-  const finalAmount = totalCharges - discountAmount - advanceAmount;
-
-  return {
-    totalCharges,
-    discount: discountAmount,
-    advance: advanceAmount,
-    finalAmount: Math.max(0, finalAmount), // Ensure non-negative
-  };
-}
-
-/**
- * Get user-friendly description for charge types
- */
-function getChargeDescription(chargeType) {
-  const descriptions = {
-    admissionFees: "Admission Fees",
-    icuCharges: "ICU",
-    specialCharges: "Special",
-    generalWardCharges: "General ward",
-    surgeonCharges: "Surgeon Charges",
-    assistantSurgeonCharges: "Assistant Surgeon Charges",
-    operationTheatreCharges: "Operation Theatre charges",
-    operationTheatreMedicines: "Operation Theatre Medicines",
-    anaesthesiaCharges: "Anaesthesia charges",
-    localAnaesthesiaCharges: "Local Anaesthesia charges",
-    o2Charges: "O2 Charges",
-    monitorCharges: "Monitor Charges",
-    tapping: "Tapping",
-    ventilatorCharges: "Ventilator Charges",
-    emergencyCharges: "Emergency charges",
-    micCharges: "M.I.C Charges",
-    ivFluids: "IV Fluids",
-    bloodTransfusionCharges: "Blood Transfusion Service Charges",
-    physioTherapyCharges: "Physio/Occupation Therapy Charges",
-    xrayFilmCharges: "X-Ray Film Charges",
-    ecgCharges: "E.C.G. Charges",
-    specialVisitCharges: "Special Visit Charges",
-    doctorCharges: "Doctor Charges",
-    nursingCharges: "Nursing Charges",
-    injMedicines: "Inj & Medicines",
-    catheterCharges: "Catheter Charges",
-    rylesTubeCharges: "Ryles Tube Charges",
-    miscellaneousCharges: "Miscellaneous Charges",
-    dressingCharges: "Dressing Charges",
-    professionalCharges: "Professional Charges",
-    serviceTaxCharges: "Service Tax Charges @ 15%",
-    tractionCharges: "Traction/SWD/L.F.T.",
-    gastricLavageCharges: "Gastric Lavage Charges",
-    plateletCharges: "Platelet Charges",
-    nebulizerCharges: "Nebulizer Charges",
-    implantCharges: "Implant Charges",
-    physicianCharges: "Physician Charges",
-    slabCastCharges: "Slab/Cast Charges",
-    mrfCharges: "M.R.F./Debridement Proc. Charges",
-    procCharges: "Proc. Charges / Hydro Therapy",
-    staplingCharges: "Stapling/Thomas Splint",
-    enemaCharges: "Enema/Proctoscopy",
-    gastroscopyCharges: "Gastroscopy/Colonoscopy",
-    endoscopicCharges: "Endoscopic Dilatation",
-    velixCharges: "Velix /Solumedrol / A.S.V. drip charges",
-    bslCharges: "B.S.L. charges",
-    icdtCharges: "I.C.D.T. Proc. Charges",
-    ophthalmologistCharges: "Ophthalmologist Charges",
-  };
-
-  return descriptions[chargeType] || chargeType;
-}
 
 /**
  * Generate HTML content for discharge bill
@@ -7186,7 +7233,7 @@ export const generatePatientRecordPDFs = async (req, res) => {
       email: "info@bhosalehospital.com",
       website: "www.bhosalehospital.com",
       bannerImageUrl:
-        "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png",
+        "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png",
       folderId: "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV", // Your Google Drive folder ID
     };
 

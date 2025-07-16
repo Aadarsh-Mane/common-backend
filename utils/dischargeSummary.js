@@ -47,7 +47,7 @@ export const generateDischargeSummaryHTML = (
   const currentIST = getCurrentIST();
 
   const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png";
+    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
   const hospitalAddress =
     process.env.HOSPITAL_ADDRESS ||
     "Pune, City, Maharashtra | Phone: +91 91454 81414";
@@ -430,7 +430,7 @@ export const generateDischargeSummaryHTML = (
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png" alt="Hospital Banner" class="hospital-banner" onerror="this.style.display='none'">
+                <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" class="hospital-banner" onerror="this.style.display='none'">
                 <div class="hospital-info">${hospitalAddress}</div>
                 <div class="document-title"> Discharge Summary</div>
             </div>
@@ -870,7 +870,7 @@ export const generateDischargeSummaryHTML = (
 };
 export const generateManualDischargeSummaryHTML = (
   data,
-  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1747566698/Bhosale_prescription_iyyjpw.png"
+  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
 ) => {
   return `
     <!DOCTYPE html>

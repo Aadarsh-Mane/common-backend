@@ -49,9 +49,12 @@ import {
   getDoctorMedicines,
   getDoctorProfile,
   getDoctorTreatment,
+  getEmergencyMedicationsForDoctor,
   getLabReportsByAdmissionId,
+  getMedicationStatus,
   getOutbreakDetection,
   getPatientAdmissionDetails,
+  getPatientEmergencyMedicationsForDoctor,
   getPatientHistory1,
   getPatientInvestigationsByAdmission,
   getPatients,
@@ -114,6 +117,10 @@ doctorRouter.get("/allNurses", getAllNurses);
 doctorRouter.get("/getPatientSuggestion/:patientId", getPatientSuggestions);
 doctorRouter.delete("/deleteDoctorConsultant", deleteDoctorConsultant);
 doctorRouter.get("/getDiagnosis/:patientId", getDiagnosis);
+doctorRouter.get(
+  "/getMedicationStatus/:patientId/:admissionId",
+  getMedicationStatus
+);
 doctorRouter.delete(
   "/deletePrescription/:patientId/:admissionId/:prescriptionId",
   deletedPrescription
@@ -200,6 +207,16 @@ doctorRouter.post(
   generateDischargeSummaryByDoctor
 );
 doctorRouter.post("/confirmSaveSummaryToDB", auth, confirmSaveSummaryToDB);
+doctorRouter.get(
+  "/getEmergencyMedicationsForDoctor",
+  auth,
+  getEmergencyMedicationsForDoctor
+);
+doctorRouter.get(
+  "/getPatientEmergencyMedicationsForDoctor/:patientId/:admissionId",
+  auth,
+  getPatientEmergencyMedicationsForDoctor
+);
 
 // userRouter.get("/profile", auth, getUserProfile);
 // userRouter.patch("/edit-profile", auth, upload.single("image"), editProfile);
