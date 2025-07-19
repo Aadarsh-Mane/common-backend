@@ -17,6 +17,7 @@ import {
   assignPatientToLab,
   confirmSaveSummaryToDB,
   createInvestigation,
+  createSurgicalNotes,
   deleteDiagnosis,
   deleteDoctorConsultant,
   deleteDoctorMedicine,
@@ -24,6 +25,7 @@ import {
   deletedPrescription,
   deletedVitals,
   deleteNote,
+  deleteSurgicalNotes,
   deleteSymptom,
   dischargePatient,
   doctorBulkApproveEmergencyMedications,
@@ -62,6 +64,7 @@ import {
   getPatientsList,
   getPatientSuggestions,
   getSeasonalSymptoms,
+  getSurgicalNotes,
   getSymptomAnalytics,
   getSymptomDemographics,
   getSymptomsByLocation,
@@ -72,6 +75,7 @@ import {
   updateConditionAtDischarge,
   updateDoctorProfile,
   updateMedicine,
+  updateSurgicalNotes,
 } from "../controllers/doctorController.js";
 import { auth } from "../middleware/auth.js";
 
@@ -216,6 +220,26 @@ doctorRouter.get(
   "/getPatientEmergencyMedicationsForDoctor/:patientId/:admissionId",
   auth,
   getPatientEmergencyMedicationsForDoctor
+);
+doctorRouter.post(
+  "/createSurgicalNotes/:patientId/:admissionId",
+  auth,
+  createSurgicalNotes
+);
+doctorRouter.get(
+  "/getSurgicalNotes/:patientId/:admissionId",
+  auth,
+  getSurgicalNotes
+);
+doctorRouter.patch(
+  "/updateSurgicalNotes/:patientId/:admissionId/:noteId",
+  auth,
+  updateSurgicalNotes
+);
+doctorRouter.delete(
+  "/updateSurgicalNotes/:patientId/:admissionId/:noteId",
+  auth,
+  deleteSurgicalNotes
 );
 
 // userRouter.get("/profile", auth, getUserProfile);

@@ -19,6 +19,7 @@ import adminRouter from "./routes/admin.js";
 import investigateRouter from "./routes/investigation.js";
 import pharmaRouter from "./routes/pharma.js";
 import chatRouter from "./routes/chats.js";
+import masterRouter from "./routes/master.js";
 const port = 5001;
 //hello saideep v3
 const app = express();
@@ -44,6 +45,7 @@ app.use("/reception", receiptionRouter);
 app.use("/admin", adminRouter);
 app.use("/doctors", doctorRouter);
 app.use("/nurse", nurseRouter);
+app.use("/master", masterRouter);
 app.use("/chat", chatRouter); // Add chat routes
 
 app.use("/labs", labRouter);

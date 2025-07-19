@@ -392,10 +392,7 @@ body {
                   : ""
               }
               
-              <p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">
-                  This certificate is issued based on medical examination and clinical assessment. 
-                  Any queries regarding this certificate may be directed to the undersigned medical practitioner.
-              </p>
+          
           </div>
           
           <div class="date-issue">
@@ -419,7 +416,6 @@ body {
                       : ""
                   }
                   <div class="signature-line">Doctor's Signature</div>
-                  <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1751720742/20s_developers_xxz15t.jpg" alt="Hospital Stamp" class="stamp-image">
               </div>
           </div>
           

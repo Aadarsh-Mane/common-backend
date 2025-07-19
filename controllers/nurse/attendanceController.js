@@ -9,6 +9,8 @@ import { uploadToDrive } from "../../services/uploader.js";
  * @route GET /api/attendance/nurses
  * @access Private (Admin/HR)
  */
+import mongoose from "mongoose";
+
 export const getAllNurseAttendance = async (req, res) => {
   try {
     const {
@@ -39,9 +41,9 @@ export const getAllNurseAttendance = async (req, res) => {
       }
     }
 
-    // Nurse ID filter
+    // Nurse ID filter - FIX: Convert string to ObjectId
     if (nurseId) {
-      filter.nurseId = nurseId;
+      filter.nurseId = new mongoose.Types.ObjectId(nurseId);
     }
 
     // Status filter
@@ -65,7 +67,7 @@ export const getAllNurseAttendance = async (req, res) => {
           as: "nurse",
         },
       },
-      { $unwind: "$nurse" },
+      { $unwind: { path: "$nurse", preserveNullAndEmptyArrays: true } }, // FIX: Handle cases where nurse might not exist
     ];
 
     // Add search filter if provided
@@ -73,9 +75,9 @@ export const getAllNurseAttendance = async (req, res) => {
       pipeline.push({
         $match: {
           $or: [
-            { "nurse.name": { $regex: search, $options: "i" } },
-            { "nurse.employeeId": { $regex: search, $options: "i" } },
+            { "nurse.nurseName": { $regex: search, $options: "i" } },
             { "nurse.email": { $regex: search, $options: "i" } },
+            { "nurse.usertype": { $regex: search, $options: "i" } },
           ],
         },
       });
@@ -105,11 +107,11 @@ export const getAllNurseAttendance = async (req, res) => {
         notes: 1,
         nurse: {
           _id: "$nurse._id",
-          name: "$nurse.name",
-          employeeId: "$nurse.employeeId",
+          name: "$nurse.nurseName",
+          nurseName: "$nurse.nurseName",
           email: "$nurse.email",
-          department: "$nurse.department",
-          designation: "$nurse.designation",
+          usertype: "$nurse.usertype",
+          doctorId: "$nurse.doctorId",
         },
         createdAt: 1,
         updatedAt: 1,
@@ -124,9 +126,9 @@ export const getAllNurseAttendance = async (req, res) => {
     const hasNextPage = parseInt(page) < totalPages;
     const hasPrevPage = parseInt(page) > 1;
 
-    // Calculate attendance statistics
+    // Calculate attendance statistics - FIX: Use same ObjectId conversion
     const statsFilter = { ...filter };
-    delete statsFilter.nurseId; // Remove nurse filter for overall stats
+    delete statsFilter.nurseId; // Remove nurse filter for overall stats if you want global stats
 
     const attendanceStats = await NurseAttendance.aggregate([
       { $match: statsFilter },

@@ -31,12 +31,14 @@ import {
   getWardPatientsDetail,
   getWardTreatmentTasks,
   markAttendanceManually,
+  markCheckOutManually,
   markInstructionCompleted,
   markIVFluidAdministered,
   markMedicationAdministered,
   markProcedureCompleted,
   recordEmergencyMedication,
   reviewEmergencyMedication,
+  updateNurseProfile,
 } from "../controllers/nurse/newNurseController.js";
 import {
   generateAttendanceReport,
@@ -220,6 +222,8 @@ nurseRouter.post("/checkout", auth, checkOut);
 nurseRouter.get("/getMyAttendance", auth, getMyAttendance);
 nurseRouter.get("/getStaffAttendance", getStaffAttendance);
 nurseRouter.post("/markAttendanceManually", markAttendanceManually);
+nurseRouter.post("/markCheckOutManually", markCheckOutManually);
+nurseRouter.patch("/updateNurseProfile", auth, updateNurseProfile);
 nurseRouter.get("/getAttendanceSummary", getAttendanceSummary);
 
 export default nurseRouter;

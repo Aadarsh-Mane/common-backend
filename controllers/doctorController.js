@@ -7237,3 +7237,288 @@ export const getPatientEmergencyMedicationsForDoctor = async (req, res) => {
     });
   }
 };
+
+// Create new surgical notes
+export const createSurgicalNotes = async (req, res) => {
+  try {
+    const { patientId, admissionId } = req.params;
+    const surgicalData = req.body;
+
+    // Find patient and specific admission
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const admission = patient.admissionRecords.id(admissionId);
+    if (!admission) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    // Validate required fields
+    const requiredFields = [
+      "surgeryDate",
+      "surgeryTime",
+      "preOperativeDiagnosis",
+      "indicationForSurgery",
+      "surgicalProcedure",
+      "anesthesiaType",
+      "surgicalFindings",
+      "procedureDescription",
+      "postOperativeDiagnosis",
+      "procedureOutcome",
+    ];
+
+    const missingFields = requiredFields.filter(
+      (field) => !surgicalData[field]
+    );
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Missing required fields: ${missingFields.join(", ")}`,
+      });
+    }
+    const surgeon = await hospitalDoctors.findById(req.userId);
+    if (!surgeon) {
+      return res.status(404).json({
+        success: false,
+        message: "Surgeon not found",
+      });
+    }
+    surgicalData.surgeonName = surgeon.doctorName;
+    // Add surgeon information from auth middleware
+    surgicalData.surgeonId = req.userId;
+    surgicalData.lastModifiedBy = req.userId;
+
+    // Initialize surgical notes array if it doesn't exist
+    if (!admission.surgicalNotes) {
+      admission.surgicalNotes = [];
+    }
+
+    // Create new surgical note
+    const surgicalNote = {
+      ...surgicalData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
+    };
+
+    admission.surgicalNotes.push(surgicalNote);
+
+    // Save patient
+    await patient.save();
+
+    // Get the created note
+    const createdNote =
+      admission.surgicalNotes[admission.surgicalNotes.length - 1];
+
+    res.status(201).json({
+      success: true,
+      message: "Surgical notes created successfully",
+      data: createdNote,
+    });
+  } catch (error) {
+    console.error("Error creating surgical notes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Get all surgical notes for a patient admission
+export const getSurgicalNotes = async (req, res) => {
+  try {
+    const { patientId, admissionId } = req.params;
+
+    const patient = await patientSchema
+      .findOne({ patientId })
+      .populate(
+        "admissionRecords.surgicalNotes.surgeonId",
+        "name specialization"
+      )
+      .populate("admissionRecords.surgicalNotes.assistantSurgeons.id", "name")
+      .populate("admissionRecords.surgicalNotes.anesthesiologistId", "name");
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const admission = patient.admissionRecords.id(admissionId);
+    if (!admission) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    const surgicalNotes = admission.surgicalNotes || [];
+
+    res.status(200).json({
+      success: true,
+      message: "Surgical notes retrieved successfully",
+      data: surgicalNotes,
+      count: surgicalNotes.length,
+    });
+  } catch (error) {
+    console.error("Error retrieving surgical notes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Get specific surgical note
+
+// Update surgical notes
+export const updateSurgicalNotes = async (req, res) => {
+  try {
+    const { patientId, admissionId, noteId } = req.params;
+    const updateData = req.body;
+
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const admission = patient.admissionRecords.id(admissionId);
+    if (!admission) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    const surgicalNote = admission.surgicalNotes.id(noteId);
+    if (!surgicalNote) {
+      return res.status(404).json({
+        success: false,
+        message: "Surgical note not found",
+      });
+    }
+
+    // Check if user is authorized to update (original surgeon or admin)
+    if (
+      surgicalNote.surgeonId.toString() !== req.userId &&
+      req.usertype !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to update this surgical note",
+      });
+    }
+
+    // Store previous version
+    const previousVersion = {
+      versionNumber: surgicalNote.version,
+      modifiedAt: surgicalNote.updatedAt,
+      modifiedBy: surgicalNote.lastModifiedBy,
+      changes: "Updated surgical notes",
+    };
+
+    if (!surgicalNote.previousVersions) {
+      surgicalNote.previousVersions = [];
+    }
+    surgicalNote.previousVersions.push(previousVersion);
+
+    // Update fields
+    Object.keys(updateData).forEach((key) => {
+      if (key !== "_id" && key !== "createdAt" && key !== "version") {
+        surgicalNote[key] = updateData[key];
+      }
+    });
+
+    // Update metadata
+    surgicalNote.updatedAt = new Date();
+    surgicalNote.lastModifiedBy = req.userId;
+    surgicalNote.version += 1;
+
+    await patient.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Surgical notes updated successfully",
+      data: surgicalNote,
+    });
+  } catch (error) {
+    console.error("Error updating surgical notes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// Delete surgical notes
+export const deleteSurgicalNotes = async (req, res) => {
+  try {
+    const { patientId, admissionId, noteId } = req.params;
+
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    const admission = patient.admissionRecords.id(admissionId);
+    if (!admission) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    const surgicalNote = admission.surgicalNotes.id(noteId);
+    if (!surgicalNote) {
+      return res.status(404).json({
+        success: false,
+        message: "Surgical note not found",
+      });
+    }
+
+    // Check if user is authorized to delete (original surgeon or admin)
+    if (
+      surgicalNote.surgeonId.toString() !== req.userId &&
+      req.usertype !== "admin"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this surgical note",
+      });
+    }
+
+    // Remove the surgical note
+    admission.surgicalNotes.pull(noteId);
+    await patient.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Surgical notes deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting surgical notes:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};

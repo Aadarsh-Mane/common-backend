@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import surgicalNotesSchema from "./surgicalNotesSchema.js";
 
 // 2-hour follow-up sub-schema
 
@@ -192,6 +193,8 @@ const admissionRecordSchema = new mongoose.Schema({
 
   doctorPrescriptions: [prescriptionSchema], // Array of prescriptions
   doctorConsulting: [consultantSchema],
+  surgicalNotes: [surgicalNotesSchema],
+
   symptomsByDoctor: { type: [String] }, // Array to store symptoms added by the doctor
 
   vitals: [
