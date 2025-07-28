@@ -71,7 +71,7 @@ app.get("/patientHistory/:patientId", getPatientHistory);
 app.get("/", (req, res) => {
   return res
     .status(200)
-    .json("Welcome to Ai in HealthCare common backend v3.5");
+    .json("Welcome to Ai in HealthCare common backend v3.6");
 });
 let medicines = {};
 fs.readFile("./test.json", "utf8", (err, data) => {
