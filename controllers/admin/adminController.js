@@ -753,3 +753,451 @@ export const updatePatientInfo = async (req, res) => {
     });
   }
 };
+
+/**
+ * Add patient record to hospital system
+ * Directly stores as discharged record in history for data management
+ * Route: POST /api/patients/add-record
+ * Middleware: auth (to get doctor/user ID)
+ */
+const generatePatientId = (name) => {
+  const initials = name.slice(0, 3).toUpperCase();
+  const randomDigits = Math.floor(100 + Math.random() * 900);
+  return `${initials}${randomDigits}`;
+};
+
+/**
+ * Add patient record to hospital system
+ * Directly stores as discharged record in history for data management
+ * Route: POST /api/patients/add-record
+ * Middleware: auth (to get doctor/user ID)
+ */
+export const addPatientRecord = async (req, res) => {
+  const {
+    name,
+    age,
+    gender,
+    contact,
+    address,
+    dob,
+    admissionDate,
+    dischargeDate,
+    reasonForAdmission,
+    patientType = "Internal",
+    admitNotes,
+    weight,
+    symptoms,
+    initialDiagnosis,
+    conditionAtDischarge = "Discharged",
+    amountToBePayed = 0,
+    opdNumber, // Manual OPD number input
+    ipdNumber, // Manual IPD number input
+    autoGenerate = true, // Whether to auto-generate numbers if not provided
+  } = req.body;
+
+  // Validation
+  if (
+    !name ||
+    !age ||
+    !gender ||
+    !contact ||
+    !admissionDate ||
+    !dischargeDate
+  ) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Required fields missing: name, age, gender, contact, admissionDate, dischargeDate",
+    });
+  }
+
+  // Validate and convert dates to MongoDB Date format
+  const admission = new Date(admissionDate);
+  const discharge = new Date(dischargeDate);
+
+  // Check if dates are valid
+  if (isNaN(admission.getTime()) || isNaN(discharge.getTime())) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Invalid date format. Please provide valid admission and discharge dates",
+    });
+  }
+
+  if (discharge <= admission) {
+    return res.status(400).json({
+      success: false,
+      message: "Discharge date must be after admission date",
+    });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Generate unique patient ID
+    const patientId = generatePatientId(name);
+
+    // Handle OPD number - use provided or auto-generate
+    let finalOpdNumber;
+    if (opdNumber) {
+      // Check if manually provided OPD number already exists
+      const existingOpdRecord = await PatientHistory.findOne({
+        "history.opdNumber": parseInt(opdNumber),
+      }).session(session);
+      if (existingOpdRecord) {
+        await session.abortTransaction();
+        return res.status(409).json({
+          success: false,
+          message: `OPD number ${opdNumber} already exists`,
+        });
+      }
+      finalOpdNumber = parseInt(opdNumber);
+    } else if (autoGenerate) {
+      finalOpdNumber = await PatientCounter.getNextSequenceValue(
+        "opdNumber",
+        session
+      );
+    } else {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "OPD number is required or enable auto-generation",
+      });
+    }
+
+    // Handle IPD number - use provided or auto-generate if requested
+    let finalIpdNumber = null;
+    if (ipdNumber) {
+      // Check if manually provided IPD number already exists
+      const existingIpdRecord = await PatientHistory.findOne({
+        "history.ipdNumber": parseInt(ipdNumber),
+      }).session(session);
+      if (existingIpdRecord) {
+        await session.abortTransaction();
+        return res.status(409).json({
+          success: false,
+          message: `IPD number ${ipdNumber} already exists`,
+        });
+      }
+      finalIpdNumber = parseInt(ipdNumber);
+    }
+
+    const admissionRecordId = new mongoose.Types.ObjectId();
+
+    // Create patient record (already discharged)
+    const newPatient = new patientSchema({
+      patientId,
+      name,
+      age: parseInt(age),
+      gender,
+      contact,
+      address: address || "",
+      dob: dob || "",
+      discharged: true, // Always discharged since these are historical records
+      pendingAmount: parseFloat(amountToBePayed),
+      admissionRecords: [], // Empty since patient is discharged
+    });
+
+    await newPatient.save({ session });
+
+    // Create patient history entry with both admission and discharge dates
+    const patientHistory = new PatientHistory({
+      patientId,
+      name,
+      gender,
+      contact,
+      age: parseInt(age),
+      address: address || "",
+      dob: dob || "",
+      history: [
+        {
+          admissionId: admissionRecordId,
+          opdNumber: finalOpdNumber,
+          ipdNumber: finalIpdNumber,
+          admissionDate: admission, // Stored as MongoDB Date
+          dischargeDate: discharge, // Stored as MongoDB Date
+          status: "Discharged",
+          patientType,
+          admitNotes: admitNotes || "",
+          reasonForAdmission: reasonForAdmission || "",
+          conditionAtDischarge,
+          amountToBePayed: parseFloat(amountToBePayed),
+          weight: weight ? parseFloat(weight) : null,
+          symptoms: symptoms || "",
+          initialDiagnosis: initialDiagnosis || "",
+          doctor: {
+            id: req.userId,
+            name: req.doctorName || "Doctor",
+            usertype: req.usertype || "doctor",
+          },
+          // Initialize empty arrays for medical data
+          followUps: [],
+          fourHrFollowUpSchema: [],
+          doctorPrescriptions: [],
+          doctorConsulting: [],
+          symptomsByDoctor: [],
+          diagnosisByDoctor: [],
+          vitals: [],
+          doctorNotes: [],
+          medications: [],
+          ivFluids: [],
+          procedures: [],
+          specialInstructions: [],
+          labReports: [],
+          reports: [],
+        },
+      ],
+    });
+
+    await patientHistory.save({ session });
+    await session.commitTransaction();
+
+    // Calculate stay duration
+    const stayDuration = Math.ceil(
+      (discharge - admission) / (1000 * 60 * 60 * 24)
+    );
+
+    res.status(201).json({
+      success: true,
+      message: `Patient record for ${name} added successfully`,
+      data: {
+        patientId,
+        opdNumber: finalOpdNumber,
+        ipdNumber: finalIpdNumber,
+        name,
+        age,
+        gender,
+        contact,
+        address,
+        admissionDate: admission,
+        dischargeDate: discharge,
+        stayDuration: `${stayDuration} days`,
+        conditionAtDischarge,
+        amountToBePayed: parseFloat(amountToBePayed),
+        patientDetails: newPatient,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error adding patient record:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Patient ID already exists. Please try again.",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to add patient record",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Readmit an existing patient (for new admission)
+ * Creates new admission record for existing patient
+ * Route: POST /api/patients/readmit
+ * Middleware: auth
+ */
+export const readmitPatient = async (req, res) => {
+  const {
+    patientId,
+    admissionDate,
+    dischargeDate,
+    reasonForAdmission,
+    patientType = "Internal",
+    admitNotes,
+    weight,
+    symptoms,
+    initialDiagnosis,
+    conditionAtDischarge = "Discharged",
+    amountToBePayed = 0,
+    opdNumber, // Manual OPD number input
+    ipdNumber, // Manual IPD number input
+    autoGenerate = true, // Whether to auto-generate numbers if not provided
+  } = req.body;
+
+  if (!patientId || !admissionDate || !dischargeDate) {
+    return res.status(400).json({
+      success: false,
+      message: "Patient ID, admission date, and discharge date are required",
+    });
+  }
+
+  // Validate dates
+  const admission = new Date(admissionDate);
+  const discharge = new Date(dischargeDate);
+
+  if (discharge <= admission) {
+    return res.status(400).json({
+      success: false,
+      message: "Discharge date must be after admission date",
+    });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Check if patient exists in system
+    let patientHistory = await PatientHistory.findOne({ patientId }).session(
+      session
+    );
+
+    if (!patientHistory) {
+      await session.abortTransaction();
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found in hospital records",
+      });
+    }
+
+    // Handle OPD number - use provided or auto-generate
+    let finalOpdNumber;
+    if (opdNumber) {
+      // Check if manually provided OPD number already exists
+      const existingOpdRecord = await PatientHistory.findOne({
+        "history.opdNumber": parseInt(opdNumber),
+      }).session(session);
+      if (existingOpdRecord) {
+        await session.abortTransaction();
+        return res.status(409).json({
+          success: false,
+          message: `OPD number ${opdNumber} already exists`,
+        });
+      }
+      finalOpdNumber = parseInt(opdNumber);
+    } else if (autoGenerate) {
+      finalOpdNumber = await PatientCounter.getNextSequenceValue(
+        "opdNumber",
+        session
+      );
+    } else {
+      await session.abortTransaction();
+      return res.status(400).json({
+        success: false,
+        message: "OPD number is required or enable auto-generation",
+      });
+    }
+
+    // Handle IPD number - use provided or auto-generate if requested
+    let finalIpdNumber = null;
+    if (ipdNumber) {
+      // Check if manually provided IPD number already exists
+      const existingIpdRecord = await PatientHistory.findOne({
+        "history.ipdNumber": parseInt(ipdNumber),
+      }).session(session);
+      if (existingIpdRecord) {
+        await session.abortTransaction();
+        return res.status(409).json({
+          success: false,
+          message: `IPD number ${ipdNumber} already exists`,
+        });
+      }
+      finalIpdNumber = parseInt(ipdNumber);
+    }
+
+    const admissionRecordId = new mongoose.Types.ObjectId();
+
+    // Calculate days since last discharge
+    let daysSinceLastDischarge = null;
+    const lastHistoryRecord = patientHistory.getLatestRecord();
+    if (lastHistoryRecord && lastHistoryRecord.dischargeDate) {
+      const daysDiff = Math.floor(
+        (admission - new Date(lastHistoryRecord.dischargeDate)) /
+          (1000 * 60 * 60 * 24)
+      );
+      daysSinceLastDischarge = daysDiff;
+    }
+
+    // Add new admission to patient history
+    const newHistoryEntry = {
+      admissionId: admissionRecordId,
+      opdNumber: finalOpdNumber,
+      ipdNumber: finalIpdNumber,
+      admissionDate: admission,
+      dischargeDate: discharge,
+      status: "Discharged",
+      patientType,
+      admitNotes: admitNotes || "",
+      reasonForAdmission: reasonForAdmission || "",
+      conditionAtDischarge,
+      amountToBePayed: parseFloat(amountToBePayed),
+      weight: weight ? parseFloat(weight) : null,
+      symptoms: symptoms || "",
+      initialDiagnosis: initialDiagnosis || "",
+      doctor: {
+        id: req.userId,
+        name: req.doctorName || "Doctor",
+        usertype: req.usertype || "doctor",
+      },
+      // Initialize empty arrays for medical data
+      followUps: [],
+      fourHrFollowUpSchema: [],
+      doctorPrescriptions: [],
+      doctorConsulting: [],
+      symptomsByDoctor: [],
+      diagnosisByDoctor: [],
+      vitals: [],
+      doctorNotes: [],
+      medications: [],
+      ivFluids: [],
+      procedures: [],
+      specialInstructions: [],
+      labReports: [],
+      reports: [],
+    };
+
+    patientHistory.history.push(newHistoryEntry);
+    await patientHistory.save({ session });
+
+    // Update patient record pending amount
+    const patient = await patientSchema.findOne({ patientId }).session(session);
+    if (patient) {
+      patient.pendingAmount = parseFloat(amountToBePayed);
+      await patient.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    // Calculate stay duration
+    const stayDuration = Math.ceil(
+      (discharge - admission) / (1000 * 60 * 60 * 24)
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Patient ${patientHistory.name} readmitted successfully`,
+      data: {
+        patientId,
+        opdNumber: finalOpdNumber,
+        ipdNumber: finalIpdNumber,
+        name: patientHistory.name,
+        admissionDate: admission,
+        dischargeDate: discharge,
+        stayDuration: `${stayDuration} days`,
+        daysSinceLastDischarge,
+        conditionAtDischarge,
+        amountToBePayed: parseFloat(amountToBePayed),
+        totalAdmissions: patientHistory.history.length,
+      },
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Error readmitting patient:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to readmit patient",
+      error: error.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
