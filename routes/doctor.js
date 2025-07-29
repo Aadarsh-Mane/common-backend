@@ -226,18 +226,14 @@ doctorRouter.post(
   auth,
   createSurgicalNotes
 );
-doctorRouter.get(
-  "/getSurgicalNotes/:patientId/:admissionId",
-  auth,
-  getSurgicalNotes
-);
+doctorRouter.get("/getSurgicalNotes/:patientId/:admissionId", getSurgicalNotes);
 doctorRouter.patch(
   "/updateSurgicalNotes/:patientId/:admissionId/:noteId",
   auth,
   updateSurgicalNotes
 );
 doctorRouter.delete(
-  "/updateSurgicalNotes/:patientId/:admissionId/:noteId",
+  "/deleteSurgicalNotes/:patientId/:admissionId/:noteId",
   auth,
   deleteSurgicalNotes
 );

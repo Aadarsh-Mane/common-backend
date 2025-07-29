@@ -31,6 +31,7 @@ import {
   resetPatientCounter,
   updatePatientCounter,
 } from "./controllers/counterController.js";
+import { getProducts } from "./controllers/scrapperController.js";
 
 const port = 5001;
 
@@ -67,6 +68,7 @@ app.use("/labs", labRouter);
 app.use("/investigate", investigateRouter);
 app.use("/pharma", pharmaRouter);
 app.get("/patientHistory/:patientId", getPatientHistory);
+app.get("/my", getProducts);
 
 app.get("/", (req, res) => {
   return res

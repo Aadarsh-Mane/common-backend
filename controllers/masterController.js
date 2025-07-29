@@ -255,6 +255,7 @@ export const updateAdmissionRecordController = async (req, res) => {
       data: admissionRecord,
     });
   } catch (error) {
+    console.log(error);
     res.status(500).json({
       success: false,
       message: "Failed to update admission record",
@@ -652,11 +653,31 @@ export const updatePatientNumbersController = async (req, res) => {
 
     // Check if numbers are already in use
     if (opdNumber) {
+      console.log(`Checking if OPD number ${opdNumber} is already in use`);
       const existingOPD = await patientSchema.findByOPDNumber(opdNumber);
       if (existingOPD && existingOPD.patientId !== patientId) {
+        // Find the specific admission record with this OPD number
+        const existingAdmission = existingOPD.admissionRecords.find(
+          (record) => record.opdNumber === parseInt(opdNumber)
+        );
+
+        console.log(
+          `OPD conflict found: ${existingOPD.patientId}, ${existingOPD.name}`
+        );
+
         return res.status(400).json({
           success: false,
           message: `OPD number ${opdNumber} is already in use`,
+          conflictDetails: {
+            patientId: existingOPD.patientId,
+            patientName: existingOPD.name,
+            admissionDate: existingAdmission
+              ? existingAdmission.admissionDate
+              : null,
+            admissionStatus: existingAdmission
+              ? existingAdmission.status
+              : null,
+          },
         });
       }
     }

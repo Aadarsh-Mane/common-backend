@@ -1212,6 +1212,89 @@ export const dischargePatient = async (req, res) => {
       admissionRecord.specialInstructions?.map((instruction) => ({
         ...instruction.toObject(),
       })) || [];
+
+    // **FIXED: Properly process surgical notes**
+    const surgicalNotes =
+      admissionRecord.surgicalNotes?.map((note) => ({
+        // Basic Information
+        surgeryDate: note.surgeryDate,
+        surgeryTime: note.surgeryTime,
+        surgeonId: note.surgeonId,
+        surgeonName: note.surgeonName,
+        assistantSurgeons: note.assistantSurgeons || [],
+
+        // Pre-operative Details
+        preOperativeDiagnosis: note.preOperativeDiagnosis,
+        indicationForSurgery: note.indicationForSurgery,
+        surgicalProcedure: note.surgicalProcedure,
+        plannedProcedure: note.plannedProcedure,
+
+        // Anesthesia Details
+        anesthesiaType: note.anesthesiaType,
+        anesthesiologistId: note.anesthesiologistId,
+        anesthesiologistName: note.anesthesiologistName,
+        anesthesiaStart: note.anesthesiaStart,
+        anesthesiaEnd: note.anesthesiaEnd,
+
+        // Surgical Details
+        surgicalApproach: note.surgicalApproach,
+        incisionType: note.incisionType,
+        incisionLocation: note.incisionLocation,
+        surgicalFindings: note.surgicalFindings,
+        procedureDescription: note.procedureDescription,
+
+        // Complications and Challenges
+        intraOperativeComplications: note.intraOperativeComplications,
+        estimatedBloodLoss: note.estimatedBloodLoss,
+        fluidBalance: note.fluidBalance || {},
+
+        // Implants and Materials
+        implants: note.implants || [],
+        sutureMaterials: note.sutureMaterials,
+        drains: note.drains,
+
+        // Post-operative Information
+        postOperativeDiagnosis: note.postOperativeDiagnosis,
+        procedureOutcome: note.procedureOutcome,
+        postOperativeInstructions: note.postOperativeInstructions,
+
+        // Recovery and Monitoring
+        recoveryNotes: note.recoveryNotes,
+        vitalSigns: note.vitalSigns || {},
+
+        // Follow-up and Discharge
+        expectedRecoveryTime: note.expectedRecoveryTime,
+        followUpInstructions: note.followUpInstructions,
+        dischargePlanning: note.dischargePlanning,
+
+        // Administrative
+        operatingRoom: note.operatingRoom,
+        surgeryDuration: note.surgeryDuration,
+        urgency: note.urgency,
+
+        // Documentation
+        photographicDocumentation: note.photographicDocumentation,
+        videoDocumentation: note.videoDocumentation,
+        pathologySpecimens: note.pathologySpecimens,
+
+        // Notes and Observations
+        surgeonNotes: note.surgeonNotes,
+        nursingNotes: note.nursingNotes,
+        additionalObservations: note.additionalObservations,
+
+        // PDF Generation
+        pdfGenerated: note.pdfGenerated,
+        pdfUrl: note.pdfUrl,
+        pdfGeneratedAt: note.pdfGeneratedAt,
+
+        // Audit data (preserved for history)
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        lastModifiedBy: note.lastModifiedBy,
+        version: note.version,
+        previousVersions: note.previousVersions || [],
+      })) || [];
+
     let dischargeSummaryHistory = null;
     if (admissionRecord.dischargeSummary) {
       const summary = admissionRecord.dischargeSummary;
@@ -1297,6 +1380,7 @@ export const dischargePatient = async (req, res) => {
       ivFluids: ivFluids,
       procedures: procedures,
       specialInstructions: specialInstructions,
+      surgicalNotes: surgicalNotes,
     };
 
     patientHistory.history.push(historyEntry);
@@ -7261,29 +7345,29 @@ export const createSurgicalNotes = async (req, res) => {
       });
     }
 
-    // Validate required fields
-    const requiredFields = [
-      "surgeryDate",
-      "surgeryTime",
-      "preOperativeDiagnosis",
-      "indicationForSurgery",
-      "surgicalProcedure",
-      "anesthesiaType",
-      "surgicalFindings",
-      "procedureDescription",
-      "postOperativeDiagnosis",
-      "procedureOutcome",
-    ];
+    // // Validate required fields
+    // const requiredFields = [
+    //   "surgeryDate",
+    //   "surgeryTime",
+    //   "preOperativeDiagnosis",
+    //   "indicationForSurgery",
+    //   "surgicalProcedure",
+    //   "anesthesiaType",
+    //   "surgicalFindings",
+    //   "procedureDescription",
+    //   "postOperativeDiagnosis",
+    //   "procedureOutcome",
+    // ];
 
-    const missingFields = requiredFields.filter(
-      (field) => !surgicalData[field]
-    );
-    if (missingFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Missing required fields: ${missingFields.join(", ")}`,
-      });
-    }
+    // const missingFields = requiredFields.filter(
+    //   (field) => !surgicalData[field]
+    // );
+    // if (missingFields.length > 0) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Missing required fields: ${missingFields.join(", ")}`,
+    //   });
+    // }
     const surgeon = await hospitalDoctors.findById(req.userId);
     if (!surgeon) {
       return res.status(404).json({
@@ -7495,15 +7579,15 @@ export const deleteSurgicalNotes = async (req, res) => {
     }
 
     // Check if user is authorized to delete (original surgeon or admin)
-    if (
-      surgicalNote.surgeonId.toString() !== req.userId &&
-      req.usertype !== "admin"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to delete this surgical note",
-      });
-    }
+    // if (
+    //   surgicalNote.surgeonId.toString() !== req.userId &&
+    //   req.usertype !== "admin"
+    // ) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Not authorized to delete this surgical note",
+    //   });
+    // }
 
     // Remove the surgical note
     admission.surgicalNotes.pull(noteId);

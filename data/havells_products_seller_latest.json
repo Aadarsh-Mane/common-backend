@@ -1,0 +1,330 @@
+{
+  "scrapeInfo": {
+    "totalProducts": 16,
+    "scrapedAt": "2025-07-28T03:37:43.423Z",
+    "baseUrl": "https://havells.com/products/new",
+    "pages": 2
+  },
+  "products": [
+    {
+      "id": "234363",
+      "title": "Koolaire 55 L Desert Air Cooler",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/k/o/koolaire_55_1.jpg",
+      "imageAlt": "Koolaire 55 L Desert Air Cooler",
+      "price": "Special Price\n        ₹ 10 290.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 22 290.00",
+      "discount": "₹ 10 290.00",
+      "discountText": "₹ 10 290.00",
+      "features": [
+        "55 L Tank Capacity",
+        "5 Leaf Metal Blades",
+        "3 Side Honeycomb Pads with Bacteria Shield Technology"
+      ],
+      "productUrl": "https://havells.com//koolaire-55-l-desert-air-cooler-ghracaae050.html",
+      "rating": "Rating:\n            \n                85%\n            \n                var elemKld9GRFUArray = document.querySelectorAll('#rating-result_234363 span');\n    if(elemKld9GRFUArray.length !== 'undefined'){\n        elemKld9GRFUArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '85%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "184712",
+      "title": "Convertible 80 L Desert Air Cooler",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghraccce1851_1.jpg",
+      "imageAlt": "Convertible 80 L Desert Air Cooler",
+      "price": "Special Price\n        ₹ 13 991.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 29 890.00",
+      "discount": "₹ 13 991.00",
+      "discountText": "₹ 13 991.00",
+      "features": [
+        "80 L Tank Capacity",
+        "2-in-1 Convertible Cooler",
+        "Can be used as side Table in packed condition"
+      ],
+      "productUrl": "https://havells.com//convertible-80-l-desert-cooler-ghraccce1851.html",
+      "rating": "Rating:\n            \n                84%\n            \n                var elemABkQzYaBArray = document.querySelectorAll('#rating-result_184712 span');\n    if(elemABkQzYaBArray.length !== 'undefined'){\n        elemABkQzYaBArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '84%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "185252",
+      "title": "Havells Gracia Alkaline Max Water Purifier",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghwrgms015_1__2.jpg",
+      "imageAlt": "Havells Gracia Alkaline Max Water Purifier",
+      "price": "Special Price\n        ₹ 23 500.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 38 500.00",
+      "discount": "₹ 23 500.00",
+      "discountText": "₹ 23 500.00",
+      "features": [
+        "Featuring a classy design with Stainless Steel Tank, the water purifier comes in Grey & Black. It has a Touch option with dispensing of Hot or Warm or Ambient water.",
+        "Best in class Purification Technology",
+        "Features iProtect purification monitoring that cuts off water if it is no longer safe to drink. UV LED provided on tank for 24x7 tank sanitation. Other features include Smart indications & error alerts."
+      ],
+      "productUrl": "https://havells.com//havells-gracia-alkaline-max-water-purifier-ghwrgms015.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "165599",
+      "title": "Blaze Heavy Weight Dry Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/l/blaze_2_.jpg",
+      "imageAlt": "Blaze Heavy Weight Dry Iron",
+      "price": "Special Price\n        ₹ 1 300.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 2 300.00",
+      "discount": "₹ 1 300.00",
+      "discountText": "₹ 1 300.00",
+      "features": [
+        "Best in Class 2 kg Heavy Weight Dry Iron with Cool Touch Plastic",
+        "Blaze Heavy Weight Dry Iron comes with the powerful 1250 W Heating Element",
+        "ISI Certified for both Safety & Performance"
+      ],
+      "productUrl": "https://havells.com//blaze-heavy-weight-dry-iron-ghgdicpk125.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "82434",
+      "title": "Carlo Instant Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/a/carlo.jpg",
+      "imageAlt": "Carlo Instant Water Heater (Geyser)",
+      "price": "Special Price\n        ₹ 2 849.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 790.00",
+      "discount": "₹ 2 849.00",
+      "discountText": "₹ 2 849.00",
+      "features": [
+        "Range Available : 3 L",
+        "Mounting : Vertical",
+        "Rating as per BIS Standards : IS1 Marked"
+      ],
+      "productUrl": "https://havells.com//carlo-instant-water-heater-geyser-ghwecapwb003.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "8444",
+      "title": "USB Star 4+1 Surge & Spikeguard",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/h/ahnkxxg063_1_.jpg",
+      "imageAlt": "USB Star 4+1 Surge & Spikeguard",
+      "price": "Special Price\n        ₹ 799.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 406.00",
+      "discount": "₹ 799.00",
+      "discountText": "₹ 799.00",
+      "features": [
+        "3 Universal sockets and 3 USB ports with master switch",
+        "Rated with 6 A / 240 V AC",
+        "High quality 1.5 m wire"
+      ],
+      "productUrl": "https://havells.com//usb-star-41-surge-spikeguard-ahnkxxg063.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "7704",
+      "title": "Havells Gracia Alkaline Water Purifier",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghwrgas015.jpg",
+      "imageAlt": "Havells Gracia Alkaline Water Purifier",
+      "price": "Special Price\n        ₹ 22 990.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 34 499.00",
+      "discount": "₹ 22 990.00",
+      "discountText": "₹ 22 990.00",
+      "features": [
+        "8 stages of 100% RO &  UV purification delivers alkaline water",
+        "Compact & contemporary design & aesthetics with stainless steel tank, the water purifier comes in silver & black color.",
+        "Convenience Features"
+      ],
+      "productUrl": "https://havells.com//havells-gracia-alkaline-water-purifier-ghwrgas015.html",
+      "rating": "Rating:\n            \n                100%\n            \n                var elemJjfSqz7MArray = document.querySelectorAll('#rating-result_7704 span');\n    if(elemJjfSqz7MArray.length !== 'undefined'){\n        elemJjfSqz7MArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '100%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "6868",
+      "title": "Rigo 500 W Juicer Mixer Grinder",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/import/Appliances/GHFJMBUB050.jpg",
+      "imageAlt": "Rigo 500 W Juicer Mixer Grinder",
+      "price": "Special Price\n        ₹ 3 351.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 5 190.00",
+      "discount": "₹ 3 351.00",
+      "discountText": "₹ 3 351.00",
+      "features": [
+        "500 W",
+        "Stainless steel sieve",
+        "Foldable juicing spout"
+      ],
+      "productUrl": "https://havells.com//rigo-500-w-juicer-mixer-grinder-ghfjmbub050.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "6496",
+      "title": "Lifesavior Adaptor 16 A",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/import/Switches/AHLS301600.jpg",
+      "imageAlt": "Lifesavior Adaptor 16 A",
+      "price": "Special Price\n        ₹ 910.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 268.00",
+      "discount": "₹ 910.00",
+      "discountText": "₹ 910.00",
+      "features": [
+        "(6 / 16) A Power adaptor with in-built RCD",
+        "Shuttered socket for child safety",
+        "Auto trip & visual indication of Power  ,      ,    ,"
+      ],
+      "productUrl": "https://havells.com//lifesavior-adaptor-16-a-ahls301600.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "5522",
+      "title": "BT5100C Beard Trimmer",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/t/bt5100c.jpg",
+      "imageAlt": "BT5100C Beard Trimmer",
+      "price": "Special Price\n        ₹ 799.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 595.00",
+      "discount": "₹ 799.00",
+      "discountText": "₹ 799.00",
+      "features": [
+        "Micro USB Charging",
+        "Up to 17 mm length setting",
+        "Comb lock function"
+      ],
+      "productUrl": "https://havells.com//bt5100c-beard-trimmer-ghpttaalbk00.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "82414",
+      "title": "Type 3 SPD",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhvvehuwht06_58_5__1_1.jpg",
+      "imageAlt": "Type 3 SPD",
+      "price": "Special Price\n        ₹ 821.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 509.00",
+      "discount": "₹ 821.00",
+      "discountText": "₹ 821.00",
+      "features": [
+        "Type 3 surge protection adaptor",
+        "Specification : IEC 61643-11:2011",
+        "Both common & differential mode protection"
+      ],
+      "productUrl": "https://havells.com//type-3-spd-dhaa3nma10230.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "164804",
+      "title": "BT4441 Trim Star Beard Trimmer",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/t/bt4441.jpg",
+      "imageAlt": "BT4441 Trim Star Beard Trimmer",
+      "price": "Special Price\n        ₹ 1 000.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 995.00",
+      "discount": "₹ 1 000.00",
+      "discountText": "₹ 1 000.00",
+      "features": [
+        "25+ trimming sessions",
+        "0.5 mm zero trim look",
+        "customize beard shape"
+      ],
+      "productUrl": "https://havells.com//bt4441-trim-star-beard-trimmer-ghpttabybk00.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "6588",
+      "title": "Sameera Table Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/import/fans/FHTSUSTWHT16.jpg",
+      "imageAlt": "Sameera Table Fan",
+      "price": "Special Price\n        ₹ 2 567.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 4 080.00",
+      "discount": "₹ 2 567.00",
+      "discountText": "₹ 2 567.00",
+      "features": [
+        "Exotic rich looks with modern styling",
+        "65 m³/min Air Delivery",
+        "Color : White"
+      ],
+      "productUrl": "https://havells.com//sameera-table-fan-fhtsustwht16.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "6882",
+      "title": "HP 15 Immersion Water Heater",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/import/Water-Heater/GHWIBHPBL015.jpg",
+      "imageAlt": "HP 15 Immersion Water Heater",
+      "price": "Special Price\n        ₹ 799.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 690.00",
+      "discount": "₹ 799.00",
+      "discountText": "₹ 799.00",
+      "features": [
+        "Range : 1500 W",
+        "Warranty : 2 year comprehensive Warranty",
+        "Wattage : 1500 W"
+      ],
+      "productUrl": "https://havells.com//hp-15-immersion-water-heater-ghwibhpbl015.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "8190",
+      "title": "LTS Outrider 10 W Rechargeable Torch",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/a/base_images_20__1.jpg",
+      "imageAlt": "LTS Outrider 10 W Rechargeable Torch",
+      "price": "Special Price\n        ₹ 1 379.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 690.00",
+      "discount": "₹ 1 379.00",
+      "discountText": "₹ 1 379.00",
+      "features": [
+        "2 Light modes : Torch & side Lantern",
+        "Backup upto 6 hrs - 8 hrs as per usage",
+        "Long range torch light"
+      ],
+      "productUrl": "https://havells.com//lts-outrider-10-w-rechargeable-torch-lhextdpgen1k010.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:39.639Z",
+      "page": "https://havells.com/products/bestseller"
+    },
+    {
+      "id": "86906",
+      "title": "16 A Wi-Fi Enabled Smart Socket",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/c/acst161603_base.jpg",
+      "imageAlt": "16 A Wi-Fi Enabled Smart Socket",
+      "price": "Special Price\n        ₹ 876.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 950.00",
+      "discount": "₹ 876.00",
+      "discountText": "₹ 876.00",
+      "features": [
+        "Easy to use/install/ maintain : User friendly usage as it gets connected to local wifi.",
+        "Make any socket Smart : Take control of the Socket remotely",
+        "Peace of mind : Energy SavingReduce time spent in home management"
+      ],
+      "productUrl": "https://havells.com//16-a-wi-fi-enabled-smart-socket-acst161603.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:37:43.318Z",
+      "page": "https://havells.com/products/bestseller/index/?p=2"
+    }
+  ]
+}

@@ -17,16 +17,16 @@ const surgicalNotesSchema = new mongoose.Schema({
   ],
 
   // Pre-operative Details
-  preOperativeDiagnosis: { type: String, required: true },
-  indicationForSurgery: { type: String, required: true },
-  surgicalProcedure: { type: String, required: true },
+  preOperativeDiagnosis: { type: String },
+  indicationForSurgery: { type: String },
+  surgicalProcedure: { type: String },
   plannedProcedure: { type: String },
 
   // Anesthesia Details
   anesthesiaType: {
     type: String,
-    enum: ["General", "Regional", "Local", "Spinal", "Epidural", "MAC"],
-    required: true,
+    // enum: ["General", "Regional", "Local", "Spinal", "Epidural", "MAC"],
+    // required: true,
   },
   anesthesiologistId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -40,8 +40,8 @@ const surgicalNotesSchema = new mongoose.Schema({
   surgicalApproach: { type: String }, // e.g., "Laparoscopic", "Open", "Robotic"
   incisionType: { type: String },
   incisionLocation: { type: String },
-  surgicalFindings: { type: String, required: true },
-  procedureDescription: { type: String, required: true },
+  surgicalFindings: { type: String },
+  procedureDescription: { type: String },
 
   // Complications and Challenges
   intraOperativeComplications: { type: String },
@@ -65,11 +65,11 @@ const surgicalNotesSchema = new mongoose.Schema({
   drains: { type: String },
 
   // Post-operative Information
-  postOperativeDiagnosis: { type: String, required: true },
+  postOperativeDiagnosis: { type: String },
   procedureOutcome: {
     type: String,
-    enum: ["Successful", "Complicated", "Partial Success"],
-    required: true,
+    // enum: ["Successful", "Complicated", "Partial Success"],
+    // required: true,
   },
   postOperativeInstructions: { type: String },
 

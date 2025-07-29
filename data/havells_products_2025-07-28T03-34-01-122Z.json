@@ -1,0 +1,1270 @@
+{
+  "scrapeInfo": {
+    "totalProducts": 63,
+    "scrapedAt": "2025-07-28T03:34:01.129Z",
+    "baseUrl": "https://havells.com/products/new",
+    "pages": 4
+  },
+  "products": [
+    {
+      "id": "253283",
+      "title": "Velora+ Convertible Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/v/e/velora_3__2_1.jpg",
+      "imageAlt": "Velora+ Convertible Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 16 745.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 17 390.00",
+      "discount": "₹ 16 745.00",
+      "discountText": "₹ 16 745.00",
+      "features": [
+        "3-in-1 Convertible Dual Element Water Heater with 3 Heating modes: 33 % Faster Heating",
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Incoloy glass coated Heating element: Minimal scaling & Quick heating"
+      ],
+      "productUrl": "https://havells.com/home-appliances/water-heaters/velora-convertible-storage-water-heater-geyser.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "253280",
+      "title": "Bianca+ Convertible Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/i/bianca_1__2_1.jpg",
+      "imageAlt": "Bianca+ Convertible Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 20 993.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 21 790.00",
+      "discount": "₹ 20 993.00",
+      "discountText": "₹ 20 993.00",
+      "features": [
+        "3-in-1 Convertible Dual Element Water Heater with 3 Heating modes: 33 % Faster Heating",
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Incoloy glass coated Heating element: Minimal scaling & Quick heating"
+      ],
+      "productUrl": "https://havells.com/home-appliances/water-heaters/bianca-convertible-storage-water-heater-geyser.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "253172",
+      "title": "Valerio+ Convertible Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/v/a/valerio_front_white_g_1_3.jpg",
+      "imageAlt": "Valerio+ Convertible Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 10 591.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 19 490.00",
+      "discount": "₹ 10 591.00",
+      "discountText": "₹ 10 591.00",
+      "features": [
+        "3-in-1 Convertible Dual Element Water Heater with 3 Heating modes: 33 % Faster Heating",
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Incoloy glass coated Heating element: Minimal scaling & Quick heating"
+      ],
+      "productUrl": "https://havells.com/home-appliances/water-heaters/valerio-convertible-storage-water-heater-geyser.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "243121",
+      "title": "Zeno Instant Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/z/e/zeno.jpg",
+      "imageAlt": "Zeno Instant Water Heater (Geyser)",
+      "price": "Special Price\n        ₹ 6 833.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 890.00",
+      "discount": "₹ 6 833.00",
+      "discountText": "₹ 6 833.00",
+      "features": [
+        "Heavy Duty Heating Element",
+        "SS 304 L Inner Tank",
+        "Bi-Color LED Indicator"
+      ],
+      "productUrl": "https://havells.com//zeno-instant-water-heater-geyser-ghwvznuwaw03.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "184787",
+      "title": "Carlo Instant Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghwacapwh005_main_1.jpg",
+      "imageAlt": "Carlo Instant Water Heater (Geyser)",
+      "price": "Special Price\n        ₹ 4 490.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 8 290.00",
+      "discount": "₹ 4 490.00",
+      "discountText": "₹ 4 490.00",
+      "features": [
+        "Heavy Duty Heating Element",
+        "SS 304 L Inner Tank",
+        "Bi-Color LED Indicator"
+      ],
+      "productUrl": "https://havells.com//carlo-instant-water-heater-geyser-ghwacapwh005.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "250931",
+      "title": "Velora Prime Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/v/e/velora_prime_wh_base_1_1.jpg",
+      "imageAlt": "Velora Prime Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 7 791.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 14 490.00",
+      "discount": "₹ 7 791.00",
+      "discountText": "₹ 7 791.00",
+      "features": [
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Mcoloy Heating Element: High Performance & Quick heating",
+        "High Density PUF insulation: Stores hot water for longer time"
+      ],
+      "productUrl": "https://havells.com/home-appliances/water-heaters/velora-prime-5s-fp-white-blue-swh-ghwvveumdw10-c.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "180269",
+      "title": "KANCH - Glass Door DB",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/d/h/dhdmtvzdxt14_1_1.jpg",
+      "imageAlt": "KANCH - Glass Door DB",
+      "price": "₹ 34 220.00\n        \n        (incl. of all taxes)",
+      "mrp": null,
+      "discount": "₹ 34 220.00",
+      "discountText": "₹ 34 220.00",
+      "features": [
+        "Suitable for Residential and Commercial use",
+        "4 TIER 56 Module",
+        "IEC 61439-3, IS:13032 & IS:8623"
+      ],
+      "productUrl": "https://havells.com//kanch-glass-door-db-dhdmtvxdxt14.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "180278",
+      "title": "KANCH - Glass Door DB",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/d/h/dhdmtvxdxt14_1.jpg",
+      "imageAlt": "KANCH - Glass Door DB",
+      "price": "₹ 21 240.00\n        \n        (incl. of all taxes)",
+      "mrp": null,
+      "discount": "₹ 21 240.00",
+      "discountText": "₹ 21 240.00",
+      "features": [
+        "Suitable for Residential and Commercial use",
+        "2 TIER 28 Module",
+        "IEC 61439-3, IS:13032 & IS:8623"
+      ],
+      "productUrl": "https://havells.com//kanch-glass-door-db-dhdmtvzdxt14.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "242140",
+      "title": "Athena Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/a/base_athena_1_.jpg",
+      "imageAlt": "Athena Steam Iron",
+      "price": "Special Price\n        ₹ 6 000.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 999.00",
+      "discount": "₹ 6 000.00",
+      "discountText": "₹ 6 000.00",
+      "features": [
+        "Smart i-Sense Iron adjusts the temperature range as per fabric",
+        "Temp Master Tech, no temperature control needed",
+        "Nano Ceramic Coated Soleplate safegaurd fabric from scorching, provides superior glide and longer life"
+      ],
+      "productUrl": "https://havells.com//athena-steam-iron-ghgsidtk300.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "244804",
+      "title": "Ez-Press Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/e/z/ez-press_steam_iron_base.jpg",
+      "imageAlt": "Ez-Press Steam Iron",
+      "price": "Special Price\n        ₹ 1 349.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 899.00",
+      "discount": "₹ 1 349.00",
+      "discountText": "₹ 1 349.00",
+      "features": [
+        "1250 W Element for Quick Heating",
+        "170 ml Tank for Longer Ironing",
+        "High Steaming Rate upto 12 g/min"
+      ],
+      "productUrl": "https://havells.com//ez-press-steam-iron-ghgsieeu125.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "244801",
+      "title": "Glaze Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/l/glaze_iron_base_1.jpg",
+      "imageAlt": "Glaze Steam Iron",
+      "price": "Special Price\n        ₹ 1 349.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 899.00",
+      "discount": "₹ 1 349.00",
+      "discountText": "₹ 1 349.00",
+      "features": [
+        "1250 W Element for Quick Heating",
+        "170 ml Tank for Longer Ironing",
+        "High Steaming Rate upto 12 g/min"
+      ],
+      "productUrl": "https://havells.com//glaze-steam-iron-ghgsiedg125.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "244798",
+      "title": "Elece Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/e/l/elece_iron_base.jpg",
+      "imageAlt": "Elece Steam Iron",
+      "price": "Special Price\n        ₹ 1 300.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 849.00",
+      "discount": "₹ 1 300.00",
+      "discountText": "₹ 1 300.00",
+      "features": [
+        "1200 W Element for Quick Heating",
+        "170 ml Tank for Longer Ironing",
+        "High Steaming Rate upto 12 g/min"
+      ],
+      "productUrl": "https://havells.com//elece-steam-iron-ghgsiecg120.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "244795",
+      "title": "Nimo Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/i/nimo_iron_base.jpg",
+      "imageAlt": "Nimo Steam Iron",
+      "price": "Special Price\n        ₹ 1 300.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 849.00",
+      "discount": "₹ 1 300.00",
+      "discountText": "₹ 1 300.00",
+      "features": [
+        "1200 W Element for Quick Heating",
+        "170 ml Tank for Longer Ironing",
+        "High Steaming Rate upto 12 g/min"
+      ],
+      "productUrl": "https://havells.com//nimo-steam-iron-ghgsiebk120.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "249887",
+      "title": "Fabia Slim Horizontal Right Side Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/a/fabia_slim_rhs_front_4_star_2.jpg",
+      "imageAlt": "Fabia Slim Horizontal Right Side Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 8 591.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 15 990.00",
+      "discount": "₹ 8 591.00",
+      "discountText": "₹ 8 591.00",
+      "features": [
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Incoloy glass coated Heating element: Minimal scaling & Quick heating",
+        "High Density PUF insulation: Stores hot water for longer time"
+      ],
+      "productUrl": "https://havells.com/catalog/product/view/id/249887/s/ghwrfsumdw10-c/category/65/",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "249884",
+      "title": "Fabia Slim Horizontal Left Side Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/a/fabia_slim_lhs_front_4_star_2.jpg",
+      "imageAlt": "Fabia Slim Horizontal Left Side Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 8 591.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 15 990.00",
+      "discount": "₹ 8 591.00",
+      "discountText": "₹ 8 591.00",
+      "features": [
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Incoloy glass coated Heating element: Minimal scaling & Quick heating",
+        "High Density PUF insulation: Stores hot water for longer time"
+      ],
+      "productUrl": "https://havells.com/catalog/product/view/id/249884/s/ghwlfsumew10-c/category/65/",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "249881",
+      "title": "Greta Prime Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghwvgpumdw15_base_1_1.jpg",
+      "imageAlt": "Greta Prime Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 16 273.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 16 790.00",
+      "discount": "₹ 16 273.00",
+      "discountText": "₹ 16 273.00",
+      "features": [
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Mcoloy Heating Element: High Performance & Quick heating",
+        "High Density PUF insulation: Stores hot water for longer time"
+      ],
+      "productUrl": "https://havells.com/home-appliances/water-heaters/greta-prime-storage-water-heater-geyser.html?color=3109",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:36.676Z",
+      "page": "https://havells.com/products/new"
+    },
+    {
+      "id": "249878",
+      "title": "Velora Pro Storage Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghwvveuwdw15_base_1_2_1.jpg",
+      "imageAlt": "Velora Pro Storage Water Heater (Geyser)",
+      "price": "As low as\n        ₹ 7 590.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 13 390.00",
+      "discount": "₹ 7 590.00",
+      "discountText": "₹ 7 590.00",
+      "features": [
+        "Feroglas Coated Inner Container: Provides superior corrosion resistance",
+        "Mcoloy Heating Element: High Performance & Quick heating",
+        "High Density PUF insulation: Stores hot water for longer time"
+      ],
+      "productUrl": "https://havells.com/catalog/product/view/id/249878/s/ghwvveuwdw10-c/category/65/",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "184478",
+      "title": "Nutrigrind 400 W Wet & Dry Grinder",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/b/a/base_1.jpg",
+      "imageAlt": "Nutrigrind 400 W Wet & Dry Grinder",
+      "price": "Special Price\n        ₹ 25 999.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 33 995.00",
+      "discount": "₹ 25 999.00",
+      "discountText": "₹ 25 999.00",
+      "features": [
+        "High-torque 400 W Motor",
+        "1400 Revolutions per minute Stone-based dry grinding",
+        "140 Revolutions per minute stone-based wet grinding"
+      ],
+      "productUrl": "https://havells.com//nutrigrind-400-w-wet-dry-grinder-ghfmgfde040.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "247616",
+      "title": "Aurora Sleek Glamtube 20 W 3000 K",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/u/aurora_sleek_base_1_1.jpg",
+      "imageAlt": "Aurora Sleek Glamtube",
+      "price": "As low as\n        ₹ 821.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 200.00",
+      "discount": "₹ 821.00",
+      "discountText": "₹ 821.00",
+      "features": [
+        "Sleek design",
+        "Full Glow / End To End Glow For Better Light Output",
+        "Warranty : 1 Year"
+      ],
+      "productUrl": "https://havells.com/lighting/aurora-sleek-glamtube-lhldddbnd5r20-c.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "247286",
+      "title": "Cera Underlight BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/h/a/havells_cera_slate_cf_base.jpg",
+      "imageAlt": "Cera Underlight BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 5 499.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 8 900.00",
+      "discount": "₹ 5 499.00",
+      "discountText": "₹ 5 499.00",
+      "features": [
+        "First of its kind, unique transparent round trim with attractive LED glow pattern that create put’s halo lighting effect",
+        "Special Carving design on bottom cover",
+        "Unique transparent circular trim"
+      ],
+      "productUrl": "https://havells.com/fans/cera-underlight-bldc-ceiling-fan-fhcct5smist48-c.html?color=2881",
+      "rating": "Rating:\n            \n                100%\n            \n                var elemrkPptglFArray = document.querySelectorAll('#rating-result_247286 span');\n    if(elemrkPptglFArray.length !== 'undefined'){\n        elemrkPptglFArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '100%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164612",
+      "title": "Contour 2 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/o/contour_2b_gas_stove_2.jpg",
+      "imageAlt": "Contour 2 Burner",
+      "price": "Special Price\n        ₹ 6 996.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 9 295.00",
+      "discount": "₹ 6 996.00",
+      "discountText": "₹ 6 996.00",
+      "features": [
+        "8 mm Thick Toughened Glass",
+        "5X valve life",
+        "5 Year Warranty"
+      ],
+      "productUrl": "https://havells.com//contour-2-burner-ghkgcamk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164609",
+      "title": "Contour 3 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/o/contour_3b_gas_stove_1.jpg",
+      "imageAlt": "Contour 3 Burner",
+      "price": "Special Price\n        ₹ 9 995.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 13 295.00",
+      "discount": "₹ 9 995.00",
+      "discountText": "₹ 9 995.00",
+      "features": [
+        "8 mm Thick Toughened Glass",
+        "5X valve life",
+        "5 Year Warranty"
+      ],
+      "productUrl": "https://havells.com//contour-3-burner-ghkgcank000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164606",
+      "title": "Contour 4 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/o/contour_4b_gas_stove_1.jpg",
+      "imageAlt": "Contour 4 Burner",
+      "price": "Special Price\n        ₹ 11 896.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 15 895.00",
+      "discount": "₹ 11 896.00",
+      "discountText": "₹ 11 896.00",
+      "features": [
+        "8 mm Thick Toughened Glass",
+        "5X valve life",
+        "5 Year Warranty"
+      ],
+      "productUrl": "https://havells.com//contour-4-burner-ghkgcapk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164603",
+      "title": "Nucleus 2 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/e/necleus_2b_gas_stove_1.jpg",
+      "imageAlt": "Nucleus 2 Burner",
+      "price": "Special Price\n        ₹ 8 296.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 10 995.00",
+      "discount": "₹ 8 296.00",
+      "discountText": "₹ 8 296.00",
+      "features": [
+        "8 mm Thick Toughened Glass",
+        "5X valve life",
+        "5 Year Warranty"
+      ],
+      "productUrl": "https://havells.com//nucleus-2-burner-ghkgcaak000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164597",
+      "title": "Nucleus 4 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/e/necleus_4b_gas_stove_1.jpg",
+      "imageAlt": "Nucleus 4 Burner",
+      "price": "Special Price\n        ₹ 14 196.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 18 995.00",
+      "discount": "₹ 14 196.00",
+      "discountText": "₹ 14 196.00",
+      "features": [
+        "8 mm Thick Toughened Glass",
+        "5X valve life",
+        "5 Year Warranty"
+      ],
+      "productUrl": "https://havells.com//nucleus-4-burner-ghkgcack000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164594",
+      "title": "Nucleus 4B Autoignition Cooktop",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/e/necleus_4b_auto_1.jpg",
+      "imageAlt": "Nucleus 4B Autoignition Cooktop",
+      "price": "Special Price\n        ₹ 16 096.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 21 495.00",
+      "discount": "₹ 16 096.00",
+      "discountText": "₹ 16 096.00",
+      "features": [
+        "Auto Ignition",
+        "8 mm Thick Toughened Glass",
+        "5X valve life"
+      ],
+      "productUrl": "https://havells.com//nucleus-4b-autoignition-cooktop-ghkgcaqk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164591",
+      "title": "Hexa Cooktop 3 Burner Auto Ignition",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/h/e/hexa_3b_auto_1.jpg",
+      "imageAlt": "Hexa Cooktop 3 Burner Auto Ignition",
+      "price": "Special Price\n        ₹ 17 696.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 23 595.00",
+      "discount": "₹ 17 696.00",
+      "discountText": "₹ 17 696.00",
+      "features": [
+        "Knob Integrated Auto Ignition",
+        "8 mm Thick Toughened Glass",
+        "5X valve life"
+      ],
+      "productUrl": "https://havells.com//hexa-cooktop-3-burner-auto-ignition-ghkgcavk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164588",
+      "title": "Hexa Cooktop 4 Burner Auto Ignition",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/h/e/hexa_4b_auto_1.jpg",
+      "imageAlt": "Hexa Cooktop 4 Burner Auto Ignition",
+      "price": "Special Price\n        ₹ 20 396.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 27 195.00",
+      "discount": "₹ 20 396.00",
+      "discountText": "₹ 20 396.00",
+      "features": [
+        "Knob Integrated Auto Ignition",
+        "8 mm Thick Toughened Glass",
+        "5X valve life"
+      ],
+      "productUrl": "https://havells.com//hexa-cooktop-4-burner-auto-ignition-ghkgcawk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164585",
+      "title": "Regio 4B 60 AI Auto Ignit Hob 4 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghkbhark000_1_.jpg",
+      "imageAlt": "Regio 4B 60 AI Auto Ignit Hob 4 Burner",
+      "price": "Special Price\n        ₹ 28 796.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 38 495.00",
+      "discount": "₹ 28 796.00",
+      "discountText": "₹ 28 796.00",
+      "features": [
+        "8 mm thick Toughened glass",
+        "Triple Ring Full Brass Burner",
+        "Enameled Drip Tray"
+      ],
+      "productUrl": "https://havells.com//regio-4b-60-ai-auto-ignit-hob-4-burner-ghkbhark000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164582",
+      "title": "Centuro 3B 80 T AI Auto Ignit Hob 3 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghkbhask000.jpg",
+      "imageAlt": "Centuro 3B 80 T AI Auto Ignit Hob 3 Burner",
+      "price": "Special Price\n        ₹ 29 795.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 39 695.00",
+      "discount": "₹ 29 795.00",
+      "discountText": "₹ 29 795.00",
+      "features": [
+        "8 mm thick Toughened glass",
+        "Triple Ring Full Brass Burner",
+        "Enameled Drip Tray"
+      ],
+      "productUrl": "https://havells.com//centuro-3b-80-t-ai-auto-ignit-hob-3-burner-ghkbhask000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164579",
+      "title": "Centuro 4B 80 T AI Auto Ignit Hob 4 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghkbhatk000_1_.jpg",
+      "imageAlt": "Centuro 4B 80 T AI Auto Ignit Hob 4 Burner",
+      "price": "Special Price\n        ₹ 34 895.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 46 595.00",
+      "discount": "₹ 34 895.00",
+      "discountText": "₹ 34 895.00",
+      "features": [
+        "8 mm thick Toughened glass",
+        "Triple Ring Full Brass Burner",
+        "Enameled Drip Tray"
+      ],
+      "productUrl": "https://havells.com//centuro-4b-80-t-ai-auto-ignit-hob-4-burner-ghkbhatk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164576",
+      "title": "Centuro Timer 4B 80 T AI Timer Hob 4 Burner",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/e/centuro_timer_2.jpg",
+      "imageAlt": "Centuro Timer 4B 80 T AI Timer Hob 4 Burner",
+      "price": "Special Price\n        ₹ 48 696.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 64 995.00",
+      "discount": "₹ 48 696.00",
+      "discountText": "₹ 48 696.00",
+      "features": [
+        "Individual Timer",
+        "Triple Ring Full Brass Burner",
+        "8 mm thick Toughened glass"
+      ],
+      "productUrl": "https://havells.com//centuro-timer-4b-80-t-ai-timer-hob-4-burner-ghkbhauk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:40.291Z",
+      "page": "https://havells.com/products/new/index/?p=2"
+    },
+    {
+      "id": "164570",
+      "title": "Avior 90 Chimney, Curved, 90 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/v/avior_2.jpg",
+      "imageAlt": "Avior 90 Chimney, Curved, 90 cm",
+      "price": "Special Price\n        ₹ 18 995.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 25 295.00",
+      "discount": "₹ 18 995.00",
+      "discountText": "₹ 18 995.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//avior-90-chimney-curved-90-cm-ghkcnbhk0.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164567",
+      "title": "Alnair 90 Chimney, T Shape 90 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/l/alnair_2.jpg",
+      "imageAlt": "Alnair 90 Chimney, T Shape 90 cm",
+      "price": "Special Price\n        ₹ 20 595.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 27 595.00",
+      "discount": "₹ 20 595.00",
+      "discountText": "₹ 20 595.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//alnair-90-chimney-t-shape-90-cm-ghkcnbgk0.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164564",
+      "title": "Altair 90 Chimney, T Shape 90 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/l/altair_90_1.jpg",
+      "imageAlt": "Altair 90 Chimney, T Shape 90 cm",
+      "price": "Special Price\n        ₹ 18 995.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 22 595.00",
+      "discount": "₹ 18 995.00",
+      "discountText": "₹ 18 995.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//altair-90-chimney-t-shape-90-cm-ghkcnbfk0.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164561",
+      "title": "Deneb 60, Chimney Curved Shape 60 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/d/e/deneb_1.jpg",
+      "imageAlt": "Deneb 60, Chimney Curved Shape 60 cm",
+      "price": "Special Price\n        ₹ 17 796.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 23 695.00",
+      "discount": "₹ 17 796.00",
+      "discountText": "₹ 17 796.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//deneb-60-chimney-curved-shape-60-cm-ghkcnbak000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164558",
+      "title": "Alnair 60 Chimney T Shaped 60 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/l/alnair_1.jpg",
+      "imageAlt": "Alnair 60 Chimney T Shaped 60 cm",
+      "price": "Special Price\n        ₹ 17 995.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 24 195.00",
+      "discount": "₹ 17 995.00",
+      "discountText": "₹ 17 995.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//alnair-60-chimney-t-shaped-60-cm-ghkcnazk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164555",
+      "title": "Avior 60 Chimney Curved Shape 60 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/v/avior_1.jpg",
+      "imageAlt": "Avior 60 Chimney Curved Shape 60 cm",
+      "price": "Special Price\n        ₹ 12 996.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 18 495.00",
+      "discount": "₹ 12 996.00",
+      "discountText": "₹ 12 996.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//avior-60-chimney-curved-shape-60-cm-ghkcnayk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164552",
+      "title": "Altair 60 Chimney, T Shaped 60 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/a/l/altair_60_1.jpg",
+      "imageAlt": "Altair 60 Chimney, T Shaped 60 cm",
+      "price": "Special Price\n        ₹ 12 896.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 17 295.00",
+      "discount": "₹ 12 896.00",
+      "discountText": "₹ 12 896.00",
+      "features": [
+        "Optimum Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//altair-60-chimney-t-shaped-60-cm-ghkcnaxk000.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164549",
+      "title": "Vector 60 T Shape Baffle Filter WiFi",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/v/e/vector_90-1_1.jpg",
+      "imageAlt": "Vector 60 T Shape Baffle Filter WiFi",
+      "price": "Special Price\n        ₹ 30 196.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 40 295.00",
+      "discount": "₹ 30 196.00",
+      "discountText": "₹ 30 196.00",
+      "features": [
+        "IoT / Wifi Enabled",
+        "Powerful Suction",
+        "Gesture Control"
+      ],
+      "productUrl": "https://havells.com//vector-60-t-shape-baffle-filter-wifi-ghkcnagk22021.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164546",
+      "title": "Tempest 60 Curved Baffle Filter WiFi",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/t/e/tempest_60.jpg",
+      "imageAlt": "Tempest 60 Curved Baffle Filter WiFi",
+      "price": "Special Price\n        ₹ 23 996.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 32 295.00",
+      "discount": "₹ 23 996.00",
+      "discountText": "₹ 23 996.00",
+      "features": [
+        "IoT / Wifi Enabled",
+        "Powerful Suction",
+        "Gesture Control"
+      ],
+      "productUrl": "https://havells.com//tempest-60-curved-baffle-filter-wifi-ghkcnaek22021.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.856Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164528",
+      "title": "Deneb 90 Chimney, Curved 90 cm",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/d/e/deneb_1_1.jpg",
+      "imageAlt": "Deneb 90 Chimney, Curved 90 cm",
+      "price": "Special Price\n        ₹ 20 396.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 27 195.00",
+      "discount": "₹ 20 396.00",
+      "discountText": "₹ 20 396.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Touch control"
+      ],
+      "productUrl": "https://havells.com//deneb-90-chimney-curved-90-cm-ghkcnbjk0.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164525",
+      "title": "Vector 90 T Shape Autoclean Wave Sensing",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/v/e/vector_90_2.jpg",
+      "imageAlt": "Vector 90 T Shape Autoclean Wave Sensing",
+      "price": "Special Price\n        ₹ 63 396.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 85 795.00",
+      "discount": "₹ 63 396.00",
+      "discountText": "₹ 63 396.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Intuitive & Colourful Display"
+      ],
+      "productUrl": "https://havells.com//vector-90-t-shape-autoclean-wave-sensing-ghkcnajk28021.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164522",
+      "title": "Incline 90 Slant Autoclean Wave Sensing",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/i/n/incline_90_3_.jpg",
+      "imageAlt": "Incline 90 Slant Autoclean Wave Sensing",
+      "price": "Special Price\n        ₹ 80 696.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 07 595.00",
+      "discount": "₹ 80 696.00",
+      "discountText": "₹ 80 696.00",
+      "features": [
+        "Powerful Suction",
+        "Gesture Control",
+        "Intuitive & Colourful Display"
+      ],
+      "productUrl": "https://havells.com//incline-90-slant-autoclean-wave-sensing-ghkcnakk28021.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "164516",
+      "title": "Rigel 90 Slant Dual Cavity Wave Sensing",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/r/i/rigel_90_2_.jpg",
+      "imageAlt": "Rigel 90 Slant Dual Cavity Wave Sensing",
+      "price": "Special Price\n        ₹ 80 696.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 07 595.00",
+      "discount": "₹ 80 696.00",
+      "discountText": "₹ 80 696.00",
+      "features": [
+        "Powerful Suction with BLDC Motor",
+        "Dual Cavity Independent Suction",
+        "Gesture Control"
+      ],
+      "productUrl": "https://havells.com//rigel-90-slant-dual-cavity-wave-sensing-ghkcnalk28021.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "163011",
+      "title": "Stealth Air BLDC+ Voice Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhcvc5sibl48_1.jpg",
+      "imageAlt": "Stealth Air BLDC+ Voice Ceiling Fan",
+      "price": "As low as\n        ₹ 8 250.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 13 430.00",
+      "discount": "₹ 8 250.00",
+      "discountText": "₹ 8 250.00",
+      "features": [
+        "India's first AI direct voice controlled fan",
+        "'Talk to your' Fan directly",
+        "RF pebble remote control with All direction sensing"
+      ],
+      "productUrl": "https://havells.com/fans/fhcvc5sibl48-c.html?color=2886",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "82434",
+      "title": "Carlo Instant Water Heater (Geyser)",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/c/a/carlo.jpg",
+      "imageAlt": "Carlo Instant Water Heater (Geyser)",
+      "price": "Special Price\n        ₹ 2 849.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 790.00",
+      "discount": "₹ 2 849.00",
+      "discountText": "₹ 2 849.00",
+      "features": [
+        "Range Available : 3 L",
+        "Mounting : Vertical",
+        "Rating as per BIS Standards : IS1 Marked"
+      ],
+      "productUrl": "https://havells.com//carlo-instant-water-heater-geyser-ghwecapwb003.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "137652",
+      "title": "Vector Steam Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghgsicqb140.jpg",
+      "imageAlt": "Vector Steam Iron",
+      "price": "Special Price\n        ₹ 1 940.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 2 625.00",
+      "discount": "₹ 1 940.00",
+      "discountText": "₹ 1 940.00",
+      "features": [
+        "Powerful heating element for effective ironing experience",
+        "Self clean function allow you to keep clean your steam iron",
+        "High steaming rate"
+      ],
+      "productUrl": "https://havells.com//vector-steam-iron-ghgsicqb140.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:43.857Z",
+      "page": "https://havells.com/products/new/index/?p=3"
+    },
+    {
+      "id": "137646",
+      "title": "Komfi Dry Iron",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/g/h/ghgdicsg100.jpg",
+      "imageAlt": "Komfi Dry Iron",
+      "price": "Special Price\n        ₹ 810.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 235.00",
+      "discount": "₹ 810.00",
+      "discountText": "₹ 810.00",
+      "features": [
+        "Powerful heating element for effective ironing experience",
+        "ISI certified for performance & safety",
+        "Greblon Non-Stick Technology"
+      ],
+      "productUrl": "https://havells.com//komfi-dry-iron-ghgdicsg100.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "92450",
+      "title": "Sprint Pedestal Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhspcnswhy16_1.jpg",
+      "imageAlt": "Sprint Pedestal Fan",
+      "price": "Special Price\n        ₹ 5 085.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 8 100.00",
+      "discount": "₹ 5 085.00",
+      "discountText": "₹ 5 085.00",
+      "features": [
+        "Attractive bi-colour metallic finish",
+        "100% Copper Wire Winding Motor",
+        "Telescopic height adjustment"
+      ],
+      "productUrl": "https://havells.com//sprint-pedestal-fan-fhspcnswhy16.html",
+      "rating": "Rating:\n            \n                88%\n            \n                var elemegWqQwAdArray = document.querySelectorAll('#rating-result_92450 span');\n    if(elemegWqQwAdArray.length !== 'undefined'){\n        elemegWqQwAdArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '88%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "209327",
+      "title": "Aurora Plus Glamtube 20 W",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/l/h/lhfaaypgnu1w020_2_.jpg",
+      "imageAlt": "Aurora Plus Glamtube 20 W",
+      "price": "Special Price\n        ₹ 1 051.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 690.00",
+      "discount": "₹ 1 051.00",
+      "discountText": "₹ 1 051.00",
+      "features": [
+        "Eye soft technology",
+        "Full glow/end to end glow for better light output",
+        "Product rotation flexibility as per convenience"
+      ],
+      "productUrl": "https://havells.com//aurora-plus-glamtube-20-w-lhfaaypgnu1w020.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "209330",
+      "title": "Vanessa Plus Glamtube 20 W",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/l/h/lhfaayppnu1w020_1_.jpg",
+      "imageAlt": "Vanessa Plus Glamtube 20 W",
+      "price": "Special Price\n        ₹ 950.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 490.00",
+      "discount": "₹ 950.00",
+      "discountText": "₹ 950.00",
+      "features": [
+        "Seamless Lighting",
+        "Full glow/end to end glow for better light output",
+        "Product rotation flexibility as per convenience"
+      ],
+      "productUrl": "https://havells.com//vanessa-plus-glamtube-20-w-lhfaayppnu1w020.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "209318",
+      "title": "Neutron Plus Glamtube 20 W 6500 K",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/e/neutron_plus_2.jpg",
+      "imageAlt": "Neutron Plus Glamtube 20 W 6500 K",
+      "price": "Special Price\n        ₹ 1 350.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 930.00",
+      "discount": "₹ 1 350.00",
+      "discountText": "₹ 1 350.00",
+      "features": [
+        "Eye soft technology",
+        "Dual light functionality : Mood Light + Task Light",
+        "No harmful UV/IR radiation"
+      ],
+      "productUrl": "https://havells.com//neutron-plus-glamtube-20-w-6500-k-lhfaaympnu1w020.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "209297",
+      "title": "Neutron Plus Glamtube 20 W 4000 K",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/n/e/neutron_plus_1.jpg",
+      "imageAlt": "Neutron Plus Glamtube 20 W 4000 K",
+      "price": "Special Price\n        ₹ 1 350.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 1 930.00",
+      "discount": "₹ 1 350.00",
+      "discountText": "₹ 1 350.00",
+      "features": [
+        "Eye soft technology",
+        "Dual light functionality : Mood Light + Task Light",
+        "No harmful UV/IR radiation"
+      ],
+      "productUrl": "https://havells.com//neutron-plus-glamtube-20-w-4000-k-lhfaaymdnu1w020.html",
+      "rating": null,
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "25915",
+      "title": "Hush Ventilation Domestic Exhaust Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhvvehuwht04_1.jpg",
+      "imageAlt": "Hush Ventilation Domestic Exhaust Fan",
+      "price": "Special Price\n        ₹ 1 258.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 2 010.00",
+      "discount": "₹ 1 258.00",
+      "discountText": "₹ 1 258.00",
+      "features": [
+        "Modular concept",
+        "High suction capacity",
+        "Noiseless operation"
+      ],
+      "productUrl": "https://havells.com//hush-ventilation-domestic-exhaust-fan-fhvvehuwht04.html",
+      "rating": "Rating:\n            \n                87%\n            \n                var elemTgfl4gRLArray = document.querySelectorAll('#rating-result_25915 span');\n    if(elemTgfl4gRLArray.length !== 'undefined'){\n        elemTgfl4gRLArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '87%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "250010",
+      "title": "Epic Pro BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhcpp5smbl48_base_1.jpg",
+      "imageAlt": "Epic Pro BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 3 658.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 5 560.00",
+      "discount": "₹ 3 658.00",
+      "discountText": "₹ 3 658.00",
+      "features": [
+        "100 % Copper wire motor",
+        "Sleek and minimalistic design",
+        "Energy efficient BLDC motor"
+      ],
+      "productUrl": "https://havells.com/fans/epic-pro-bldc-ceiling-fan-fhcpp5smbl48-c.html?color=61",
+      "rating": "Rating:\n            \n                95%\n            \n                var elem2FvxhcmAArray = document.querySelectorAll('#rating-result_250010 span');\n    if(elem2FvxhcmAArray.length !== 'undefined'){\n        elem2FvxhcmAArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '95%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "250013",
+      "title": "Epic BLDC Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhcpi5stbr48_base_1.jpg",
+      "imageAlt": "Epic BLDC Ceiling Fan",
+      "price": "As low as\n        ₹ 3 509.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 5 370.00",
+      "discount": "₹ 3 509.00",
+      "discountText": "₹ 3 509.00",
+      "features": [
+        "100 % Copper wire motor",
+        "Sleek and minimalistic design",
+        "Energy efficient BLDC motor"
+      ],
+      "productUrl": "https://havells.com/fans/epic-bldc-ceiling-fan-fhcpi5stbr48-c.html?color=61",
+      "rating": "Rating:\n            \n                88%\n            \n                var elemSMZcMsrqArray = document.querySelectorAll('#rating-result_250013 span');\n    if(elemSMZcMsrqArray.length !== 'undefined'){\n        elemSMZcMsrqArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '88%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "250007",
+      "title": "Epic Signia BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhcps5sstg48_1__1_2.jpg",
+      "imageAlt": "Epic Signia BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 3 976.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 110.00",
+      "discount": "₹ 3 976.00",
+      "discountText": "₹ 3 976.00",
+      "features": [
+        "100 % Copper wire motor",
+        "LED display for fan speed and modes indication",
+        "Sleek and Minimalistic design"
+      ],
+      "productUrl": "https://havells.com/fans/epic-signia-bldc-ceiling-fan-fhcps5sstg48-c.html?color=2952",
+      "rating": "Rating:\n            \n                96%\n            \n                var elem4iXMFayCArray = document.querySelectorAll('#rating-result_250007 span');\n    if(elem4iXMFayCArray.length !== 'undefined'){\n        elem4iXMFayCArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '96%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "250019",
+      "title": "Elio Prime Smart BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhce25sslm48_base_1.jpg",
+      "imageAlt": "Elio Prime Smart BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 5 770.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 8 860.00",
+      "discount": "₹ 5 770.00",
+      "discountText": "₹ 5 770.00",
+      "features": [
+        "100 % Copper wire motor",
+        "Telescopic canopy to adjust ceiling height",
+        "Sleek and Minimalistic design"
+      ],
+      "productUrl": "https://havells.com/fans/fhce25sslm48-c.html?color=3690",
+      "rating": "Rating:\n            \n                92%\n            \n                var elemEpG6H9lYArray = document.querySelectorAll('#rating-result_250019 span');\n    if(elemEpG6H9lYArray.length !== 'undefined'){\n        elemEpG6H9lYArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '92%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.394Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "250016",
+      "title": "Elio Underlight IoT BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhce35smist48_base_1.jpg",
+      "imageAlt": "Elio Underlight IoT BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 7 548.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 12 040.00",
+      "discount": "₹ 7 548.00",
+      "discountText": "₹ 7 548.00",
+      "features": [
+        "IoT enabled fan can be controled from office, home & outside home",
+        "Mood Changing Underlight with Dimmable & Tunable technique",
+        "Underlight with color changing Technology"
+      ],
+      "productUrl": "https://havells.com/fans/elio-underlight-iot-bldc-ceiling-fan-fhce35smist48-c.html?color=3101",
+      "rating": "Rating:\n            \n                96%\n            \n                var elemQUTTK4SEArray = document.querySelectorAll('#rating-result_250016 span');\n    if(elemQUTTK4SEArray.length !== 'undefined'){\n        elemQUTTK4SEArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '96%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.395Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "122033",
+      "title": "Elio Prime BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhce15spmb48_star_1.jpg",
+      "imageAlt": "Elio Prime BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 4 754.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 8 670.00",
+      "discount": "₹ 4 754.00",
+      "discountText": "₹ 4 754.00",
+      "features": [
+        "100 % Copper",
+        "Telescopic Canopy",
+        "Sleek & Minimalistic Design"
+      ],
+      "productUrl": "https://havells.com/fans/fhce15spmb48-c.html?color=3689",
+      "rating": "Rating:\n            \n                88%\n            \n                var elemgxtuj3S5Array = document.querySelectorAll('#rating-result_122033 span');\n    if(elemgxtuj3S5Array.length !== 'undefined'){\n        elemgxtuj3S5Array.forEach(function(element) {\n            if (element) {\n                element.style.width = '88%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.395Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "122032",
+      "title": "Elio BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhce15sbnc48_1_.jpg",
+      "imageAlt": "Elio BLDC+ Ceiling Fan",
+      "price": "As low as\n        ₹ 4 194.00\n        \n    (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 6 710.00",
+      "discount": "₹ 4 194.00",
+      "discountText": "₹ 4 194.00",
+      "features": [
+        "100 % Copper wire motor",
+        "Telescopic canopy to adjust ceiling height",
+        "Sleek and Minimalistic design"
+      ],
+      "productUrl": "https://havells.com/fans/fhce15sbnc48-c.html?color=60",
+      "rating": "Rating:\n            \n                92%\n            \n                var elem9e7N14kJArray = document.querySelectorAll('#rating-result_122032 span');\n    if(elem9e7N14kJArray.length !== 'undefined'){\n        elem9e7N14kJArray.forEach(function(element) {\n            if (element) {\n                element.style.width = '92%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.395Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    },
+    {
+      "id": "183038",
+      "title": "Florette Underlight Smart BLDC+ Ceiling Fan",
+      "imageUrl": "https://havells.com/media/catalog/product/cache/2051dfe7399bbb12fcdb3313c6f79cc4/f/h/fhcla5ssbw52_1_1.jpg",
+      "imageAlt": "Florette Underlight Smart BLDC+ Ceiling Fan",
+      "price": "Special Price\n        ₹ 14 005.00\n        \n        (incl. of all taxes)",
+      "mrp": "MRP\n        ₹ 21 540.00",
+      "discount": "₹ 14 005.00",
+      "discountText": "₹ 14 005.00",
+      "features": [
+        "100 % Copper wire motor",
+        "Side changeable Premium MDF blades to suit your home décor",
+        "Mood Changing Undelight with Dimming Features"
+      ],
+      "productUrl": "https://havells.com/catalog/product/view/id/183038/s/florette-underlight-smart-bldc-ceiling-fan-fhcla5ssbw52/category/2/",
+      "rating": "Rating:\n            \n                92%\n            \n                var elemc3XjJTX5Array = document.querySelectorAll('#rating-result_183038 span');\n    if(elemc3XjJTX5Array.length !== 'undefined'){\n        elemc3XjJTX5Array.forEach(function(element) {\n            if (element) {\n                element.style.width = '92%';\n\n            }\n        });\n    }",
+      "availability": "Available",
+      "scrapedAt": "2025-07-28T03:33:47.395Z",
+      "page": "https://havells.com/products/new/index/?p=4"
+    }
+  ]
+}

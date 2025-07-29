@@ -46,6 +46,7 @@ import {
   generateSymptomsHTML,
   generateVitalsHTML,
 } from "../../services/medicalRecordGenerator.js";
+import { generateSurgicalHTML } from "../../utils/surgicalNotes.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -7244,6 +7245,7 @@ export const generatePatientRecordPDFs = async (req, res) => {
       prescriptions: "Prescriptions Report",
       consulting: "Consulting Report",
       doctorNotes: "Doctor Notes Report",
+      surgical: "Surgical Notes Report", // ✅ ADDED THIS
     };
 
     // Validate report types
@@ -7319,6 +7321,15 @@ export const generatePatientRecordPDFs = async (req, res) => {
               hospital
             );
             fileName = `${patientId}_DoctorNotes_${Date.now()}.pdf`;
+            break;
+          case "surgical":
+            // Generate surgical report HTML
+            htmlContent = generateSurgicalHTML(
+              patientHistory,
+              latestRecord,
+              hospital
+            );
+            fileName = `${patientId}_Surgical_${Date.now()}.pdf`;
             break;
         }
 
@@ -7414,6 +7425,128 @@ export const generatePatientRecordPDFs = async (req, res) => {
         process.env.NODE_ENV === "development"
           ? error.message
           : "Internal server error",
+    });
+  }
+};
+export const generateMedicalSurgeryReport = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { uploadToDriveFolder, uploadToCloudinaryFolder } = req.body;
+
+    // Fetch patient history data
+    const patientHistory = await PatientHistory.findOne({ patientId }).lean();
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient history not found",
+      });
+    }
+
+    // Get the latest record from history (last element in array)
+    const latestHistoryRecord =
+      patientHistory.history[patientHistory.history.length - 1];
+    if (!latestHistoryRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "No history records found",
+      });
+    }
+
+    // Get all surgical notes from the latest record
+    const surgicalNotes = latestHistoryRecord.surgicalNotes || [];
+
+    // Prepare patient data for PDF generation
+    const patientData = {
+      patientInfo: {
+        patientId: patientHistory.patientId,
+        name: patientHistory.name,
+        age: patientHistory.age,
+        gender: patientHistory.gender,
+        contact: patientHistory.contact,
+        address: patientHistory.address,
+        dob: patientHistory.dob,
+        imageUrl: patientHistory.imageUrl,
+      },
+    };
+
+    // Generate HTML content for complete surgical report
+    const htmlContent = generateCompleteSurgicalReportHTML(
+      patientData,
+      surgicalNotes,
+      latestHistoryRecord
+    );
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Create filename
+    const fileName = `Complete_Surgical_Report_${patientId}_${new Date().getTime()}.pdf`;
+
+    let driveLink = null;
+    let cloudinaryUrl = null;
+
+    try {
+      // Upload to Google Drive if folder ID provided
+      if (uploadToDriveFolder) {
+        driveLink = await uploadToDrive(
+          pdfBuffer,
+          fileName,
+          uploadToDriveFolder
+        );
+      }
+
+      // Upload to Cloudinary if requested
+      if (uploadToCloudinaryFolder) {
+        cloudinaryUrl = await uploadToCloudinary(pdfBuffer);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Complete medical surgery report generated successfully",
+        data: {
+          fileName,
+          driveLink,
+          cloudinaryUrl,
+          patientId,
+          generatedAt: new Date(),
+          totalSurgeries: surgicalNotes.length,
+          opdNumber: latestHistoryRecord.opdNumber,
+          ipdNumber: latestHistoryRecord.ipdNumber,
+          admissionDate: latestHistoryRecord.admissionDate,
+          dischargeDate: latestHistoryRecord.dischargeDate,
+          patientName: patientHistory.name,
+          surgeryProcedures: surgicalNotes.map((note) => ({
+            procedure: note.surgicalProcedure,
+            date: note.surgeryDate,
+            surgeon: note.surgeonName,
+            outcome: note.procedureOutcome,
+          })),
+        },
+      });
+    } catch (uploadError) {
+      console.error("Upload Error:", uploadError);
+
+      // Still return success even if upload fails
+      return res.status(200).json({
+        success: true,
+        message: "PDF generated successfully, but upload failed",
+        data: {
+          fileName,
+          uploadError: uploadError.message,
+          patientId,
+          generatedAt: new Date(),
+          totalSurgeries: surgicalNotes.length,
+        },
+        warning: "PDF was generated but could not be uploaded to cloud storage",
+      });
+    }
+  } catch (error) {
+    console.error("Medical Surgery Report Generation Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate complete medical surgery report",
+      error: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };

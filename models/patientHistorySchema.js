@@ -161,6 +161,7 @@
 // const PatientHistory = mongoose.model("PatientHistory", patientHistorySchema);
 // export default PatientHistory;
 import mongoose from "mongoose";
+import surgicalNotesSchema from "./surgicalNotesSchema.js";
 
 // Follow-up schema
 const followUpSchema = new mongoose.Schema({
@@ -365,6 +366,7 @@ const patientHistorySchema = new mongoose.Schema({
       followUps: [followUpSchema], // Array of follow-up records for each admission
       fourHrFollowUpSchema: [fourHrFollowUpSchema], // Array of 4-hour follow-up records for each admission
       dischargeSummary: dischargeSummaryHistorySchema,
+      surgicalNotes: [surgicalNotesSchema],
 
       // Lab and diagnostic reports
       labReports: [
