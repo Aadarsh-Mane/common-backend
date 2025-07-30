@@ -6,7 +6,8 @@ const dbURI =
 export const connectDB = async () => {
   const options = {
     useNewUrlParser: true, // Deprecated, but necessary in older versions
-    useUnifiedTopology: true, // Use MongoDB's native driver for connection pooling
+    useUnifiedTopology: true, // Use MongoDB's native driver for connection poo
+    // ling
     connectTimeoutMS: 9000000, // Increase initial connection timeout
     socketTimeoutMS: 5000000, // Increase socket operation timeout
     maxPoolSize: 50, // Maximum number of concurrent connections in the pool
