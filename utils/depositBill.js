@@ -208,8 +208,8 @@ export const generateDepositReceiptHTML = (
             <div class="receipt-container">
                     <div class="header">
                             ${
-                              bannerImageUrl
-                                ? `<img src="${bannerImageUrl}" alt="Hospital Banner" class="banner-image">`
+                              "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
+                                ? `<img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" class="banner-image">`
                                 : ""
                             }
                             <div class="hospital-details">
