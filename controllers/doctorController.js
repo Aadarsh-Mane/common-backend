@@ -7606,3 +7606,188 @@ export const deleteSurgicalNotes = async (req, res) => {
     });
   }
 };
+export const updatePatientMedicalInfo = async (req, res) => {
+  try {
+    const {
+      patientId,
+      admissionId,
+      vitals,
+      symptoms,
+      diagnosis,
+      prescriptions,
+      doctorNotes,
+    } = req.body;
+
+    const { userId, usertype } = req;
+
+    // // Verify doctor authorization
+    // if (usertype !== "doctor" && usertype !== "hospitalDoctor") {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message:
+    //       "Access denied. Only doctors can update patient medical information.",
+    //   });
+    // }
+
+    // Find patient by patientId
+    const patient = await patientSchema.findOne({ patientId });
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    // Find the specific admission record by admissionId
+    const admissionRecord = patient.admissionRecords.id(admissionId);
+    if (!admissionRecord) {
+      return res.status(404).json({
+        success: false,
+        message: "Admission record not found",
+      });
+    }
+
+    // Check if patient is discharged
+    if (patient.discharged || admissionRecord.dischargeDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot update medical information for discharged patient",
+      });
+    }
+
+    const updateTimestamp = new Date();
+    let hasUpdates = false;
+
+    // Update vitals if provided
+    if (vitals && Object.keys(vitals).length > 0) {
+      const vitalRecord = {
+        ...vitals,
+        recordedAt: updateTimestamp,
+      };
+      admissionRecord.vitals.push(vitalRecord);
+      hasUpdates = true;
+    }
+
+    // Update symptoms if provided
+    if (symptoms && symptoms.length > 0) {
+      // Remove duplicates and empty strings
+      const uniqueSymptoms = [
+        ...new Set(symptoms.filter((symptom) => symptom && symptom.trim())),
+      ];
+
+      // Add new symptoms to existing ones (avoid duplicates)
+      const existingSymptoms = admissionRecord.symptomsByDoctor || [];
+      const newSymptoms = uniqueSymptoms.filter(
+        (symptom) => !existingSymptoms.includes(symptom)
+      );
+
+      if (newSymptoms.length > 0) {
+        admissionRecord.symptomsByDoctor = [
+          ...existingSymptoms,
+          ...newSymptoms,
+        ];
+        hasUpdates = true;
+      }
+    }
+
+    // Update diagnosis if provided
+    if (diagnosis && diagnosis.length > 0) {
+      // Remove duplicates and empty strings
+      const uniqueDiagnosis = [
+        ...new Set(diagnosis.filter((diag) => diag && diag.trim())),
+      ];
+
+      // Add new diagnosis to existing ones (avoid duplicates)
+      const existingDiagnosis = admissionRecord.diagnosisByDoctor || [];
+      const newDiagnosis = uniqueDiagnosis.filter(
+        (diag) => !existingDiagnosis.includes(diag)
+      );
+
+      if (newDiagnosis.length > 0) {
+        admissionRecord.diagnosisByDoctor = [
+          ...existingDiagnosis,
+          ...newDiagnosis,
+        ];
+        hasUpdates = true;
+      }
+    }
+
+    // Update prescriptions if provided
+    if (prescriptions && prescriptions.length > 0) {
+      const validPrescriptions = prescriptions.filter(
+        (prescription) =>
+          prescription.medicine &&
+          prescription.medicine.name &&
+          prescription.medicine.name.trim()
+      );
+
+      if (validPrescriptions.length > 0) {
+        const prescriptionRecords = validPrescriptions.map((prescription) => ({
+          medicine: {
+            ...prescription.medicine,
+            date: updateTimestamp,
+          },
+        }));
+
+        admissionRecord.doctorPrescriptions.push(...prescriptionRecords);
+        hasUpdates = true;
+      }
+    }
+
+    // Add doctor notes if provided
+    if (doctorNotes && doctorNotes.trim()) {
+      const noteRecord = {
+        text: doctorNotes.trim(),
+        doctorName: req.doctorName || "Doctor",
+        time: updateTimestamp.toLocaleTimeString(),
+        date: updateTimestamp.toLocaleDateString(),
+      };
+
+      admissionRecord.doctorNotes.push(noteRecord);
+      hasUpdates = true;
+    }
+
+    // If no updates were made
+    if (!hasUpdates) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid updates provided",
+      });
+    }
+
+    // Save the updated patient document
+    await patient.save();
+
+    // Prepare response data
+    const responseData = {
+      patientId: patient.patientId,
+      admissionId: admissionRecord._id,
+      opdNumber: admissionRecord.opdNumber,
+      ipdNumber: admissionRecord.ipdNumber,
+      updatedAt: updateTimestamp,
+      updates: {
+        vitalsAdded: vitals ? 1 : 0,
+        symptomsAdded: symptoms ? symptoms.length : 0,
+        diagnosisAdded: diagnosis ? diagnosis.length : 0,
+        prescriptionsAdded: prescriptions
+          ? prescriptions.filter((p) => p.medicine?.name?.trim()).length
+          : 0,
+        notesAdded: doctorNotes ? 1 : 0,
+      },
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Patient medical information updated successfully",
+      data: responseData,
+    });
+  } catch (error) {
+    console.error("Error updating patient medical information:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};

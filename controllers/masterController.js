@@ -1036,32 +1036,424 @@ export const getPatientListController = async (req, res) => {
 };
 export const getAllPatientsLastRecords = async (req, res) => {
   try {
-    const patients = await PatientHistory.find({});
+    // Extract pagination parameters
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
 
-    const patientsWithLastRecord = patients.map((patient) => {
-      const lastRecord = patient.history[patient.history.length - 1];
+    // Extract filter parameters
+    const {
+      search,
+      gender,
+      ageMin,
+      ageMax,
+      conditionAtDischarge,
+      doctorName,
+      admissionDateFrom,
+      admissionDateTo,
+      dischargeDateFrom,
+      dischargeDateTo,
+      opdNumber,
+      ipdNumber,
+      sortBy = "name",
+      sortOrder = "asc",
+      hasIpdNumber,
+    } = req.query;
 
-      return {
-        patientId: patient.patientId,
-        name: patient.name,
-        gender: patient.gender,
-        age: patient.age,
-        contact: patient.contact,
-        address: patient.address,
-        lastRecord: lastRecord || null,
-      };
+    // Build MongoDB aggregation pipeline
+    const pipeline = [];
+
+    // Stage 1: Match documents based on filters
+    const matchStage = {};
+
+    // Search filter (name, contact, patientId)
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      matchStage.$or = [
+        { name: searchRegex },
+        { contact: searchRegex },
+        { patientId: searchRegex },
+      ];
+    }
+
+    // Gender filter
+    if (gender && ["Male", "Female", "Other"].includes(gender)) {
+      matchStage.gender = gender;
+    }
+
+    // Age range filter
+    if (ageMin || ageMax) {
+      matchStage.age = {};
+      if (ageMin) matchStage.age.$gte = parseInt(ageMin);
+      if (ageMax) matchStage.age.$lte = parseInt(ageMax);
+    }
+
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
+
+    // Stage 2: Add computed field for last record and apply history filters
+    pipeline.push({
+      $addFields: {
+        lastRecord: { $arrayElemAt: ["$history", -1] },
+        totalAdmissions: { $size: "$history" },
+      },
     });
+
+    // Stage 3: Match based on last record filters
+    const lastRecordMatchStage = {};
+
+    // Condition at discharge filter
+    if (
+      conditionAtDischarge &&
+      [
+        "Discharged",
+        "Transferred",
+        "D.A.M.A.",
+        "Absconded",
+        "Expired",
+      ].includes(conditionAtDischarge)
+    ) {
+      lastRecordMatchStage["lastRecord.conditionAtDischarge"] =
+        conditionAtDischarge;
+    }
+
+    // Doctor name filter
+    if (doctorName && doctorName.trim()) {
+      lastRecordMatchStage["lastRecord.doctor.name"] = new RegExp(
+        doctorName.trim(),
+        "i"
+      );
+    }
+
+    // OPD number filter
+    if (opdNumber) {
+      lastRecordMatchStage["lastRecord.opdNumber"] = parseInt(opdNumber);
+    }
+
+    // IPD number filter
+    if (ipdNumber) {
+      lastRecordMatchStage["lastRecord.ipdNumber"] = parseInt(ipdNumber);
+    }
+
+    // Has IPD number filter
+    if (hasIpdNumber !== undefined) {
+      if (hasIpdNumber === "true") {
+        lastRecordMatchStage["lastRecord.ipdNumber"] = {
+          $exists: true,
+          $ne: null,
+        };
+      } else if (hasIpdNumber === "false") {
+        lastRecordMatchStage["lastRecord.ipdNumber"] = { $exists: false };
+      }
+    }
+
+    // Date range filters
+    if (admissionDateFrom || admissionDateTo) {
+      lastRecordMatchStage["lastRecord.admissionDate"] = {};
+      if (admissionDateFrom) {
+        lastRecordMatchStage["lastRecord.admissionDate"].$gte = new Date(
+          admissionDateFrom
+        );
+      }
+      if (admissionDateTo) {
+        lastRecordMatchStage["lastRecord.admissionDate"].$lte = new Date(
+          admissionDateTo
+        );
+      }
+    }
+
+    if (dischargeDateFrom || dischargeDateTo) {
+      lastRecordMatchStage["lastRecord.dischargeDate"] = {};
+      if (dischargeDateFrom) {
+        lastRecordMatchStage["lastRecord.dischargeDate"].$gte = new Date(
+          dischargeDateFrom
+        );
+      }
+      if (dischargeDateTo) {
+        lastRecordMatchStage["lastRecord.dischargeDate"].$lte = new Date(
+          dischargeDateTo
+        );
+      }
+    }
+
+    if (Object.keys(lastRecordMatchStage).length > 0) {
+      pipeline.push({ $match: lastRecordMatchStage });
+    }
+
+    // Stage 4: Project final structure
+    pipeline.push({
+      $project: {
+        patientId: 1,
+        name: 1,
+        gender: 1,
+        age: 1,
+        contact: 1,
+        address: 1,
+        dob: 1,
+        imageUrl: 1,
+        totalAdmissions: 1,
+        lastRecord: {
+          $cond: {
+            if: { $gt: [{ $size: "$history" }, 0] },
+            then: {
+              admissionId: "$lastRecord.admissionId",
+              opdNumber: "$lastRecord.opdNumber",
+              ipdNumber: "$lastRecord.ipdNumber",
+              admissionDate: "$lastRecord.admissionDate",
+              dischargeDate: "$lastRecord.dischargeDate",
+              status: "$lastRecord.status",
+              patientType: "$lastRecord.patientType",
+              reasonForAdmission: "$lastRecord.reasonForAdmission",
+              conditionAtDischarge: "$lastRecord.conditionAtDischarge",
+              amountToBePayed: "$lastRecord.amountToBePayed",
+              weight: "$lastRecord.weight",
+              initialDiagnosis: "$lastRecord.initialDiagnosis",
+              doctor: "$lastRecord.doctor",
+              section: "$lastRecord.section",
+              bedNumber: "$lastRecord.bedNumber",
+              // Calculate length of stay
+              lengthOfStay: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $ne: ["$lastRecord.dischargeDate", null] },
+                      { $ne: ["$lastRecord.admissionDate", null] },
+                    ],
+                  },
+                  then: {
+                    $divide: [
+                      {
+                        $subtract: [
+                          "$lastRecord.dischargeDate",
+                          "$lastRecord.admissionDate",
+                        ],
+                      },
+                      86400000, // Convert milliseconds to days
+                    ],
+                  },
+                  else: null,
+                },
+              },
+            },
+            else: null,
+          },
+        },
+      },
+    });
+
+    // Stage 5: Sort
+    const sortStage = {};
+    const validSortFields = [
+      "name",
+      "age",
+      "gender",
+      "patientId",
+      "totalAdmissions",
+      "lastRecord.admissionDate",
+      "lastRecord.dischargeDate",
+      "lastRecord.opdNumber",
+      "lastRecord.ipdNumber",
+    ];
+
+    if (validSortFields.includes(sortBy)) {
+      sortStage[sortBy] = sortOrder === "desc" ? -1 : 1;
+    } else {
+      sortStage.name = 1; // Default sort
+    }
+
+    pipeline.push({ $sort: sortStage });
+
+    // Execute aggregation with pagination
+    const [results, totalCount] = await Promise.all([
+      PatientHistory.aggregate([
+        ...pipeline,
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      PatientHistory.aggregate([...pipeline, { $count: "total" }]),
+    ]);
+
+    const total = totalCount[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    // Calculate statistics
+    const statistics = await PatientHistory.aggregate([
+      ...pipeline.slice(0, -2), // Exclude sort and pagination stages
+      {
+        $group: {
+          _id: null,
+          totalPatients: { $sum: 1 },
+          avgAge: { $avg: "$age" },
+          genderDistribution: {
+            $push: "$gender",
+          },
+          dischargeConditions: {
+            $push: "$lastRecord.conditionAtDischarge",
+          },
+          avgLengthOfStay: {
+            $avg: {
+              $cond: {
+                if: {
+                  $and: [
+                    { $ne: ["$lastRecord.dischargeDate", null] },
+                    { $ne: ["$lastRecord.admissionDate", null] },
+                  ],
+                },
+                then: {
+                  $divide: [
+                    {
+                      $subtract: [
+                        "$lastRecord.dischargeDate",
+                        "$lastRecord.admissionDate",
+                      ],
+                    },
+                    86400000,
+                  ],
+                },
+                else: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          totalPatients: 1,
+          avgAge: { $round: ["$avgAge", 1] },
+          avgLengthOfStay: { $round: ["$avgLengthOfStay", 1] },
+          genderStats: {
+            male: {
+              $size: {
+                $filter: {
+                  input: "$genderDistribution",
+                  cond: { $eq: ["$$this", "Male"] },
+                },
+              },
+            },
+            female: {
+              $size: {
+                $filter: {
+                  input: "$genderDistribution",
+                  cond: { $eq: ["$$this", "Female"] },
+                },
+              },
+            },
+            other: {
+              $size: {
+                $filter: {
+                  input: "$genderDistribution",
+                  cond: { $eq: ["$$this", "Other"] },
+                },
+              },
+            },
+          },
+          dischargeStats: {
+            discharged: {
+              $size: {
+                $filter: {
+                  input: "$dischargeConditions",
+                  cond: { $eq: ["$$this", "Discharged"] },
+                },
+              },
+            },
+            transferred: {
+              $size: {
+                $filter: {
+                  input: "$dischargeConditions",
+                  cond: { $eq: ["$$this", "Transferred"] },
+                },
+              },
+            },
+            dama: {
+              $size: {
+                $filter: {
+                  input: "$dischargeConditions",
+                  cond: { $eq: ["$$this", "D.A.M.A."] },
+                },
+              },
+            },
+            absconded: {
+              $size: {
+                $filter: {
+                  input: "$dischargeConditions",
+                  cond: { $eq: ["$$this", "Absconded"] },
+                },
+              },
+            },
+            expired: {
+              $size: {
+                $filter: {
+                  input: "$dischargeConditions",
+                  cond: { $eq: ["$$this", "Expired"] },
+                },
+              },
+            },
+          },
+        },
+      },
+    ]);
 
     res.status(200).json({
       success: true,
-      data: patientsWithLastRecord,
+      data: results,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: total,
+        recordsPerPage: limit,
+        hasNextPage,
+        hasPrevPage,
+        nextPage: hasNextPage ? page + 1 : null,
+        prevPage: hasPrevPage ? page - 1 : null,
+      },
+      filters: {
+        applied: {
+          search: search || null,
+          gender: gender || null,
+          ageRange: ageMin || ageMax ? `${ageMin || 0}-${ageMax || "∞"}` : null,
+          conditionAtDischarge: conditionAtDischarge || null,
+          doctorName: doctorName || null,
+          opdNumber: opdNumber || null,
+          ipdNumber: ipdNumber || null,
+          hasIpdNumber: hasIpdNumber || null,
+          admissionDateRange:
+            admissionDateFrom || admissionDateTo
+              ? `${admissionDateFrom || "start"} to ${admissionDateTo || "end"}`
+              : null,
+          dischargeDateRange:
+            dischargeDateFrom || dischargeDateTo
+              ? `${dischargeDateFrom || "start"} to ${dischargeDateTo || "end"}`
+              : null,
+        },
+        sortBy,
+        sortOrder,
+      },
+      statistics: statistics[0] || {
+        totalPatients: 0,
+        avgAge: 0,
+        avgLengthOfStay: 0,
+        genderStats: { male: 0, female: 0, other: 0 },
+        dischargeStats: {
+          discharged: 0,
+          transferred: 0,
+          dama: 0,
+          absconded: 0,
+          expired: 0,
+        },
+      },
     });
   } catch (error) {
     console.error("Error fetching patients last records:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
-      error: error.message,
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : "Something went wrong",
     });
   }
 };

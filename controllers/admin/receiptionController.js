@@ -44,9 +44,11 @@ import {
   generateDoctorNotesHTML,
   generatePrescriptionsHTML,
   generateSymptomsHTML,
+  generateVitalsGraphHTML,
   generateVitalsHTML,
 } from "../../services/medicalRecordGenerator.js";
 import { generateSurgicalHTML } from "../../utils/surgicalNotes.js";
+import { PatientInsurance } from "../../models/insuranceSchema.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -721,6 +723,7 @@ const ServiceAccount = {
     "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-lcnp1%40doctor-dd7e8.iam.gserviceaccount.com",
   universe_domain: "googleapis.com",
 };
+
 export const generateBillForDischargedPatient = async (req, res) => {
   console.log("generateBillForDischargedPatient");
   try {
@@ -7246,6 +7249,32 @@ export const generatePatientRecordPDFs = async (req, res) => {
       consulting: "Consulting Report",
       doctorNotes: "Doctor Notes Report",
       surgical: "Surgical Notes Report", // ✅ ADDED THIS
+      followUp2Hr: "2-Hour Follow-Up Report", // ✅ NEW
+      followUp4Hr: "4-Hour Follow-Up Report", // ✅ NEW
+      followUpCombined: "Combined Follow-Up Report", // ✅ NEW
+      vitalsGraph: "Vital Signs Graph Report", // ✅ NEW
+    };
+    // ADDED these data preparation objects for follow-ups:
+    const patientData = {
+      patientId: patientHistory.patientId,
+      name: patientHistory.name,
+      age: patientHistory.age,
+      gender: patientHistory.gender,
+      contact: patientHistory.contact,
+      address: patientHistory.address,
+      dob: patientHistory.dob,
+    };
+
+    const admissionData = {
+      opdNumber: latestRecord.opdNumber,
+      ipdNumber: latestRecord.ipdNumber,
+      admissionDate: latestRecord.admissionDate,
+      status: latestRecord.status,
+      doctor: latestRecord.doctor,
+      section: latestRecord.section,
+      bedNumber: latestRecord.bedNumber,
+      followUps: latestRecord.followUps,
+      fourHrFollowUpSchema: latestRecord.fourHrFollowUpSchema,
     };
 
     // Validate report types
@@ -7330,6 +7359,81 @@ export const generatePatientRecordPDFs = async (req, res) => {
               hospital
             );
             fileName = `${patientId}_Surgical_${Date.now()}.pdf`;
+            break;
+          // ADDED these cases to the switch statement:
+          case "followUp2Hr":
+            // Check if 2-hour follow-ups exist
+            if (
+              !latestRecord.followUps ||
+              latestRecord.followUps.length === 0
+            ) {
+              hasRequiredData = false;
+              dataCheckMessage =
+                "No 2-hour follow-up records found in the latest admission history";
+            } else {
+              htmlContent = generate2HrFollowUpHTML(
+                patientData,
+                admissionData,
+                hospital.bannerImageUrl
+              );
+              fileName = `${patientId}_2Hr_FollowUp_${Date.now()}.pdf`;
+            }
+            break;
+
+          case "followUp4Hr":
+            // Check if 4-hour follow-ups exist
+            if (
+              !latestRecord.fourHrFollowUpSchema ||
+              latestRecord.fourHrFollowUpSchema.length === 0
+            ) {
+              hasRequiredData = false;
+              dataCheckMessage =
+                "No 4-hour follow-up records found in the latest admission history";
+            } else {
+              htmlContent = generate4HrFollowUpHTML(
+                patientData,
+                admissionData,
+                hospital.bannerImageUrl
+              );
+              fileName = `${patientId}_4Hr_FollowUp_${Date.now()}.pdf`;
+            }
+            break;
+
+          case "followUpCombined":
+            // Check if any follow-ups exist
+            const has2HrFollowUps =
+              latestRecord.followUps && latestRecord.followUps.length > 0;
+            const has4HrFollowUps =
+              latestRecord.fourHrFollowUpSchema &&
+              latestRecord.fourHrFollowUpSchema.length > 0;
+
+            if (!has2HrFollowUps && !has4HrFollowUps) {
+              hasRequiredData = false;
+              dataCheckMessage =
+                "No follow-up records found in the latest admission history";
+            } else {
+              htmlContent = generateCombinedFollowUpHTML(
+                patientData,
+                admissionData,
+                hospital.bannerImageUrl
+              );
+              fileName = `${patientId}_Combined_FollowUp_${Date.now()}.pdf`;
+            }
+            break;
+          case "vitalsGraph":
+            // Check if vital signs data exists
+            if (!latestRecord.vitals || latestRecord.vitals.length === 0) {
+              hasRequiredData = false;
+              dataCheckMessage =
+                "No vital signs data found in the latest admission history";
+            } else {
+              htmlContent = generateVitalsGraphHTML(
+                patientHistory,
+                latestRecord,
+                hospital
+              );
+              fileName = `${patientId}_VitalsGraph_${Date.now()}.pdf`;
+            }
             break;
         }
 
@@ -7550,3 +7654,1286 @@ export const generateMedicalSurgeryReport = async (req, res) => {
     });
   }
 };
+export const getActivePatientsWithAdmissions = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      searchTerm,
+      patientType,
+      section,
+      hasInsurance,
+      admissionStatus,
+    } = req.query;
+
+    // Build query for active patients (not discharged)
+    const query = {
+      discharged: false, // Active patients only
+      "admissionRecords.0": { $exists: true }, // Must have at least one admission record
+    };
+
+    // Add search functionality
+    if (searchTerm) {
+      query.$or = [
+        { name: { $regex: searchTerm, $options: "i" } },
+        { patientId: { $regex: searchTerm, $options: "i" } },
+        { contact: { $regex: searchTerm, $options: "i" } },
+      ];
+    }
+
+    // Filter by patient type in current admission
+    if (patientType) {
+      query["admissionRecords.patientType"] = patientType;
+    }
+
+    // Filter by section
+    if (section) {
+      query["admissionRecords.section.name"] = {
+        $regex: section,
+        $options: "i",
+      };
+    }
+
+    // Filter by admission status
+    if (admissionStatus) {
+      query["admissionRecords.status"] = admissionStatus;
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Get active patients with admission records
+    const activePatients = await patientSchema
+      .find(query)
+      .select(
+        "patientId name age gender contact address admissionRecords pendingAmount imageUrl"
+      )
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ "admissionRecords.admissionDate": -1 })
+      .lean();
+
+    // Get insurance information for each patient's current admission
+    const enrichedPatients = await Promise.all(
+      activePatients.map(async (patient) => {
+        // Get the latest (current) admission record
+        const currentAdmission = patient.admissionRecords
+          .filter((admission) => !admission.dischargeDate) // Not discharged
+          .sort(
+            (a, b) => new Date(b.admissionDate) - new Date(a.admissionDate)
+          )[0];
+
+        if (!currentAdmission) {
+          return {
+            ...patient,
+            currentAdmission: null,
+            insuranceInfo: null,
+          };
+        }
+
+        // Get insurance information for current admission
+        let insuranceInfo = null;
+        if (currentAdmission._id) {
+          try {
+            const patientInsurance = await PatientInsurance.findOne({
+              patientId: patient.patientId,
+              admissionId: currentAdmission._id,
+            }).populate(
+              "insurancePolicyId",
+              "insuranceProvider policyNumber policyType sumInsured sumInsuredRemaining verificationStatus"
+            );
+
+            if (patientInsurance) {
+              insuranceInfo = {
+                hasInsurance: true,
+                insuranceProvider:
+                  patientInsurance.insurancePolicyId?.insuranceProvider,
+                policyNumber: patientInsurance.insurancePolicyId?.policyNumber,
+                policyType: patientInsurance.insurancePolicyId?.policyType,
+                sumInsured: patientInsurance.insurancePolicyId?.sumInsured,
+                sumInsuredRemaining:
+                  patientInsurance.insurancePolicyId?.sumInsuredRemaining,
+                verificationStatus:
+                  patientInsurance.insurancePolicyId?.verificationStatus,
+                eligibilityStatus: patientInsurance.eligibilityStatus,
+                isAuthorizedForTreatment:
+                  patientInsurance.isAuthorizedForTreatment,
+              };
+            }
+          } catch (error) {
+            console.log(
+              "Error fetching insurance for patient:",
+              patient.patientId,
+              error.message
+            );
+          }
+        }
+
+        return {
+          ...patient,
+          currentAdmission: {
+            _id: currentAdmission._id,
+            opdNumber: currentAdmission.opdNumber,
+            ipdNumber: currentAdmission.ipdNumber,
+            admissionDate: currentAdmission.admissionDate,
+            status: currentAdmission.status,
+            patientType: currentAdmission.patientType,
+            reasonForAdmission: currentAdmission.reasonForAdmission,
+            initialDiagnosis: currentAdmission.initialDiagnosis,
+            doctor: currentAdmission.doctor,
+            section: currentAdmission.section,
+            bedNumber: currentAdmission.bedNumber,
+            amountToBePayed: currentAdmission.amountToBePayed,
+          },
+          insuranceInfo: insuranceInfo || { hasInsurance: false },
+        };
+      })
+    );
+
+    // Apply insurance filter if requested
+    let filteredPatients = enrichedPatients;
+    if (hasInsurance !== undefined) {
+      const hasInsuranceBool = hasInsurance === "true";
+      filteredPatients = enrichedPatients.filter(
+        (patient) => patient.insuranceInfo.hasInsurance === hasInsuranceBool
+      );
+    }
+
+    // Get total count for pagination
+    const total = await patientSchema.countDocuments(query);
+
+    // Prepare summary statistics
+    const summary = {
+      totalActivePatients: filteredPatients.length,
+      withInsurance: filteredPatients.filter(
+        (p) => p.insuranceInfo.hasInsurance
+      ).length,
+      withoutInsurance: filteredPatients.filter(
+        (p) => !p.insuranceInfo.hasInsurance
+      ).length,
+      ipdPatients: filteredPatients.filter((p) => p.currentAdmission?.ipdNumber)
+        .length,
+      opdPatients: filteredPatients.filter(
+        (p) => p.currentAdmission?.opdNumber && !p.currentAdmission?.ipdNumber
+      ).length,
+      emergencyPatients: filteredPatients.filter(
+        (p) => p.currentAdmission?.patientType === "Emergency"
+      ).length,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Active patients with admission records fetched successfully",
+      data: {
+        patients: filteredPatients,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / limit),
+        },
+        summary,
+        filters: {
+          searchTerm: searchTerm || null,
+          patientType: patientType || null,
+          section: section || null,
+          hasInsurance: hasInsurance || null,
+          admissionStatus: admissionStatus || null,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get active patients error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch active patients",
+      error: error.message,
+    });
+  }
+};
+
+// Controller for generating 2-hour follow-up PDF from patient history
+export const generate2HrFollowUpPDF = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { bannerImageUrl } = req.body; // Banner image URL from request body
+
+    // Find patient history
+    const patientHistory = await PatientHistory.findOne({ patientId });
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient history not found",
+      });
+    }
+
+    // Check if there are any history records
+    if (!patientHistory.history || patientHistory.history.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No admission history found for this patient",
+      });
+    }
+
+    // Get the latest (last) history record
+    const latestRecord =
+      patientHistory.history[patientHistory.history.length - 1];
+
+    // Check if there are follow-ups in the latest record
+    if (!latestRecord.followUps || latestRecord.followUps.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No 2-hour follow-up records found in the latest admission history",
+      });
+    }
+
+    // Create a patient object for the HTML generator (using data from history)
+    const patientData = {
+      patientId: patientHistory.patientId,
+      name: patientHistory.name,
+      age: patientHistory.age,
+      gender: patientHistory.gender,
+      contact: patientHistory.contact,
+      address: patientHistory.address,
+      dob: patientHistory.dob,
+    };
+
+    // Create an admission object for the HTML generator
+    const admissionData = {
+      opdNumber: latestRecord.opdNumber,
+      ipdNumber: latestRecord.ipdNumber,
+      admissionDate: latestRecord.admissionDate,
+      status: latestRecord.status,
+      doctor: latestRecord.doctor,
+      section: latestRecord.section,
+      bedNumber: latestRecord.bedNumber,
+      followUps: latestRecord.followUps,
+    };
+
+    // Generate HTML content for 2-hour follow-ups
+    const htmlContent = generate2HrFollowUpHTML(
+      patientData,
+      admissionData,
+      bannerImageUrl
+    );
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Create filename
+    const fileName = `2HR_FollowUp_${patientData.name}_${
+      admissionData.opdNumber || admissionData.ipdNumber
+    }_${new Date().toISOString().split("T")[0]}.pdf`;
+
+    // Upload to Google Drive (optional - configure folderId as needed)
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "2-hour follow-up PDF generated successfully from patient history",
+      data: {
+        fileName,
+        driveLink,
+        patientName: patientData.name,
+        followUpCount: latestRecord.followUps.length,
+        admissionDate: latestRecord.admissionDate,
+        opdNumber: latestRecord.opdNumber,
+        ipdNumber: latestRecord.ipdNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Error generating 2-hour follow-up PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate 2-hour follow-up PDF",
+      error: error.message,
+    });
+  }
+};
+
+// Controller for generating 4-hour follow-up PDF from patient history
+export const generate4HrFollowUpPDF = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { bannerImageUrl } = req.body;
+
+    // Find patient history
+    const patientHistory = await PatientHistory.findOne({ patientId });
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient history not found",
+      });
+    }
+
+    // Check if there are any history records
+    if (!patientHistory.history || patientHistory.history.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No admission history found for this patient",
+      });
+    }
+
+    // Get the latest (last) history record
+    const latestRecord =
+      patientHistory.history[patientHistory.history.length - 1];
+
+    // Check if there are 4-hour follow-ups in the latest record
+    if (
+      !latestRecord.fourHrFollowUpSchema ||
+      latestRecord.fourHrFollowUpSchema.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No 4-hour follow-up records found in the latest admission history",
+      });
+    }
+
+    // Create a patient object for the HTML generator
+    const patientData = {
+      patientId: patientHistory.patientId,
+      name: patientHistory.name,
+      age: patientHistory.age,
+      gender: patientHistory.gender,
+      contact: patientHistory.contact,
+      address: patientHistory.address,
+      dob: patientHistory.dob,
+    };
+
+    // Create an admission object for the HTML generator
+    const admissionData = {
+      opdNumber: latestRecord.opdNumber,
+      ipdNumber: latestRecord.ipdNumber,
+      admissionDate: latestRecord.admissionDate,
+      status: latestRecord.status,
+      doctor: latestRecord.doctor,
+      section: latestRecord.section,
+      bedNumber: latestRecord.bedNumber,
+      fourHrFollowUpSchema: latestRecord.fourHrFollowUpSchema,
+    };
+
+    // Generate HTML content for 4-hour follow-ups
+    const htmlContent = generate4HrFollowUpHTML(
+      patientData,
+      admissionData,
+      bannerImageUrl
+    );
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Create filename
+    const fileName = `4HR_FollowUp_${patientData.name}_${
+      admissionData.opdNumber || admissionData.ipdNumber
+    }_${new Date().toISOString().split("T")[0]}.pdf`;
+
+    // Upload to Google Drive
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "4-hour follow-up PDF generated successfully from patient history",
+      data: {
+        fileName,
+        driveLink,
+        patientName: patientData.name,
+        followUpCount: latestRecord.fourHrFollowUpSchema.length,
+        admissionDate: latestRecord.admissionDate,
+        opdNumber: latestRecord.opdNumber,
+        ipdNumber: latestRecord.ipdNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Error generating 4-hour follow-up PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate 4-hour follow-up PDF",
+      error: error.message,
+    });
+  }
+};
+
+// Controller for generating combined follow-up PDF from patient history
+export const generateCombinedFollowUpPDF = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { bannerImageUrl } = req.body;
+
+    // Find patient history
+    const patientHistory = await PatientHistory.findOne({ patientId });
+
+    if (!patientHistory) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient history not found",
+      });
+    }
+
+    // Check if there are any history records
+    if (!patientHistory.history || patientHistory.history.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No admission history found for this patient",
+      });
+    }
+
+    // Get the latest (last) history record
+    const latestRecord =
+      patientHistory.history[patientHistory.history.length - 1];
+
+    // Check if there are any follow-ups in the latest record
+    const has2HrFollowUps =
+      latestRecord.followUps && latestRecord.followUps.length > 0;
+    const has4HrFollowUps =
+      latestRecord.fourHrFollowUpSchema &&
+      latestRecord.fourHrFollowUpSchema.length > 0;
+
+    if (!has2HrFollowUps && !has4HrFollowUps) {
+      return res.status(404).json({
+        success: false,
+        message: "No follow-up records found in the latest admission history",
+      });
+    }
+
+    // Create a patient object for the HTML generator
+    const patientData = {
+      patientId: patientHistory.patientId,
+      name: patientHistory.name,
+      age: patientHistory.age,
+      gender: patientHistory.gender,
+      contact: patientHistory.contact,
+      address: patientHistory.address,
+      dob: patientHistory.dob,
+    };
+
+    // Create an admission object for the HTML generator
+    const admissionData = {
+      opdNumber: latestRecord.opdNumber,
+      ipdNumber: latestRecord.ipdNumber,
+      admissionDate: latestRecord.admissionDate,
+      status: latestRecord.status,
+      doctor: latestRecord.doctor,
+      section: latestRecord.section,
+      bedNumber: latestRecord.bedNumber,
+      followUps: latestRecord.followUps,
+      fourHrFollowUpSchema: latestRecord.fourHrFollowUpSchema,
+    };
+
+    // Generate HTML content for combined follow-ups
+    const htmlContent = generateCombinedFollowUpHTML(
+      patientData,
+      admissionData,
+      bannerImageUrl
+    );
+
+    // Generate PDF
+    const pdfBuffer = await generatePdf(htmlContent);
+
+    // Create filename
+    const fileName = `Combined_FollowUp_${patientData.name}_${
+      admissionData.opdNumber || admissionData.ipdNumber
+    }_${new Date().toISOString().split("T")[0]}.pdf`;
+
+    // Upload to Google Drive
+    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Combined follow-up PDF generated successfully from patient history",
+      data: {
+        fileName,
+        driveLink,
+        patientName: patientData.name,
+        twoHrFollowUpCount: latestRecord.followUps?.length || 0,
+        fourHrFollowUpCount: latestRecord.fourHrFollowUpSchema?.length || 0,
+        admissionDate: latestRecord.admissionDate,
+        opdNumber: latestRecord.opdNumber,
+        ipdNumber: latestRecord.ipdNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Error generating combined follow-up PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate combined follow-up PDF",
+      error: error.message,
+    });
+  }
+};
+
+// HTML template generator for 2-hour follow-ups
+const formatDateToIST = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    console.error("Date formatting error:", error);
+    return dateString || "Not recorded";
+  }
+};
+
+function generate2HrFollowUpHTML(patient, admission, bannerImageUrl) {
+  const patientInfo = generatePatientInfoTable(patient, admission);
+
+  let content = "";
+
+  // Add header and patient info only once
+  content += `
+    <div class="banner">
+      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+    </div>
+    <h1 class="main-title">2-Hour Follow-Up Report</h1>
+    ${patientInfo}
+  `;
+
+  // Add each follow-up record
+  admission.followUps.forEach((followUp, index) => {
+    // Add page break only if not the first record
+    const pageBreak = index > 0 ? "page-break-before: always;" : "";
+
+    content += `
+      <div class="follow-up-record" style="${pageBreak}">
+      <div class="section-header">
+        <h2>Follow-Up Record ${index + 1} - 2HR</h2>
+        <span class="record-date">${
+          followUp.date ? formatDateToIST(followUp.date) : "Not recorded"
+        } | Nurse: ${followUp.nurseName || "Not assigned"}</span>
+      </div>
+
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th colspan="4" class="section-title">Vital Signs</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td><strong>Temperature:</strong></td>
+          <td>${followUp.temperature || "N/A"}</td>
+          <td><strong>Pulse:</strong></td>
+          <td>${followUp.pulse || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>Respiration Rate:</strong></td>
+          <td>${followUp.respirationRate || "N/A"}</td>
+          <td><strong>Blood Pressure:</strong></td>
+          <td>${followUp.bloodPressure || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>Oxygen Saturation:</strong></td>
+          <td>${followUp.oxygenSaturation || "N/A"}</td>
+          <td><strong>Blood Sugar Level:</strong></td>
+          <td>${followUp.bloodSugarLevel || "N/A"}</td>
+        </tr>
+        ${
+          followUp.otherVitals
+            ? `
+        <tr>
+          <td><strong>Other Vitals:</strong></td>
+          <td colspan="3">${followUp.otherVitals}</td>
+        </tr>
+        `
+            : ""
+        }
+        </tbody>
+      </table>
+
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th colspan="4" class="section-title">Intake & Output Data</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td><strong>IV Fluid:</strong></td>
+          <td>${followUp.ivFluid || "N/A"}</td>
+          <td><strong>Urine:</strong></td>
+          <td>${followUp.urine || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>Nasogastric:</strong></td>
+          <td>${followUp.nasogastric || "N/A"}</td>
+          <td><strong>Stool:</strong></td>
+          <td>${followUp.stool || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>RT Feed/Oral:</strong></td>
+          <td>${followUp.rtFeedOral || "N/A"}</td>
+          <td><strong>RT Aspirate:</strong></td>
+          <td>${followUp.rtAspirate || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>Total Intake:</strong></td>
+          <td class="highlight">${followUp.totalIntake || "N/A"}</td>
+          <td><strong>Other Output:</strong></td>
+          <td>${followUp.otherOutput || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>CVP:</strong></td>
+          <td colspan="3">${followUp.cvp || "N/A"}</td>
+        </tr>
+        </tbody>
+      </table>
+
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th colspan="4" class="section-title">Ventilator Data</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td><strong>Mode:</strong></td>
+          <td>${followUp.ventyMode || "N/A"}</td>
+          <td><strong>Set Rate:</strong></td>
+          <td>${followUp.setRate || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>FiO2:</strong></td>
+          <td>${followUp.fiO2 || "N/A"}</td>
+          <td><strong>PIP:</strong></td>
+          <td>${followUp.pip || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>PEEP/CPAP:</strong></td>
+          <td>${followUp.peepCpap || "N/A"}</td>
+          <td><strong>I:E Ratio:</strong></td>
+          <td>${followUp.ieRatio || "N/A"}</td>
+        </tr>
+        ${
+          followUp.otherVentilator
+            ? `
+        <tr>
+          <td><strong>Other:</strong></td>
+          <td colspan="3">${followUp.otherVentilator}</td>
+        </tr>
+        `
+            : ""
+        }
+        </tbody>
+      </table>
+
+      ${
+        followUp.notes || followUp.observations
+          ? `
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th colspan="2" class="section-title">Clinical Notes & Observations</th>
+        </tr>
+        </thead>
+        <tbody>
+        ${
+          followUp.notes
+            ? `
+        <tr>
+          <td width="20%"><strong>Notes:</strong></td>
+          <td>${followUp.notes}</td>
+        </tr>
+        `
+            : ""
+        }
+        ${
+          followUp.observations
+            ? `
+        <tr>
+          <td width="20%"><strong>Observations:</strong></td>
+          <td>${followUp.observations}</td>
+        </tr>
+        `
+            : ""
+        }
+        </tbody>
+      </table>
+      `
+          : ""
+      }
+      </div>
+    `;
+  });
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>2-Hour Follow-Up Report</title>
+      <style>
+        ${getCompactStyles()}
+      </style>
+    </head>
+    <body>
+      ${content}
+    </body>
+    </html>
+  `;
+}
+
+// Fixed HTML template generator for 4-hour follow-ups
+function generate4HrFollowUpHTML(patient, admission, bannerImageUrl) {
+  const patientInfo = generatePatientInfoTable(patient, admission);
+
+  let content = "";
+
+  // Add header and patient info only once
+  content += `
+    <div class="banner">
+      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+    </div>
+    <h1 class="main-title">4-Hour Follow-Up Report</h1>
+    ${patientInfo}
+  `;
+
+  // Add each follow-up record
+  admission.fourHrFollowUpSchema.forEach((followUp, index) => {
+    const pageBreak = index > 0 ? "page-break-before: always;" : "";
+
+    content += `
+      <div class="follow-up-record" style="${pageBreak}">
+        <div class="section-header">
+          <h2>4-Hour Follow-Up Record ${index + 1}</h2>
+          <span class="record-date">${
+            formatDateToIST(followUp.date) || "Not recorded"
+          } | Nurse: ${followUp.nurseName || "Not assigned"}</span>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th colspan="4" class="section-title">4-Hour Vital Signs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Pulse:</strong></td>
+              <td>${followUp.fourhrpulse || "N/A"}</td>
+              <td><strong>Blood Pressure:</strong></td>
+              <td>${followUp.fourhrbloodPressure || "N/A"}</td>
+            </tr>
+            <tr>
+              <td><strong>Temperature:</strong></td>
+              <td>${followUp.fourhrTemperature || "N/A"}</td>
+              <td><strong>Oxygen Saturation:</strong></td>
+              <td>${followUp.fourhroxygenSaturation || "N/A"}</td>
+            </tr>
+            <tr>
+              <td><strong>Blood Sugar Level:</strong></td>
+              <td>${followUp.fourhrbloodSugarLevel || "N/A"}</td>
+              <td><strong>Other Vitals:</strong></td>
+              <td>${followUp.fourhrotherVitals || "N/A"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th colspan="4" class="section-title">Fluid Management</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>IV Fluid (Input):</strong></td>
+              <td>${followUp.fourhrivFluid || "N/A"}</td>
+              <td><strong>Urine (Output):</strong></td>
+              <td>${followUp.fourhrurine || "N/A"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        ${
+          followUp.notes || followUp.observations
+            ? `
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th colspan="2" class="section-title">Clinical Notes & Observations</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              followUp.notes
+                ? `
+            <tr>
+              <td width="20%"><strong>Notes:</strong></td>
+              <td>${followUp.notes}</td>
+            </tr>
+            `
+                : ""
+            }
+            ${
+              followUp.observations
+                ? `
+            <tr>
+              <td width="20%"><strong>Observations:</strong></td>
+              <td>${followUp.observations}</td>
+            </tr>
+            `
+                : ""
+            }
+          </tbody>
+        </table>
+        `
+            : ""
+        }
+      </div>
+    `;
+  });
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>4-Hour Follow-Up Report</title>
+      <style>
+        ${getCompactStyles()}
+      </style>
+    </head>
+    <body>
+      ${content}
+    </body>
+    </html>
+  `;
+}
+
+// Fixed combined follow-up generator
+function generateCombinedFollowUpHTML(patient, admission, bannerImageUrl) {
+  const patientInfo = generatePatientInfoTable(patient, admission);
+
+  let content = `
+    <div class="banner">
+      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+    </div>
+    <h1 class="main-title">Complete Follow-Up Report</h1>
+    ${patientInfo}
+  `;
+
+  let recordCount = 0;
+
+  // Add 2-hour follow-ups
+  if (admission.followUps && admission.followUps.length > 0) {
+    admission.followUps.forEach((followUp, index) => {
+      const pageBreak = recordCount > 0 ? "page-break-before: always;" : "";
+      recordCount++;
+
+      content += `
+        <div class="follow-up-record" style="${pageBreak}">
+          <div class="section-header">
+            <h2>2-Hour Follow-Up Record ${index + 1}</h2>
+            <span class="record-date">${
+              formatDateToIST(followUp.date) || "Not recorded"
+            } | Nurse: ${followUp.nurseName || "Not assigned"}</span>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="section-title">Vital Signs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Temperature:</strong></td>
+                <td>${followUp.temperature || "N/A"}</td>
+                <td><strong>Pulse:</strong></td>
+                <td>${followUp.pulse || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Respiration Rate:</strong></td>
+                <td>${followUp.respirationRate || "N/A"}</td>
+                <td><strong>Blood Pressure:</strong></td>
+                <td>${followUp.bloodPressure || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Oxygen Saturation:</strong></td>
+                <td>${followUp.oxygenSaturation || "N/A"}</td>
+                <td><strong>Blood Sugar Level:</strong></td>
+                <td>${followUp.bloodSugarLevel || "N/A"}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="section-title">Intake & Output</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>IV Fluid:</strong></td>
+                <td>${followUp.ivFluid || "N/A"}</td>
+                <td><strong>Urine:</strong></td>
+                <td>${followUp.urine || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Nasogastric:</strong></td>
+                <td>${followUp.nasogastric || "N/A"}</td>
+                <td><strong>Stool:</strong></td>
+                <td>${followUp.stool || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Total Intake:</strong></td>
+                <td class="highlight">${followUp.totalIntake || "N/A"}</td>
+                <td><strong>RT Aspirate:</strong></td>
+                <td>${followUp.rtAspirate || "N/A"}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          ${
+            followUp.notes || followUp.observations
+              ? `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="2" class="section-title">Notes & Observations</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                followUp.notes
+                  ? `<tr><td width="20%"><strong>Notes:</strong></td><td>${followUp.notes}</td></tr>`
+                  : ""
+              }
+              ${
+                followUp.observations
+                  ? `<tr><td width="20%"><strong>Observations:</strong></td><td>${followUp.observations}</td></tr>`
+                  : ""
+              }
+            </tbody>
+          </table>
+          `
+              : ""
+          }
+        </div>
+      `;
+    });
+  }
+
+  // Add 4-hour follow-ups
+  if (
+    admission.fourHrFollowUpSchema &&
+    admission.fourHrFollowUpSchema.length > 0
+  ) {
+    admission.fourHrFollowUpSchema.forEach((followUp, index) => {
+      const pageBreak = recordCount > 0 ? "page-break-before: always;" : "";
+      recordCount++;
+
+      content += `
+        <div class="follow-up-record" style="${pageBreak}">
+          <div class="section-header">
+            <h2>4-Hour Follow-Up Record ${index + 1}</h2>
+            <span class="record-date">${
+              followUp.date || "Not recorded"
+            } | Nurse: ${followUp.nurseName || "Not assigned"}</span>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="section-title">4-Hour Vital Signs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Pulse:</strong></td>
+                <td>${followUp.fourhrpulse || "N/A"}</td>
+                <td><strong>Blood Pressure:</strong></td>
+                <td>${followUp.fourhrbloodPressure || "N/A"}</td>
+              </tr>
+              <tr>
+                <td><strong>Temperature:</strong></td>
+                <td>${followUp.fourhrTemperature || "N/A"}</td>
+                <td><strong>Oxygen Saturation:</strong></td>
+                <td>${followUp.fourhroxygenSaturation || "N/A"}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="4" class="section-title">Fluid Management</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>IV Fluid:</strong></td>
+                <td>${followUp.fourhrivFluid || "N/A"}</td>
+                <td><strong>Urine Output:</strong></td>
+                <td>${followUp.fourhrurine || "N/A"}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          ${
+            followUp.notes || followUp.observations
+              ? `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th colspan="2" class="section-title">Notes & Observations</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                followUp.notes
+                  ? `<tr><td width="20%"><strong>Notes:</strong></td><td>${followUp.notes}</td></tr>`
+                  : ""
+              }
+              ${
+                followUp.observations
+                  ? `<tr><td width="20%"><strong>Observations:</strong></td><td>${followUp.observations}</td></tr>`
+                  : ""
+              }
+            </tbody>
+          </table>
+          `
+              : ""
+          }
+        </div>
+      `;
+    });
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Complete Follow-Up Report</title>
+      <style>
+        ${getCompactStyles()}
+      </style>
+    </head>
+    <body>
+      ${content}
+    </body>
+    </html>
+  `;
+}
+
+// Compact patient information table
+function generatePatientInfoTable(patient, admission) {
+  return `
+    <table class="patient-table">
+      <thead>
+        <tr>
+          <th colspan="6" class="patient-header">Patient Information - ${
+            patient.patientId
+          }</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Name:</strong></td>
+          <td>${patient.name}</td>
+          <td><strong>Age:</strong></td>
+          <td>${patient.age}</td>
+          <td><strong>Gender:</strong></td>
+          <td>${patient.gender}</td>
+        </tr>
+        <tr>
+          <td><strong>Contact:</strong></td>
+          <td>${patient.contact}</td>
+          <td><strong>DOB:</strong></td>
+          <td>${patient.dob || "N/A"}</td>
+          <td><strong>Address:</strong></td>
+          <td>${patient.address || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>OPD No:</strong></td>
+          <td>${admission.opdNumber || "N/A"}</td>
+          <td><strong>IPD No:</strong></td>
+          <td>${admission.ipdNumber || "N/A"}</td>
+          <td><strong>Status:</strong></td>
+          <td>${admission.status}</td>
+        </tr>
+        <tr>
+          <td><strong>Admission:</strong></td>
+          <td>${new Date(admission.admissionDate).toLocaleDateString(
+            "en-IN"
+          )}</td>
+          <td><strong>Section:</strong></td>
+          <td>${admission.section?.name || "N/A"}</td>
+          <td><strong>Bed:</strong></td>
+          <td>${admission.bedNumber || "N/A"}</td>
+        </tr>
+        <tr>
+          <td><strong>Doctor:</strong></td>
+          <td colspan="5">${admission.doctor?.name || "Not assigned"}</td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+// Updated CSS with fixed page handling
+function getCompactStyles() {
+  return `
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 15px;
+      line-height: 1.4;
+      color: #333;
+      font-size: 12px;
+    }
+    
+    .banner {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    
+    .banner img {
+      max-width: 100%;
+      height: auto;
+      max-height: 80px;
+    }
+    
+    .main-title {
+      text-align: center;
+      color: #2c5aa0;
+      margin-bottom: 15px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    
+    .patient-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    
+    .patient-header {
+      background-color: #060607ff;
+      color: white;
+      text-align: center;
+      padding: 8px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    
+    .patient-table td, .patient-table th {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    
+    .follow-up-record {
+      margin-bottom: 20px;
+      page-break-inside: avoid;
+    }
+    
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #f8f9fa;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+      page-break-after: avoid;
+    }
+    
+    .section-header h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #2c5aa0;
+    }
+    
+    .record-date {
+      font-size: 11px;
+      color: black;
+      font-style: italic;
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+      page-break-inside: avoid;
+    }
+    
+    .data-table th, .data-table td {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    
+    .section-title {
+      background-color: #e9ecef;
+      font-weight: bold;
+      text-align: center;
+      color: #495057;
+      font-size: 13px;
+    }
+    
+    .data-table td:nth-child(odd) {
+      width: 20%;
+      background-color: #f8f9fa;
+    }
+    
+    .data-table td:nth-child(even) {
+      width: 30%;
+    }
+    
+    .highlight {
+      background-color: #fff3cd !important;
+      font-weight: bold;
+      color: #856404;
+    }
+    
+    @media print {
+      body {
+        font-size: 11px;
+      }
+      
+      .follow-up-record {
+        page-break-inside: avoid;
+      }
+      
+      .data-table {
+        page-break-inside: avoid;
+      }
+      
+      .patient-table {
+        page-break-inside: avoid;
+      }
+      
+      .section-header {
+        page-break-inside: avoid;
+        page-break-after: avoid;
+      }
+    }
+    
+    @page {
+      margin: 0.5in;
+      size: A4;
+    }
+  `;
+}

@@ -5,11 +5,19 @@ import { auth } from "./../middleware/auth.js";
 import {
   add2hrFollowUp,
   addFollowUp,
+  addFourHrFollowUp,
+  addTwoHrFollowUp,
+  generate2HrFollowUpPDF,
+  generate4HrFollowUpPDF,
+  generateCombinedFollowUpPDF,
   get2hrFollowups,
   getAdmissionRecordsById,
   getFollowups,
+  getFourHrFollowUps,
   getLastFollowUpTime,
   getNurseProfile,
+  getPatientsList1,
+  getTwoHrFollowUps,
   seeMyAttendance,
 } from "../controllers/nurseController.js";
 import {
@@ -45,6 +53,7 @@ import {
   getAllNurseAttendance,
   getNurseAttendanceSummary,
 } from "../controllers/nurse/attendanceController.js";
+import { getPatientsList } from "../controllers/doctorController.js";
 
 const nurseRouter = express.Router();
 
@@ -57,12 +66,20 @@ nurseRouter.post("/add2hrFollowUp", auth, add2hrFollowUp);
 nurseRouter.get("/lastFollowUp", getLastFollowUpTime);
 nurseRouter.get("/followups/:admissionId", getFollowups);
 nurseRouter.get("/2hrfollowups/:admissionId", get2hrFollowups);
+nurseRouter.post("/addTwoHrFollowUp", auth, addTwoHrFollowUp);
+nurseRouter.post("/addFourHrFollowUpr", auth, addFourHrFollowUp);
+nurseRouter.get(
+  "/getTwoHrFollowUps/:patientId/:admissionId",
+  getTwoHrFollowUps
+);
+nurseRouter.get(
+  "/getFourHrFollowUps/:patientId/:admissionId",
+  getFourHrFollowUps
+);
 // nurseRouter.post("/check-in", auth, checkIn);
 // nurseRouter.post("/check-out", auth, checkOut);
 nurseRouter.get("/myAttendance", auth, seeMyAttendance);
 // routes/nurseRoutes.js
-
-const router = express.Router();
 
 // Auth routes
 // router.post("/register", nurseAuth.registerNurse); // Super admin only route
@@ -225,5 +242,18 @@ nurseRouter.post("/markAttendanceManually", markAttendanceManually);
 nurseRouter.post("/markCheckOutManually", markCheckOutManually);
 nurseRouter.patch("/updateNurseProfile", auth, updateNurseProfile);
 nurseRouter.get("/getAttendanceSummary", getAttendanceSummary);
+nurseRouter.post(
+  "/generate2HrFollowUpPDF/:patientId/:admissionId",
+  generate2HrFollowUpPDF
+);
+nurseRouter.post(
+  "/generate4HrFollowUpPDF/:patientId/:admissionId",
+  generate4HrFollowUpPDF
+);
+nurseRouter.post(
+  "/generateCombinedFollowUpPDF/:patientId/:admissionId",
+  generateCombinedFollowUpPDF
+);
+nurseRouter.get("/getPatientsList", getPatientsList1);
 
 export default nurseRouter;

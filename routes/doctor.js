@@ -75,6 +75,7 @@ import {
   updateConditionAtDischarge,
   updateDoctorProfile,
   updateMedicine,
+  updatePatientMedicalInfo,
   updateSurgicalNotes,
 } from "../controllers/doctorController.js";
 import { auth } from "../middleware/auth.js";
@@ -118,6 +119,7 @@ doctorRouter.get("/fetchDiagnosis/:patientId/:admissionId", fetchDiagnosis);
 doctorRouter.post("/updateCondition", auth, updateConditionAtDischarge);
 doctorRouter.get("/allAttendees", seeAllAttendees);
 doctorRouter.get("/allNurses", getAllNurses);
+doctorRouter.post("/updatePatientMedicalInfo", updatePatientMedicalInfo);
 doctorRouter.get("/getPatientSuggestion/:patientId", getPatientSuggestions);
 doctorRouter.delete("/deleteDoctorConsultant", deleteDoctorConsultant);
 doctorRouter.get("/getDiagnosis/:patientId", getDiagnosis);

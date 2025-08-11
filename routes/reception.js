@@ -21,6 +21,7 @@ import {
   generateOPDBill,
   generateOpdReceipt,
   generatePatientRecordPDFs,
+  getActivePatientsWithAdmissions,
   getAdmissionDepositSummary,
   getAdmittedPatients,
   getAiSggestions,
@@ -116,6 +117,10 @@ receiptionRouter.get(
 );
 receiptionRouter.get("/declaration", generateDeclaration);
 receiptionRouter.get("/doctorSheet/:patientId", getDoctorSheet);
+receiptionRouter.get(
+  "/getActivePatientsWithAdmissions",
+  getActivePatientsWithAdmissions
+);
 receiptionRouter.put(
   "/dischargeByReceptionCondition/:patientId/:admissionId",
   dischargeByReception
@@ -164,6 +169,7 @@ receiptionRouter.get("/occupiedBeds/:sectionId", getOccupiedBeds);
 receiptionRouter.get("/availableBeds/:sectionId", getAvailableBeds);
 receiptionRouter.post("/addIpdDetails", addIpdDetails);
 receiptionRouter.get("/getAllDeposits", getAllDeposits);
+receiptionRouter.get("/getDepositSummaryDashboard", getDepositSummaryDashboard);
 receiptionRouter.get("/getDepositSummaryDashboard", getDepositSummaryDashboard);
 receiptionRouter.get("/getAllPatientHistories", getAllPatientHistories);
 receiptionRouter.get("/getAllPatientAmountDetails", getAllPatientAmountDetails);

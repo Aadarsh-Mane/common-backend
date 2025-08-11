@@ -32,6 +32,8 @@ import {
   updatePatientCounter,
 } from "./controllers/counterController.js";
 import { getProducts } from "./controllers/scrapperController.js";
+import dialysisRouter from "./routes/dialysis.js";
+import insuranceRouter from "./routes/insurance.js";
 
 const port = 5001;
 
@@ -63,11 +65,12 @@ app.use("/master", masterRouter);
 app.use("/scrape", scrapeRouter); // Endpoint to get FCM token
 app.use("/chat", chatRouter); // Add chat routes
 app.use("/api/medicines", medicineRoutes);
-
+app.use("/d", dialysisRouter);
 app.use("/labs", labRouter);
 app.use("/investigate", investigateRouter);
 app.use("/pharma", pharmaRouter);
 app.get("/patientHistory/:patientId", getPatientHistory);
+app.use("/insurance", insuranceRouter);
 app.get("/my", getProducts);
 
 app.get("/", (req, res) => {
