@@ -1887,9 +1887,8 @@ export const generateFinalReceipt = async (req, res) => {
 };
 
 export const getDoctorAdvic1 = async (req, res) => {
-  const { patientId, admissionId } = req.params;
+  const { patientId, admissionId } = req.params; // Include admissionId from request params
   console.log(patientId, admissionId);
-
   try {
     // Find the patient details from the patient schema
     const patient = await patientSchema.findOne({ patientId });
@@ -1925,714 +1924,223 @@ export const getDoctorAdvic1 = async (req, res) => {
       doctor: admissionRecord.doctor ? admissionRecord.doctor.name : null,
       weight: admissionRecord.weight || null,
       symptoms: admissionRecord.symptomsByDoctor || [],
-      latestVital: latestVital,
+      latestVital: latestVital, // Changed from vitals array to single latest vital
       diagnosis: admissionRecord.diagnosisByDoctor || [],
       prescriptions: admissionRecord.doctorPrescriptions || [],
     };
 
-    // Generate stunning HTML content for the PDF
+    // Generate HTML content for the PDF
     const doctorAdviceHtml = `
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Medical Prescription</title>
+    <title>Prescription</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #fff;
-            color: #333;
-            line-height: 1.4;
-            font-size: 12px;
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+            margin: 20px;
         }
         
         .container {
-            max-width: 800px;
-            margin: 15px auto;
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border: 3px solid transparent;
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-            box-shadow: 
-                0 20px 40px rgba(0, 0, 0, 0.1),
-                0 0 0 1px rgba(102, 126, 234, 0.1);
-        }
-
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 15px;
-            padding: 3px;
-            background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: subtract;
-            z-index: -1;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            border-bottom: 4px solid #1e3c72;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -50%;
-            width: 200%;
-            height: 100%;
-            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-            animation: shine 3s infinite;
-        }
-
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .prescription-badge {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 25px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(238, 90, 36, 0.3);
-            z-index: 3;
-        }
-
-        .floating-elements {
-            position: absolute;
             width: 100%;
-            height: 100%;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .floating-circle {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .circle-1 { width: 80px; height: 80px; top: 10%; left: 10%; animation-delay: 0s; }
-        .circle-2 { width: 120px; height: 120px; top: 60%; right: 15%; animation-delay: 2s; }
-        .circle-3 { width: 60px; height: 60px; bottom: 20%; left: 70%; animation-delay: 4s; }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
-            50% { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #000;
+            padding: 20px;
+            box-sizing: border-box;
         }
         
         .header img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .prescription-header {
-            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-            padding: 15px 20px;
-            border-bottom: 1px solid #e2e8f0;
-            position: relative;
-        }
-
-        .prescription-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
             width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, #ff6b6b, #feca57, #48cae4, #ff6b6b);
-            background-size: 200% 100%;
-            animation: rainbow 3s linear infinite;
-        }
-
-        @keyframes rainbow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
+            height: auto;
         }
         
-        .prescription-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 8px;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .details {
+            margin-bottom: 20px;
         }
         
-        .patient-info {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            padding: 20px;
-            border-bottom: 1px solid #e2e8f0;
+        .details-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
         }
         
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
+        .details-row p {
+            flex: 1;
+            margin: 5px 0;
+            font-size: 14px;
         }
         
-        .info-item {
-            background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
-            padding: 12px 15px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-            box-shadow: 
-                0 4px 15px rgba(102, 126, 234, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
-            transition: transform 0.2s ease;
-        }
-
-        .info-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 8px 25px rgba(102, 126, 234, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        .details-row p:not(:last-child) {
+            margin-right: 20px;
         }
         
-        .info-label {
-            font-weight: 600;
-            color: #4a5568;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
         }
         
-        .info-value {
-            color: #2d3748;
-            font-size: 13px;
-            font-weight: 600;
-            margin-top: 4px;
+        .left, .right {
+            width: 48%;
         }
         
-        .content-section {
-            padding: 20px;
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        h2 {
+            font-size: 16px;
+            margin: 10px 0;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
         }
         
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 20px;
+        ul {
+            list-style-type: none;
+            padding: 0;
         }
         
-        .section-card {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 12px;
-            padding: 18px;
-            margin-bottom: 15px;
-            box-shadow: 
-                0 4px 20px rgba(102, 126, 234, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
-            transition: transform 0.2s ease;
-        }
-
-        .section-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 8px 30px rgba(102, 126, 234, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
-        }
-        
-        .section-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 3px solid transparent;
-            background: linear-gradient(90deg, #667eea, #764ba2) bottom;
-            background-size: 100% 3px;
-            background-repeat: no-repeat;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .vitals-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        
-        .vital-item {
-            background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            font-size: 11px;
-            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.05);
-        }
-        
-        .vital-label {
-            font-weight: 600;
-            color: #4a5568;
-        }
-        
-        .vital-value {
-            color: #2d3748;
-            font-weight: 600;
-        }
-        
-        .list-item {
-            background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
-            padding: 8px 12px;
-            margin: 6px 0;
-            border-radius: 8px;
-            border-left: 4px solid #48bb78;
-            font-size: 11px;
-            color: #2d3748;
-            font-weight: 500;
-            box-shadow: 0 2px 10px rgba(72, 187, 120, 0.1);
-            transition: transform 0.2s ease;
-        }
-
-        .list-item:hover {
-            transform: translateX(4px);
-            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.15);
-        }
-        
-        .prescription-section {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 
-                0 4px 20px rgba(102, 126, 234, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        li {
+            margin: 5px 0;
+            font-size: 14px;
         }
         
         .prescription-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
-            background: #fff;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .prescription-table th, .prescription-table td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+            font-size: 14px;
         }
         
         .prescription-table th {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #667eea 100%);
-            color: #000;
-            padding: 12px 8px;
-            text-align: left;
-            font-weight: 700;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .prescription-table th::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, #ff6b6b, #feca57, #48cae4, #ff6b6b);
-            background-size: 200% 100%;
-            animation: rainbow 3s linear infinite;
-        }
-        
-        .prescription-table td {
-            padding: 8px;
-            border-bottom: 1px solid #e2e8f0;
-            vertical-align: top;
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-        }
-        
-        .prescription-table tr:nth-child(even) td {
-            background: linear-gradient(145deg, #f8fafc 0%, #ffffff 100%);
-        }
-        
-        .prescription-table tr:hover td {
-            background: linear-gradient(145deg, #edf2f7 0%, #f7fafc 100%);
-            transform: scale(1.01);
-            transition: all 0.2s ease;
-        }
-        
-        .medicine-name {
-            font-weight: 700;
-            color: #2d3748;
-            font-size: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .dosage-badge {
-            display: inline-block;
-            background: linear-gradient(145deg, #e2e8f0 0%, #f7fafc 100%);
-            color: #000;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 9px;
-            font-weight: 600;
-            margin: 2px;
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-        }
-        
-        .dosage-active {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
-            transform: scale(1.05);
-        }
-        
-        .comment-text {
-            color: #4a5568;
-            font-style: italic;
-            font-size: 9px;
-            font-weight: 500;
+            background-color: #f2f2f2;
         }
         
         .footer {
-            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
-            color: #e2e8f0;
-            padding: 15px 20px;
             text-align: center;
-            font-size: 10px;
-            position: relative;
-        }
-
-        .footer::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, #ff6b6b, #feca57, #48cae4, #ff6b6b);
-            background-size: 200% 100%;
-            animation: rainbow 3s linear infinite;
-        }
-        
-        .doctor-signature {
-            text-align: right;
-            padding: 25px;
+            font-size: 14px;
             margin-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.05);
         }
         
-        .signature-line {
-            border-bottom: 2px solid #667eea;
-            width: 220px;
-            margin-left: auto;
-            margin-bottom: 8px;
-            height: 50px;
-            position: relative;
-        }
-
-        .signature-line::after {
-            content: '✓';
-            position: absolute;
-            right: 10px;
-            bottom: 5px;
-            color: #48bb78;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        
-        .no-data {
-            color: #a0aec0;
-            font-style: italic;
-            font-size: 10px;
-            text-align: center;
-            padding: 15px;
-        }
-        
-        @media print {
-            .container {
-                margin: 0;
-                border: none;
-                border-radius: 0;
-            }
-            
-            .container::before,
-            .header::before,
-            .prescription-header::after,
-            .prescription-table th::after,
-            .footer::before {
-                display: none;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="floating-elements">
-                <div class="floating-circle circle-1"></div>
-                <div class="floating-circle circle-2"></div>
-                <div class="floating-circle circle-3"></div>
+            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
+        </div>
+        <div class="details">
+            <div class="details-row">
+                <p><strong>Name:</strong> ${response.name}</p>
+                <p><strong>Age:</strong> ${response.age}</p>
+                <p><strong>Gender:</strong> ${response.gender}</p>
             </div>
-            <div class="prescription-badge">Rx</div>
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Header">
-        </div>
-        
-        <div class="prescription-header">
-            <div class="prescription-title">MEDICAL PRESCRIPTION</div>
-        </div>
-        
-        <div class="patient-info">
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">Patient Name</div>
-                    <div class="info-value">${response.name}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Age / Gender</div>
-                    <div class="info-value">${response.age} Years / ${
-      response.gender
-    }</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Weight</div>
-                    <div class="info-value">${response.weight || "N/A"} kg</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Date</div>
-                    <div class="info-value">${new Date(
-                      response.admissionDate
-                    ).toLocaleDateString("en-IN")}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Doctor</div>
-                    <div class="info-value">${response.doctor || "N/A"}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Contact</div>
-                    <div class="info-value">${response.contact || "N/A"}</div>
-                </div>
+            <div class="details-row">
+             <p><strong>Weight:</strong> ${response.weight} kg</p>
+                <p><strong>Date:</strong> ${new Date(
+                  response.admissionDate
+                ).toLocaleDateString()}</p>
+                <p><strong>Doctor:</strong> ${response.doctor}</p>
             </div>
         </div>
-        
-        <div class="content-section">
-            <div class="content-grid">
-                <div class="left-column">
-                    <div class="section-card">
-                        <div class="section-title">Latest Vitals</div>
+        <div class="section">
+            <div class="left">
+                <h2>Latest Vitals</h2>
+                <ul>
+                    ${
+                      response.latestVital
+                        ? `
+                        <li>Temperature: ${
+                          response.latestVital.temperature || "N/A"
+                        } °C</li>
+                        <li>Pulse: ${
+                          response.latestVital.pulse || "N/A"
+                        } bpm</li>
+                        <li>BP: ${
+                          response.latestVital.bloodPressure || "N/A"
+                        }</li>
+                        <li>BSL: ${
+                          response.latestVital.bloodSugarLevel || "N/A"
+                        }</li>
+                        <li>Other: ${response.latestVital.other || "N/A"}</li>
+                        <li>Recorded At: ${new Date(
+                          response.latestVital.recordedAt
+                        ).toLocaleString()}</li>
+                    `
+                        : "<li>No vital signs recorded</li>"
+                    }
+                </ul>
+                <h2>Symptoms</h2>
+                <ul>
+                    ${
+                      response.symptoms.length > 0
+                        ? response.symptoms
+                            .map((symptom) => `<li>${symptom}</li>`)
+                            .join("")
+                        : "<li>No symptoms recorded</li>"
+                    }
+                </ul>
+                <h2>Diagnosis</h2>
+                <ul>
+                    ${
+                      response.diagnosis.length > 0
+                        ? response.diagnosis
+                            .map((diagnosis) => `<li>${diagnosis}</li>`)
+                            .join("")
+                        : "<li>No diagnosis recorded</li>"
+                    }
+                </ul>
+            </div>
+            <div class="right">
+                <h2>Prescriptions</h2>
+                <table class="prescription-table">
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Dosage</th>
+                            <th>Comments</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         ${
-                          response.latestVital
-                            ? `
-                            <div class="vitals-grid">
-                                <div class="vital-item">
-                                    <span class="vital-label">Temp:</span> 
-                                    <span class="vital-value">${
-                                      response.latestVital.temperature || "N/A"
-                                    }°C</span>
-                                </div>
-                                <div class="vital-item">
-                                    <span class="vital-label">Pulse:</span> 
-                                    <span class="vital-value">${
-                                      response.latestVital.pulse || "N/A"
-                                    } bpm</span>
-                                </div>
-                                <div class="vital-item">
-                                    <span class="vital-label">BP:</span> 
-                                    <span class="vital-value">${
-                                      response.latestVital.bloodPressure ||
-                                      "N/A"
-                                    }</span>
-                                </div>
-                                <div class="vital-item">
-                                    <span class="vital-label">BSL:</span> 
-                                    <span class="vital-value">${
-                                      response.latestVital.bloodSugarLevel ||
-                                      "N/A"
-                                    }</span>
-                                </div>
-                            </div>
-                            ${
-                              response.latestVital.other
-                                ? `
-                                <div class="vital-item" style="margin-top: 10px; grid-column: 1/-1;">
-                                    <span class="vital-label">Other:</span> 
-                                    <span class="vital-value">${response.latestVital.other}</span>
-                                </div>
+                          response.prescriptions.length > 0
+                            ? response.prescriptions
+                                .map(
+                                  (prescription) => `
+                            <tr>
+                                <td>${prescription.medicine.name || "N/A"}</td>
+                                <td>M: ${
+                                  prescription.medicine.morning || "-"
+                                } / A: ${
+                                    prescription.medicine.afternoon || "-"
+                                  } / N: ${
+                                    prescription.medicine.night || "-"
+                                  }</td>
+                                <td>${
+                                  prescription.medicine.comment || "N/A"
+                                }</td>
+                            </tr>
                             `
-                                : ""
-                            }
-                        `
-                            : '<div class="no-data">No vital signs recorded</div>'
-                        }
-                    </div>
-                    
-                    <div class="section-card">
-                        <div class="section-title">Chief Complaints</div>
-                        ${
-                          response.symptoms.length > 0
-                            ? response.symptoms
-                                .map(
-                                  (symptom) =>
-                                    `<div class="list-item">${symptom}</div>`
                                 )
                                 .join("")
-                            : '<div class="no-data">No symptoms recorded</div>'
+                            : '<tr><td colspan="3">No prescriptions recorded</td></tr>'
                         }
-                    </div>
-                    
-                    <div class="section-card">
-                        <div class="section-title">Diagnosis</div>
-                        ${
-                          response.diagnosis.length > 0
-                            ? response.diagnosis
-                                .map(
-                                  (diagnosis) =>
-                                    `<div class="list-item">${diagnosis}</div>`
-                                )
-                                .join("")
-                            : '<div class="no-data">No diagnosis recorded</div>'
-                        }
-                    </div>
-                </div>
-                
-                <div class="right-column">
-                    <div class="prescription-section">
-                        <div class="section-title">Prescription Details</div>
-                        <table class="prescription-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 35%;">Medicine</th>
-                                    <th style="width: 35%;">Dosage Schedule</th>
-                                    <th style="width: 30%;">Instructions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${
-                                  response.prescriptions.length > 0
-                                    ? response.prescriptions
-                                        .map(
-                                          (prescription) => `
-                                        <tr>
-                                            <td>
-                                                <div class="medicine-name">${
-                                                  prescription.medicine.name ||
-                                                  "N/A"
-                                                }</div>
-                                            </td>
-                                            <td>
-                                                <div style="line-height: 1.4;">
-                                                    <span class="dosage-badge ${
-                                                      prescription.medicine
-                                                        .morning &&
-                                                      prescription.medicine
-                                                        .morning !== "-"
-                                                        ? "dosage-active"
-                                                        : ""
-                                                    }">
-                                                        M: ${
-                                                          prescription.medicine
-                                                            .morning || "-"
-                                                        }
-                                                    </span>
-                                                    <span class="dosage-badge ${
-                                                      prescription.medicine
-                                                        .afternoon &&
-                                                      prescription.medicine
-                                                        .afternoon !== "-"
-                                                        ? "dosage-active"
-                                                        : ""
-                                                    }">
-                                                        A: ${
-                                                          prescription.medicine
-                                                            .afternoon || "-"
-                                                        }
-                                                    </span>
-                                                    <span class="dosage-badge ${
-                                                      prescription.medicine
-                                                        .night &&
-                                                      prescription.medicine
-                                                        .night !== "-"
-                                                        ? "dosage-active"
-                                                        : ""
-                                                    }">
-                                                        N: ${
-                                                          prescription.medicine
-                                                            .night || "-"
-                                                        }
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div class="comment-text">${
-                                                  prescription.medicine
-                                                    .comment || "As directed"
-                                                }</div>
-                                            </td>
-                                        </tr>
-                                    `
-                                        )
-                                        .join("")
-                                    : '<tr><td colspan="3" style="text-align: center;" class="no-data">No prescriptions recorded</td></tr>'
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
-        
-        <div class="doctor-signature">
-            <div class="signature-line"></div>
-            <div style="font-size: 12px; font-weight: 700; color: #2d3748;">
-                Dr. ${response.doctor || "Doctor Name"}
-            </div>
-            <div style="font-size: 10px; color: #718096; margin-top: 4px;">
-                Verified Digital Signature
-            </div>
-        </div>
-        
         <div class="footer">
-            <div>Generated on ${new Date().toLocaleString(
-              "en-IN"
-            )} | For any queries, please contact the hospital | Powered by Advanced Medical Systems</div>
         </div>
     </div>
 </body>
-</html>`;
-
+</html>
+    `;
     const pdfBuffer = await generatePdf(doctorAdviceHtml);
     const driveLink = await uploadToDrive(
       pdfBuffer,
