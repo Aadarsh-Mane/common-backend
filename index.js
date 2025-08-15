@@ -76,7 +76,7 @@ app.get("/my", getProducts);
 app.get("/", (req, res) => {
   return res
     .status(200)
-    .json("Welcome to Ai in HealthCare common backend v3.6");
+    .json("Welcome to Ai in HealthCare common backend v1.0");
 });
 let medicines = {};
 fs.readFile("./test.json", "utf8", (err, data) => {
@@ -86,7 +86,21 @@ fs.readFile("./test.json", "utf8", (err, data) => {
   }
   medicines = JSON.parse(data);
 });
+app.get("/health", (req, res) => {
+  const startTime = Date.now();
 
+  const healthData = {
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    responseTime: Date.now() - startTime,
+    server: "Hospital Management System",
+    environment: process.env.NODE_ENV || "development",
+    version: "1.0.0", // Your app version
+  };
+
+  res.status(200).json(healthData);
+});
 // Endpoint for search suggestions
 app.get("/search", (req, res) => {
   const query = req.query.q?.toLowerCase(); // Get the query parameter
