@@ -679,16 +679,13 @@ export const getProducts = async (req, res) => {
     // Method 1: Using Puppeteer (Recommended for dynamic content)
     const allProducts = await scrapeAllPagesWithPuppeteer(baseUrl);
 
-    // Method 2: Using Axios + Cheerio (Alternative, faster but may miss dynamic content)
-    // const allProducts = await scrapeAllPagesWithAxios(baseUrl, headers);
-
-    // Save all products to JSON file
-    await saveProductsToJson(allProducts);
+    // Save all products to CSV file
+    await saveProductsToCSV(allProducts);
 
     res.status(200).json({
       success: true,
       count: allProducts.length,
-      message: `Scraped ${allProducts.length} products and saved to havells_products.json`,
+      message: `Scraped ${allProducts.length} products and saved to havells_products.csv`,
       data: allProducts,
     });
   } catch (error) {
@@ -791,33 +788,67 @@ const scrapeAllPagesWithPuppeteer = async (baseUrl) => {
                 : null;
               const productUrl = titleElement ? titleElement.href : null;
 
-              // Extract price information
-              const priceElement = item.querySelector(
-                ".price, .regular-price, .special-price"
+              // Extract current selling price (not the discount text)
+              const currentPriceElement = item.querySelector(
+                ".price-container .price, .regular-price .price, .special-price .price"
               );
-              const price = priceElement
-                ? priceElement.textContent.trim()
+              const currentPrice = currentPriceElement
+                ? currentPriceElement.textContent.trim().replace(/[^\d.,]/g, "")
                 : null;
 
               // Extract MRP/original price
               const mrpElement = item.querySelector(
-                '.old-price, .was-price, [class*="mrp"]'
+                '.old-price .price, .was-price .price, [class*="mrp"] .price'
               );
-              const mrp = mrpElement ? mrpElement.textContent.trim() : null;
-
-              // Extract discount from span.price (new requirement)
-              const discountSpan = item.querySelector("span.price");
-              const discountText = discountSpan
-                ? discountSpan.textContent.trim()
+              const mrp = mrpElement
+                ? mrpElement.textContent.trim().replace(/[^\d.,]/g, "")
                 : null;
 
-              // Also check for other discount elements
-              const discountElement = item.querySelector(
-                '.discount, .save-percent, [class*="off"]'
-              );
-              const discount = discountElement
-                ? discountElement.textContent.trim()
-                : discountText;
+              // Extract discount percentage - FIXED LOGIC
+              let discount = null;
+              let discountPercentage = null;
+
+              // Method 1: Look for discount in price-discount container
+              const discountContainer = item.querySelector(".price-discount");
+              if (discountContainer) {
+                const discountSpan =
+                  discountContainer.querySelector("span.price");
+                if (discountSpan) {
+                  discount = discountSpan.textContent.trim();
+                  // Extract percentage number
+                  const percentMatch = discount.match(/(\d+)%/);
+                  if (percentMatch) {
+                    discountPercentage = percentMatch[1];
+                  }
+                }
+              }
+
+              // Method 2: Look for other discount elements
+              if (!discount) {
+                const discountElement = item.querySelector(
+                  '.discount, .save-percent, [class*="off"], .offer'
+                );
+                if (discountElement) {
+                  discount = discountElement.textContent.trim();
+                  const percentMatch = discount.match(/(\d+)%/);
+                  if (percentMatch) {
+                    discountPercentage = percentMatch[1];
+                  }
+                }
+              }
+
+              // Method 3: Calculate discount if we have both prices
+              if (!discount && currentPrice && mrp) {
+                const current = parseFloat(currentPrice.replace(/,/g, ""));
+                const original = parseFloat(mrp.replace(/,/g, ""));
+                if (current && original && original > current) {
+                  const calculatedDiscount = Math.round(
+                    ((original - current) / original) * 100
+                  );
+                  discount = `${calculatedDiscount}% Off`;
+                  discountPercentage = calculatedDiscount.toString();
+                }
+              }
 
               // Extract product features/description
               const featuresElements = item.querySelectorAll(
@@ -856,16 +887,17 @@ const scrapeAllPagesWithPuppeteer = async (baseUrl) => {
                 title: title,
                 imageUrl: imageUrl,
                 imageAlt: imageAlt,
-                price: price,
+                currentPrice: currentPrice,
                 mrp: mrp,
                 discount: discount,
-                discountText: discountText, // Specific discount from span.price
-                features: features.length > 0 ? features : null,
+                discountPercentage: discountPercentage,
+                features: features.length > 0 ? features.join(" | ") : null, // Join features for CSV
                 productUrl: productUrl,
                 rating: rating,
                 availability: availability,
                 scrapedAt: new Date().toISOString(),
                 page: window.location.href,
+                pageNumber: null, // Will be set outside this function
               };
 
               // Only add products with at least a title or image
@@ -886,6 +918,11 @@ const scrapeAllPagesWithPuppeteer = async (baseUrl) => {
           );
           break;
         }
+
+        // Add page number to each product
+        pageProducts.forEach((product) => {
+          product.pageNumber = currentPage;
+        });
 
         allProducts = allProducts.concat(pageProducts);
         console.log(
@@ -947,162 +984,11 @@ const scrapeAllPagesWithPuppeteer = async (baseUrl) => {
   }
 };
 
-// Alternative method using Axios + Cheerio with pagination
-const scrapeAllPagesWithAxios = async (baseUrl, headers) => {
-  let allProducts = [];
-  let currentPage = 1;
-  let hasMorePages = true;
-
-  while (hasMorePages) {
-    try {
-      const url =
-        currentPage === 1 ? baseUrl : `${baseUrl}/index/?p=${currentPage}`;
-      console.log(`Scraping page ${currentPage}: ${url}`);
-
-      const response = await axios.get(url, {
-        headers,
-        timeout: 15000,
-        maxRedirects: 5,
-      });
-
-      const $ = cheerio.load(response.data);
-      const pageProducts = [];
-
-      $("li.item.product.product-item.brand_Havells").each((index, element) => {
-        try {
-          const $item = $(element);
-
-          // Extract product image
-          const $imageElement = $item.find("img.product-image-photo");
-          const imageUrl =
-            $imageElement.attr("src") || $imageElement.attr("data-src") || null;
-          const imageAlt = $imageElement.attr("alt") || null;
-
-          // Extract product title/name
-          const $titleElement = $item
-            .find(
-              ".product-item-link, .product-name a, h3 a, .product-item-name a"
-            )
-            .first();
-          const title = $titleElement.text().trim() || null;
-          const productUrl = $titleElement.attr("href") || null;
-
-          // Extract price information
-          const price =
-            $item
-              .find(".price, .regular-price, .special-price")
-              .first()
-              .text()
-              .trim() || null;
-
-          // Extract MRP/original price
-          const mrp =
-            $item
-              .find('.old-price, .was-price, [class*="mrp"]')
-              .first()
-              .text()
-              .trim() || null;
-
-          // Extract discount from span.price (new requirement)
-          const discountText = $item.find("span.price").text().trim() || null;
-
-          // Also check for other discount elements
-          const discount =
-            $item
-              .find('.discount, .save-percent, [class*="off"]')
-              .first()
-              .text()
-              .trim() || discountText;
-
-          // Extract product features
-          const features = [];
-          $item
-            .find("ul li, .product-features li, .features li")
-            .each((i, feature) => {
-              const featureText = $(feature).text().trim();
-              if (featureText) {
-                features.push(featureText);
-              }
-            });
-
-          // Extract product ID
-          const productId =
-            $item.attr("data-product-id") ||
-            $item.find("[data-product-id]").attr("data-product-id") ||
-            `product_${Date.now()}_${index}`;
-
-          const product = {
-            id: productId,
-            title: title,
-            imageUrl: imageUrl,
-            imageAlt: imageAlt,
-            price: price,
-            mrp: mrp,
-            discount: discount,
-            discountText: discountText, // Specific discount from span.price
-            features: features.length > 0 ? features : null,
-            productUrl: productUrl,
-            scrapedAt: new Date().toISOString(),
-            page: url,
-          };
-
-          // Only add products with at least a title or image
-          if (product.title || product.imageUrl) {
-            pageProducts.push(product);
-          }
-        } catch (error) {
-          console.error(`Error extracting product ${index}:`, error);
-        }
-      });
-
-      if (pageProducts.length === 0) {
-        console.log(
-          `No products found on page ${currentPage}, stopping pagination`
-        );
-        break;
-      }
-
-      allProducts = allProducts.concat(pageProducts);
-      console.log(
-        `Found ${pageProducts.length} products on page ${currentPage}. Total: ${allProducts.length}`
-      );
-
-      // Check if there's a next page
-      const hasNextPage =
-        $('.next, .action.next, a[title="Next"]').length > 0 &&
-        !$('.next, .action.next, a[title="Next"]').hasClass("disabled");
-
-      if (!hasNextPage) {
-        console.log("No more pages found, stopping pagination");
-        hasMorePages = false;
-      } else {
-        currentPage++;
-        // Add delay between pages
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-
-      // Safety check
-      if (currentPage > 50) {
-        console.log("Reached maximum page limit (50), stopping");
-        break;
-      }
-    } catch (error) {
-      console.error(`Error scraping page ${currentPage}:`, error);
-      currentPage++;
-      if (currentPage > 10) {
-        break;
-      }
-    }
-  }
-
-  return allProducts;
-};
-
-// Function to save products data to JSON file
-const saveProductsToJson = async (products) => {
+// Function to save products data to CSV file
+const saveProductsToCSV = async (products) => {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `havells_products_seller_${timestamp}.json`;
+    const filename = `havells_products_${timestamp}.csv`;
     const filepath = path.join(process.cwd(), "data", filename);
 
     // Create data directory if it doesn't exist
@@ -1112,40 +998,100 @@ const saveProductsToJson = async (products) => {
       // Directory already exists, ignore error
     }
 
-    const dataToSave = {
-      scrapeInfo: {
-        totalProducts: products.length,
-        scrapedAt: new Date().toISOString(),
-        baseUrl: "https://havells.com/products/new",
-        pages: [...new Set(products.map((p) => p.page))].length,
-      },
-      products: products,
-    };
+    // Define CSV headers
+    const headers = [
+      "id",
+      "title",
+      "currentPrice",
+      "mrp",
+      "discount",
+      "discountPercentage",
+      "imageUrl",
+      "imageAlt",
+      "features",
+      "productUrl",
+      "rating",
+      "availability",
+      "pageNumber",
+      "scrapedAt",
+      "page",
+    ];
 
-    await fs.writeFile(filepath, JSON.stringify(dataToSave, null, 2), "utf8");
+    // Create CSV content
+    let csvContent = headers.join(",") + "\n";
+
+    // Add product data
+    products.forEach((product) => {
+      const row = headers.map((header) => {
+        let value = product[header] || "";
+
+        // Handle special characters and quotes in CSV
+        if (typeof value === "string") {
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          if (
+            value.includes(",") ||
+            value.includes('"') ||
+            value.includes("\n")
+          ) {
+            value = '"' + value.replace(/"/g, '""') + '"';
+          }
+        }
+
+        return value;
+      });
+
+      csvContent += row.join(",") + "\n";
+    });
+
+    await fs.writeFile(filepath, csvContent, "utf8");
 
     // Also save a latest copy
     const latestFilepath = path.join(
       process.cwd(),
       "data",
-      "havells_products_seller_latest.json"
+      "havells_products_latest.csv"
+    );
+    await fs.writeFile(latestFilepath, csvContent, "utf8");
+
+    // Create a summary file
+    const summaryData = {
+      scrapeInfo: {
+        totalProducts: products.length,
+        scrapedAt: new Date().toISOString(),
+        baseUrl: "https://havells.com/products/bestseller",
+        pages: [...new Set(products.map((p) => p.pageNumber))].length,
+        productsWithDiscount: products.filter((p) => p.discount).length,
+        avgDiscountPercentage:
+          products
+            .filter((p) => p.discountPercentage)
+            .reduce((sum, p) => sum + parseFloat(p.discountPercentage), 0) /
+            products.filter((p) => p.discountPercentage).length || 0,
+      },
+    };
+
+    const summaryFilepath = path.join(
+      process.cwd(),
+      "data",
+      `havells_scrape_summary_${timestamp}.json`
     );
     await fs.writeFile(
-      latestFilepath,
-      JSON.stringify(dataToSave, null, 2),
+      summaryFilepath,
+      JSON.stringify(summaryData, null, 2),
       "utf8"
     );
 
-    console.log(`Products saved to: ${filepath}`);
+    console.log(`Products saved to CSV: ${filepath}`);
     console.log(`Latest copy saved to: ${latestFilepath}`);
+    console.log(`Summary saved to: ${summaryFilepath}`);
 
     return {
       filepath,
       latestFilepath,
+      summaryFilepath,
       count: products.length,
     };
   } catch (error) {
-    console.error("Error saving products to JSON:", error);
+    console.error("Error saving products to CSV:", error);
     throw error;
   }
 };

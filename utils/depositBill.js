@@ -1,6 +1,8 @@
+import { HOSPITAL_CONFIG } from "./constants.js";
+
 export const generateDepositReceiptHTML = (
   receipt,
-  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
+  bannerImageUrl = `${HOSPITAL_CONFIG.bannerUrl}`
 ) => {
   // Fix timezone issue by creating IST time functions
   const getCurrentIST = () => {
@@ -208,8 +210,8 @@ export const generateDepositReceiptHTML = (
             <div class="receipt-container">
                     <div class="header">
                             ${
-                              "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
-                                ? `<img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" class="banner-image">`
+                              `${HOSPITAL_CONFIG.bannerUrl}`
+                                ? `<img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" class="banner-image">`
                                 : ""
                             }
                             <div class="hospital-details">

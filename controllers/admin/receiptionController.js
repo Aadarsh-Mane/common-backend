@@ -49,6 +49,7 @@ import {
 } from "../../services/medicalRecordGenerator.js";
 import { generateSurgicalHTML } from "../../utils/surgicalNotes.js";
 import { PatientInsurance } from "../../models/insuranceSchema.js";
+import { HOSPITAL_CONFIG } from "../../utils/constants.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -996,7 +997,7 @@ export const generateBillForDischargedPatient = async (req, res) => {
 </head>
 <body>
     <div class="header">
-        <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Logo" />
+        <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Logo" />
         <h1>Hospital Bill</h1>
     </div>
     <div class="patient-details">
@@ -1485,7 +1486,7 @@ export const getDoctorAdvice = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
+            <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -1781,7 +1782,7 @@ export const generateFinalReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Bhosale Hospital</h1>
+    <h1>${HOSPITAL_CONFIG.name}</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -2033,7 +2034,7 @@ export const getDoctorAdvic1 = async (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
+            <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="header">
         </div>
         <div class="details">
             <div class="details-row">
@@ -2335,7 +2336,7 @@ export const getDoctorSheet = async (req, res) => {
 <body>
     <div class="container" id="page-1">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="header">
+            <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="header">
             <h3>DOCTOR INITIAL ASSESSMENT SHEET</h3>
         </div>
         <div class="section">
@@ -3161,7 +3162,7 @@ export const generateOpdReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Bhosale Hospital</h1>
+    <h1>${HOSPITAL_CONFIG.name}</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -3382,7 +3383,7 @@ export const generateaIpddReceipt = async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <h1>Bhosale Hospital</h1>
+    <h1>${HOSPITAL_CONFIG.name}</h1>
     <h2>Payment Receipt</h2>
     <div class="details">
       <table>
@@ -6357,7 +6358,7 @@ export const createDepositReceipt = async (req, res) => {
         isActive: true,
       },
       hospitalDetails: hospitalDetails || {
-        hospitalName: "Bhosale Hospital",
+        hospitalName: "${HOSPITAL_CONFIG .name}",
         hospitalAddress:
           "1Shete mala, Near Ganesh Temple,Narayanwadi Road,Narayangaon,Tal Junnar,Dist Pune,Pin 410504",
         hospitalContact: "+91-9876543210",
@@ -7231,14 +7232,13 @@ export const generatePatientRecordPDFs = async (req, res) => {
 
     // Hardcoded hospital information
     const hospital = {
-      name: "Bhosale Hospital",
+      name: "${HOSPITAL_CONFIG .name}",
       address:
         "1Shete mala, Near Ganesh Temple,Narayanwadi Road,Narayangaon,Tal Junnar,Dist Pune,Pin 410504",
       phone: "+91 9876543210",
       email: "info@bhosalehospital.com",
       website: "www.bhosalehospital.com",
-      bannerImageUrl:
-        "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png",
+      bannerImageUrl: `${HOSPITAL_CONFIG.bannerUrl}`,
       folderId: "1Trbtp9gwGwNF_3KNjNcfL0DHeSUp0HyV", // Your Google Drive folder ID
     };
 
@@ -8198,7 +8198,7 @@ function generate2HrFollowUpHTML(patient, admission, bannerImageUrl) {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">2-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -8397,7 +8397,7 @@ function generate4HrFollowUpHTML(patient, admission, bannerImageUrl) {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">4-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -8522,7 +8522,7 @@ function generateCombinedFollowUpHTML(patient, admission, bannerImageUrl) {
 
   let content = `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">Complete Follow-Up Report</h1>
     ${patientInfo}

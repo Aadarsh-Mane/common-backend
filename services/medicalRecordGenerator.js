@@ -1,13 +1,14 @@
 // Professional PDF Templates - Hospital Style with Discharge Date
 
+import { HOSPITAL_CONFIG } from "../utils/constants.js";
+
 export const generateSymptomsHTML = (
   patientHistory,
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
-  const hospitalName = "BHOSALE HOSPITAL";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
+  const hospitalName = `${HOSPITAL_CONFIG.name}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -373,8 +374,7 @@ export const generateSymptomsHTML = (
 };
 
 export const generateVitalsHTML = (patientHistory, latestRecord, hospital) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -658,8 +658,7 @@ export const generateDiagnosisHTML = (
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1066,8 +1065,7 @@ export const generatePrescriptionsHTML = (
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1437,8 +1435,7 @@ export const generateConsultingHTML = (
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -1471,13 +1468,18 @@ export const generateConsultingHTML = (
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Consulting Report - ${patientHistory.name}</title>
         <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
+            * { 
+                margin: 0; 
+                padding: 0; 
+                box-sizing: border-box; 
+            }
             
             body {
                 font-family: Arial, sans-serif;
-                font-size: 12px;
+                font-size: 11px;
                 line-height: 1.4;
                 color: #000;
+                background: white;
             }
             
             .container {
@@ -1503,28 +1505,31 @@ export const generateConsultingHTML = (
             }
             
             .hospital-info {
-                font-size: 11px;
-                margin-bottom: 5px;
+                font-size: 10px;
+                margin-bottom: 3px;
             }
             
             .report-title {
                 font-weight: bold;
-                font-size: 18px;
+                font-size: 16px;
                 margin-bottom: 10px;
                 color: #2c5aa0;
+                text-transform: uppercase;
             }
             
             .patient-info-table {
                 width: 100%;
                 border-collapse: collapse;
                 margin-bottom: 15px;
-                font-size: 11px;
+                font-size: 10px;
                 border: 2px solid #000;
+                page-break-after: avoid;
+                page-break-inside: avoid;
             }
             
             .patient-info-table th {
                 background-color: #f0f0f0;
-                padding: 8px;
+                padding: 6px 8px;
                 text-align: left;
                 font-weight: bold;
                 border: 1px solid #000;
@@ -1532,46 +1537,123 @@ export const generateConsultingHTML = (
             }
             
             .patient-info-table td {
-                padding: 8px;
+                padding: 6px 8px;
                 border: 1px solid #000;
                 width: 25%;
+                vertical-align: top;
             }
             
-            .consultation-table {
-                width: 100%;
-                border-collapse: collapse;
-                border: 2px solid #000;
+            .consultation-container {
                 margin-bottom: 20px;
+                page-break-inside: avoid;
+                border: 2px solid #000;
+                break-inside: avoid;
             }
             
-            .consultation-table th {
+            .consultation-container:first-of-type {
+                page-break-before: avoid;
+            }
+            
+            .consultation-header {
                 background-color: #2c5aa0;
                 color: white;
-                padding: 10px;
-                text-align: left;
                 font-weight: bold;
-                border: 1px solid #000;
+                padding: 8px 10px;
+                text-align: center;
                 font-size: 12px;
+                text-transform: uppercase;
+                page-break-after: avoid;
             }
             
-            .consultation-table td {
-                padding: 12px;
-                border: 1px solid #000;
+            .section-grid {
+                display: table;
+                width: 100%;
+                table-layout: fixed;
+                page-break-inside: avoid;
+            }
+            
+            .section-row {
+                display: table-row;
+                page-break-inside: avoid;
+            }
+            
+            .section-column {
+                display: table-cell;
+                width: 50%;
+                border-right: 1px solid #000;
                 vertical-align: top;
-                font-size: 11px;
+                page-break-inside: avoid;
+            }
+            
+            .section-column:last-child {
+                border-right: none;
+            }
+            
+            .section-header {
+                background-color: #e9ecef;
+                font-weight: bold;
+                padding: 6px 8px;
+                text-align: center;
+                font-size: 10px;
+                border-bottom: 1px solid #000;
+                text-transform: uppercase;
+                page-break-after: avoid;
+            }
+            
+            .field-table {
+                width: 100%;
+                border-collapse: collapse;
+                page-break-inside: auto;
+            }
+            
+            .field-row {
+                border-bottom: 1px solid #ddd;
+                page-break-inside: avoid;
+            }
+            
+            .field-row:last-child {
+                border-bottom: none;
             }
             
             .field-label {
                 font-weight: bold;
-                color: #2c5aa0;
-                margin-bottom: 5px;
+                color: #000;
+                background-color: #f8f9fa;
+                padding: 6px 8px;
+                border-right: 1px solid #ddd;
+                width: 40%;
+                vertical-align: top;
+                font-size: 10px;
             }
             
             .field-content {
-                margin-bottom: 10px;
-                padding: 5px;
-                background-color: #f9f9f9;
-                border-left: 3px solid #17a2b8;
+                padding: 6px 8px;
+                background-color: #fff;
+                vertical-align: top;
+                font-size: 10px;
+                line-height: 1.4;
+                word-wrap: break-word;
+                width: 60%;
+            }
+            
+            .full-width-section {
+                border-top: 1px solid #000;
+                margin-top: 8px;
+                page-break-inside: avoid;
+            }
+            
+            .pain-assessment-table {
+                width: 100%;
+                border-collapse: collapse;
+                page-break-inside: avoid;
+            }
+            
+            .pain-assessment-table .field-label {
+                width: 20%;
+            }
+            
+            .pain-assessment-table .field-content {
+                width: 30%;
             }
             
             .no-data {
@@ -1579,17 +1661,27 @@ export const generateConsultingHTML = (
                 font-style: italic;
                 color: #666;
                 padding: 20px;
+                background: #f8f9fa;
             }
             
             .footer {
-                position: fixed;
-                bottom: 5mm;
-                left: 15mm;
-                right: 15mm;
+                margin-top: 20px;
                 text-align: center;
-                font-size: 10px;
+                font-size: 9px;
                 border-top: 1px solid #000;
-                padding-top: 5px;
+                padding-top: 10px;
+                page-break-inside: avoid;
+            }
+            
+            /* Prevent orphans and widows */
+            .consultation-container {
+                orphans: 3;
+                widows: 3;
+            }
+            
+            /* Ensure content flows properly */
+            .content-section {
+                page-break-before: avoid;
             }
             
             @media print {
@@ -1599,8 +1691,45 @@ export const generateConsultingHTML = (
                 }
                 
                 @page {
-                    margin: 15mm 10mm;
+                    margin: 12mm 8mm;
                     size: A4;
+                }
+                
+                .patient-info-table {
+                    page-break-after: avoid;
+                    page-break-inside: avoid;
+                }
+                
+                .consultation-container {
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                }
+                
+                .consultation-container:first-of-type {
+                    page-break-before: avoid;
+                }
+                
+                .section-grid {
+                    page-break-inside: avoid;
+                }
+                
+                .field-row {
+                    page-break-inside: avoid;
+                }
+                
+                .section-row {
+                    page-break-inside: avoid;
+                }
+                
+                /* Avoid breaking after headers */
+                .consultation-header,
+                .section-header {
+                    page-break-after: avoid;
+                }
+                
+                /* Keep related content together */
+                .header {
+                    page-break-after: avoid;
                 }
             }
         </style>
@@ -1661,159 +1790,314 @@ export const generateConsultingHTML = (
             </table>
 
             <!-- Doctor Consultation Records -->
-            ${
-              latestRecord.doctorConsulting &&
-              latestRecord.doctorConsulting.length > 0
-                ? latestRecord.doctorConsulting
-                    .map(
-                      (consultation, index) =>
-                        `<table class="consultation-table">
-                        <thead>
-                            <tr>
-                                <th colspan="2">CONSULTATION RECORD #${
-                                  index + 1
-                                } - ${
-                          consultation.date || "Date not recorded"
-                        }</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${
-                              consultation.cheifComplaint
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Chief Complaint</td>
-                                <td>${consultation.cheifComplaint}</td>
-                            </tr>`
-                                : ""
+            <div class="content-section">
+                ${
+                  latestRecord.doctorConsulting &&
+                  latestRecord.doctorConsulting.length > 0
+                    ? latestRecord.doctorConsulting
+                        .map(
+                          (consultation, index) =>
+                            `
+                            <div class="consultation-container">
+                                <div class="consultation-header">
+                                    CONSULTATION RECORD #${index + 1} - ${
+                              consultation.date || "Date not recorded"
                             }
-                            
-                            ${
-                              consultation.historyOfPresentIllness
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">History of Present Illness</td>
-                                <td>${consultation.historyOfPresentIllness}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.pastMedicalHistory
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Past Medical History</td>
-                                <td>${consultation.pastMedicalHistory}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.familyHistory
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Family History</td>
-                                <td>${consultation.familyHistory}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.personalHabits
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Personal Habits</td>
-                                <td>${consultation.personalHabits}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.menstrualHistory
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Menstrual History</td>
-                                <td>${consultation.menstrualHistory}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.immunizationHistory
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Immunization History</td>
-                                <td>${consultation.immunizationHistory}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.allergies
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Allergies</td>
-                                <td>${consultation.allergies}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.describeAllergies
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Allergy Description</td>
-                                <td>${consultation.describeAllergies}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.relevantPreviousInvestigations
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Previous Investigations</td>
-                                <td>${consultation.relevantPreviousInvestigations}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.wongBaker
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Wong Baker Pain Scale</td>
-                                <td>${consultation.wongBaker}</td>
-                            </tr>`
-                                : ""
-                            }
-                            
-                            ${
-                              consultation.visualAnalogue
-                                ? `
-                            <tr>
-                                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Visual Analogue Scale</td>
-                                <td>${consultation.visualAnalogue}</td>
-                            </tr>`
-                                : ""
-                            }
-                        </tbody>
-                    </table>`
-                    )
-                    .join("")
-                : `<table class="consultation-table">
-                    <thead>
-                        <tr>
-                            <th>CONSULTATION RECORDS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td class="no-data">No consultation records found</td>
-                        </tr>
-                    </tbody>
-                </table>`
-            }
+                                </div>
+                                
+                                <!-- Patient History & Vital Signs Section -->
+                                <div class="section-grid">
+                                    <div class="section-row">
+                                        <div class="section-column">
+                                            <div class="section-header">PATIENT HISTORY & SYMPTOMS</div>
+                                            <table class="field-table">
+                                                ${
+                                                  consultation.cheifComplaint
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Chief Complaint</td>
+                                                    <td class="field-content">${consultation.cheifComplaint}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.historyOfPresentIllness
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Present Illness History</td>
+                                                    <td class="field-content">${consultation.historyOfPresentIllness}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.pastMedicalHistory
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Past Medical History</td>
+                                                    <td class="field-content">${consultation.pastMedicalHistory}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.familyHistory
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Family History</td>
+                                                    <td class="field-content">${consultation.familyHistory}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.personalHabits
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Personal Habits</td>
+                                                    <td class="field-content">${consultation.personalHabits}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.menstrualHistory
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Menstrual History</td>
+                                                    <td class="field-content">${consultation.menstrualHistory}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.immunizationHistory
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Immunization History</td>
+                                                    <td class="field-content">${consultation.immunizationHistory}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                            </table>
+                                        </div>
+                                        
+                                        <div class="section-column">
+                                            <div class="section-header">VITAL SIGNS & EXAMINATION</div>
+                                            <table class="field-table">
+                                                ${
+                                                  consultation.pulse
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Pulse Rate</td>
+                                                    <td class="field-content">${consultation.pulse}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.bloodPressure
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Blood Pressure</td>
+                                                    <td class="field-content">${consultation.bloodPressure}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.temperature
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Temperature</td>
+                                                    <td class="field-content">${consultation.temperature}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.oxygenSaturation
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Oxygen Saturation</td>
+                                                    <td class="field-content">${consultation.oxygenSaturation}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.respiratorySystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Respiratory System</td>
+                                                    <td class="field-content">${consultation.respiratorySystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.cardiovascularSystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Cardiovascular System</td>
+                                                    <td class="field-content">${consultation.cardiovascularSystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.gastrointestinalSystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Gastrointestinal System</td>
+                                                    <td class="field-content">${consultation.gastrointestinalSystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.genitourinarySystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Genitourinary System</td>
+                                                    <td class="field-content">${consultation.genitourinarySystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Neurological & Clinical Assessment Section -->
+                                <div class="section-grid" style="border-top: 1px solid #000;">
+                                    <div class="section-row">
+                                        <div class="section-column">
+                                            <div class="section-header">NEUROLOGICAL & MUSCULOSKELETAL</div>
+                                            <table class="field-table">
+                                                ${
+                                                  consultation.neurologicalSystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Neurological System</td>
+                                                    <td class="field-content">${consultation.neurologicalSystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.musculoskeletalSystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Musculoskeletal System</td>
+                                                    <td class="field-content">${consultation.musculoskeletalSystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.endocrineSystem
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Endocrine System</td>
+                                                    <td class="field-content">${consultation.endocrineSystem}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                            </table>
+                                        </div>
+                                        
+                                        <div class="section-column">
+                                            <div class="section-header">ALLERGIES & CLINICAL ASSESSMENT</div>
+                                            <table class="field-table">
+                                                ${
+                                                  consultation.allergies
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Known Allergies</td>
+                                                    <td class="field-content">${consultation.allergies}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.describeAllergies
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Allergy Description</td>
+                                                    <td class="field-content">${consultation.describeAllergies}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.clinicalDiagnosis
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Clinical Diagnosis</td>
+                                                    <td class="field-content">${consultation.clinicalDiagnosis}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                                
+                                                ${
+                                                  consultation.relevantPreviousInvestigations
+                                                    ? `
+                                                <tr class="field-row">
+                                                    <td class="field-label">Previous Investigations</td>
+                                                    <td class="field-content">${consultation.relevantPreviousInvestigations}</td>
+                                                </tr>`
+                                                    : ""
+                                                }
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Pain Assessment Section -->
+                                ${
+                                  consultation.wongBaker ||
+                                  consultation.visualAnalogue
+                                    ? `
+                                <div class="full-width-section">
+                                    <div class="section-header">PAIN ASSESSMENT</div>
+                                    <table class="pain-assessment-table">
+                                        <tr class="field-row">
+                                            ${
+                                              consultation.wongBaker
+                                                ? `
+                                            <td class="field-label">Wong Baker Pain Scale</td>
+                                            <td class="field-content">${consultation.wongBaker}</td>`
+                                                : ""
+                                            }
+                                            
+                                            ${
+                                              consultation.visualAnalogue
+                                                ? `
+                                            <td class="field-label">Visual Analogue Scale</td>
+                                            <td class="field-content">${consultation.visualAnalogue}</td>`
+                                                : ""
+                                            }
+                                        </tr>
+                                    </table>
+                                </div>
+                                `
+                                    : ""
+                                }
+                            </div>
+                            `
+                        )
+                        .join("")
+                    : `<div class="consultation-container">
+                        <div class="consultation-header">CONSULTATION RECORDS</div>
+                        <div class="no-data">
+                            <strong>No consultation records found</strong><br>
+                            <small>No consultation data has been recorded for this patient's admission.</small>
+                        </div>
+                    </div>`
+                }
+            </div>
 
             <div class="footer">
                 <p>Report generated on ${formatDate(
@@ -1832,8 +2116,7 @@ export const generateDoctorNotesHTML = (
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -2260,7 +2543,7 @@ export const generate2HrFollowUpHTML = (patient, admission, bannerImageUrl) => {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">2-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -2458,7 +2741,7 @@ export const generate4HrFollowUpHTML = (patient, admission, bannerImageUrl) => {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">4-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -2586,7 +2869,7 @@ export const generateCombinedFollowUpHTML = (
 
   let content = `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">Complete Follow-Up Report</h1>
     ${patientInfo}
@@ -3007,8 +3290,7 @@ export const generateVitalsGraphHTML = (
   latestRecord,
   hospital
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalAddress =
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
   const hospitalPhone = "Phone No.9923537180";
@@ -3264,6 +3546,7 @@ export const generateVitalsGraphHTML = (
                 width: 100% !important;
                 height: 300px !important;
                 margin: 15px 0;
+
             }
             
             .data-table {

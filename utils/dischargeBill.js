@@ -6,12 +6,14 @@
 //   lengthOfStay
 // ) => {
 //   const hospitalBanner =
-//     "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
-//   const hospitalName = process.env.HOSPITAL_NAME || "BHOSALE HOSPITAL";
+//     `${HOSPITAL_CONFIG.bannerUrl}`";
+//   const hospitalName = process.env.HOSPITAL_NAME || "${HOSPITAL_CONFIG .name}";
 //   const hospitalAddress =
 //     process.env.HOSPITAL_ADDRESS ||
 //     "Shubham Prestige 1st Floor, Near Post Office, Khodad Road, Narayangaon, Tal-Junnar, Dist-Pune";
 //   const hospitalPhone = process.env.HOSPITAL_PHONE || "Phone No.9923537180";
+
+import { HOSPITAL_CONFIG } from "./constants.js";
 
 //   const formatDate = (date) => {
 //     return new Date(date).toLocaleDateString("en-IN", {
@@ -555,9 +557,8 @@ export const generateDischargeBillHTML = (
   billCalculations,
   lengthOfStay
 ) => {
-  const hospitalBanner =
-    "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png";
-  const hospitalName = process.env.HOSPITAL_NAME || "BHOSALE HOSPITAL";
+  const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
+  const hospitalName = process.env.HOSPITAL_NAME || `${HOSPITAL_CONFIG.name}`;
   const hospitalAddress =
     process.env.HOSPITAL_ADDRESS ||
     "Shete mala,Near Ganesh Temple Narayanwadi Road Narayangaon Tal Junnar Dist Pune Pin 410504";
@@ -1178,7 +1179,7 @@ function getChargeDescription(chargeType) {
 
 export const generateOPDBillHTML = (
   data,
-  bannerImageUrl = "https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png"
+  bannerImageUrl = `${HOSPITAL_CONFIG.bannerUrl}`
 ) => {
   return `
     <!DOCTYPE html>

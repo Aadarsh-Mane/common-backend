@@ -251,6 +251,18 @@ const consultantSchema = new mongoose.Schema({
   relevantPreviousInvestigations: { type: String },
   immunizationHistory: { type: String },
   pastMedicalHistory: { type: String },
+  pulse: { type: String },
+  bloodPressure: { type: String },
+  temperature: { type: String },
+  oxygenSaturation: { type: String },
+  respiratorySystem: { type: String },
+  cardiovascularSystem: { type: String },
+  gastrointestinalSystem: { type: String },
+  genitourinarySystem: { type: String },
+  musculoskeletalSystem: { type: String },
+  neurologicalSystem: { type: String },
+  endocrineSystem: { type: String },
+  clinicalDiagnosis: { type: String },
   date: { type: String },
 });
 const dischargeSummaryHistorySchema = new mongoose.Schema({

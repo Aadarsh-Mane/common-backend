@@ -4,6 +4,7 @@ import patientSchema from "../models/patientSchema.js";
 import moment from "moment-timezone";
 import { generatePdf } from "../services/pdfGenerator.js";
 import { uploadToDrive } from "../services/uploader.js";
+import { HOSPITAL_CONFIG } from "../utils/constants.js";
 
 export const addFollowUp = async (req, res) => {
   try {
@@ -1183,7 +1184,7 @@ function generate2HrFollowUpHTML(patient, admission, bannerImageUrl) {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">2-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -1382,7 +1383,7 @@ function generate4HrFollowUpHTML(patient, admission, bannerImageUrl) {
   // Add header and patient info only once
   content += `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">4-Hour Follow-Up Report</h1>
     ${patientInfo}
@@ -1507,7 +1508,7 @@ function generateCombinedFollowUpHTML(patient, admission, bannerImageUrl) {
 
   let content = `
     <div class="banner">
-      <img src="https://res.cloudinary.com/dnznafp2a/image/upload/v1752657276/Spandan_Hospital_8_1_qfbqgb.png" alt="Hospital Banner" />
+      <img src="${HOSPITAL_CONFIG.bannerUrl}" alt="Hospital Banner" />
     </div>
     <h1 class="main-title">Complete Follow-Up Report</h1>
     ${patientInfo}
