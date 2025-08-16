@@ -1,6 +1,6 @@
 export const HOSPITAL_CONFIG = {
   // Hospital Identity
-  name: "${HOSPITAL_CONFIG .name}",
+  name: "BHOSALE HOSPITAL",
 
   // Banner/Logo
   bannerUrl:
