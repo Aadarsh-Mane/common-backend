@@ -214,7 +214,7 @@ export const sendMessage = async (req, res) => {
     }
 
     // Get sender info
-    const sender = await hospitalDoctor.findById(senderId);
+    const sender = await hospitalDoctors.findById(senderId);
     if (!sender) {
       return res.status(404).json({
         success: false,

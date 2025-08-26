@@ -2655,7 +2655,6 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export const getDiagnosis = async (req, res) => {
   try {
-    // Extract patientId from the request body
     const { patientId } = req.params;
     console.log("This is the patient ID: ", patientId);
 
@@ -2663,52 +2662,61 @@ export const getDiagnosis = async (req, res) => {
       return res.status(400).json({ error: "Patient ID is required" });
     }
 
-    // Fetch patient data from the existing API
+    // Fetch patient data
     const { data } = await axios.get(
-      `https://common.code2pdf.in/doctors/getPatientSuggestion/${patientId}`
+      `https://bhosale.lanbix.com/doctors/getPatientSuggestion/${patientId}`
     );
-    console.log(data);
-    // Extract necessary fields
+    console.log("hello:", data);
+
     const { age, gender, weight, symptoms, vitals } = data;
 
-    // Create a structured prompt for AI
+    // Prompt for AI
     const prompt = `
-      Given the following patient details, provide a JSON array of possible diagnoses.
+      Given the following patient details, provide ONLY a valid JSON array of at least five possible diagnoses.
+      Do not include any explanation or extra text. 
+      Output format:
+      [
+        "Disease 1",
+        "Disease 2",
+        "Disease 3",
+        ...
+      ]
+      
+      Patient:
       - Age: ${age}
       - Gender: ${gender}
       - Weight: ${weight} kg
       - Symptoms: ${symptoms.join(", ")}
       - Vitals:
-        - Temperature: ${vitals[0]?.temperature}°F
-        - Pulse: ${vitals[0]?.pulse} BPM
-        - Blood Pressure: ${vitals[0]?.bloodPressure} mmHg
-        - Blood Sugar Level: ${vitals[0]?.bloodSugarLevel} mg/dL
-    
-      Format the response as a **valid JSON array** give me atleast five possible:
-      [
-        "Disease 1",
-        "Disease 2",
-        "Disease 3"
-      ]
+        - Temperature: ${vitals[0]?.temperature}
+        - Pulse: ${vitals[0]?.pulse}
+        - Blood Pressure: ${vitals[0]?.bloodPressure}
+        - Blood Sugar Level: ${vitals[0]?.bloodSugarLevel}
     `;
 
-    // Query the AI model
     const result = await model.generateContent(prompt);
     let diagnosis = result.response.text();
 
-    // Clean up the response to remove markdown formatting and extract valid JSON
-    diagnosis = diagnosis.replace(/```json\n|\n```/g, "").trim();
+    // ✅ Clean response: remove markdown/code fences/extra text
+    diagnosis = diagnosis.replace(/```json|```/g, "").trim();
 
-    // Parse the cleaned string into a JSON array
-    const diagnosisArray = JSON.parse(diagnosis);
+    // ✅ Extract only JSON array using regex (in case extra text slips in)
+    const jsonMatch = diagnosis.match(/\[([\s\S]*)\]/);
+    if (!jsonMatch) {
+      throw new Error("AI did not return valid JSON array");
+    }
+
+    const diagnosisArray = JSON.parse(jsonMatch[0]); // only parse the array part
+
     console.log(diagnosisArray);
-    // Send the cleaned-up response as a JSON array
+
     res.json({ diagnosis: diagnosisArray });
   } catch (error) {
-    console.log("Error fetching diagnosis:", error);
+    console.log("Error fetching diagnosis:", error.message);
     res.status(500).json({ error: "Failed to get diagnosis" });
   }
 };
+
 export const deleteSymptom = async (req, res) => {
   console.log("Deleting symptom");
   const { patientId, admissionId, symptom } = req.params;

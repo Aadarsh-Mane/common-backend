@@ -1,3 +1,5 @@
+import { HOSPITAL_CONFIG } from "./constants.js";
+
 export const generateCertificateHTML = (data) => {
   const {
     patient,
