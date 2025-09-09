@@ -26,6 +26,7 @@ const medicineRoutes = express.Router();
  */
 medicineRoutes.get("/search", searchMedicines);
 
+// sdsds
 /**
  * @route   GET /api/medicines/manufacturers
  * @desc    Get all manufacturers with their statistics and medicine counts
