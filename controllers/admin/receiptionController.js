@@ -6957,7 +6957,7 @@ export const getAllPatientsDeposits = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 20,
+      limit = 100,
       sortBy = "totalAmount",
       sortOrder = "desc",
       patientName,
