@@ -76,7 +76,7 @@ app.get("/my", getProducts);
 app.get("/", (req, res) => {
   return res
     .status(200)
-    .json("Welcome to Ai in HealthCare common backend v1.0");
+    .json("Welcome to Ai in HealthCare common backend v1.1");
 });
 let medicines = {};
 fs.readFile("./test.json", "utf8", (err, data) => {
