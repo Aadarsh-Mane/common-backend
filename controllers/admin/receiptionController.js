@@ -50,6 +50,7 @@ import {
 import { generateSurgicalHTML } from "../../utils/surgicalNotes.js";
 import { PatientInsurance } from "../../models/insuranceSchema.js";
 import { HOSPITAL_CONFIG } from "../../utils/constants.js";
+import BillNumberCounter from "../../models/billNumberSchema.js";
 dotenv.config(); // Load environment variables from .env file
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -2848,6 +2849,7 @@ export const generateOPDBill = async (req, res) => {
       // Status
       status: "Generated",
     });
+    const billCounter = await BillNumberCounter.getNextBillNumber("OPD");
 
     // Prepare bill data with OPD/IPD numbers - USE IST TIME
     const billData = {
@@ -2900,6 +2902,7 @@ export const generateOPDBill = async (req, res) => {
       generatedBy: userId,
       generatedAt: currentIST, // This is now in IST
       isOPDBill: true,
+      billCounter,
     };
 
     console.log(
@@ -5364,6 +5367,7 @@ export const generateIpdBill = async (req, res) => {
 
     const billCalculations = calculateBillTotals(allCharges, discount, advance);
     const billNumber = await Bill.generateBillNumber("IPD");
+    const billCounter = await BillNumberCounter.getNextBillNumber("IPD");
 
     // Generate HTML content for bill with OPD/IPD numbers
     const htmlContent = generateDischargeBillHTML(
@@ -5371,7 +5375,8 @@ export const generateIpdBill = async (req, res) => {
       admissionHistory,
       allCharges,
       billCalculations,
-      lengthOfStay
+      lengthOfStay,
+      billCounter
     );
 
     // Generate PDF

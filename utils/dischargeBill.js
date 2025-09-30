@@ -555,7 +555,8 @@ export const generateDischargeBillHTML = (
   admissionHistory,
   processedCharges,
   billCalculations,
-  lengthOfStay
+  lengthOfStay,
+  billCounter
 ) => {
   const hospitalBanner = `${HOSPITAL_CONFIG.bannerUrl}`;
   const hospitalName = process.env.HOSPITAL_NAME || `${HOSPITAL_CONFIG.name}`;
@@ -1006,13 +1007,13 @@ export const generateDischargeBillHTML = (
             <!-- Patient Information Table -->
             <table class="patient-info-table">
                 <tr>
-                    <th>Receipt No.</th>
-                    <td>${admissionHistory.admissionId}</td>
+                    <th>Bill Number</th>
+                    <td>${billCounter}</td>
                     <th>Patient Name</th>
                     <td>${patientHistory.name}</td>
                 </tr>
                 <tr>
-                    <th>Patient ID</th>
+                    <th>UHID</th>
                     <td>${patientHistory.patientId}</td>
                     <th>Age/Gender</th>
                     <td>${patientHistory.age} Years / ${
@@ -1492,7 +1493,7 @@ body {
               <span class="info-value">${data.patientName}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Patient ID:</span>
+              <span class="info-label">UHID:</span>
               <span class="info-value">${data.patientId}</span>
             </div>
             <div class="info-row">
@@ -1513,7 +1514,7 @@ body {
             <div class="info-title">BILL DETAILS</div>
             <div class="info-row">
               <span class="info-label">Bill Number:</span>
-              <span class="info-value">${data.billNumber}</span>
+              <span class="info-value">${data.billCounter}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Date:</span>
