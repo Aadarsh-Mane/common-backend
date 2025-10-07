@@ -2664,7 +2664,7 @@ export const getDiagnosis = async (req, res) => {
 
     // Fetch patient data
     const { data } = await axios.get(
-      `https://bhosale.lanbix.com/doctors/getPatientSuggestion/${patientId}`
+      `https://bhosale.mattresswala.org/doctors/getPatientSuggestion/${patientId}`
     );
     console.log("hello:", data);
 
