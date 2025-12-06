@@ -218,7 +218,7 @@ export const uploadInvestigationReport = async (req, res) => {
     const fileUrl = await uploadToDrive(
       req.file.buffer,
       fileName,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"
     );
 
     // Create attachment object

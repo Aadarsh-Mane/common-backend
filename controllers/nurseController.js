@@ -978,7 +978,7 @@ export const generate2HrFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive (optional - configure folderId as needed)
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({
@@ -1053,7 +1053,7 @@ export const generate4HrFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({
@@ -1131,7 +1131,7 @@ export const generateCombinedFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({

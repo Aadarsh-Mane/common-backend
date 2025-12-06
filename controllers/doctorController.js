@@ -6605,7 +6605,7 @@ export const generateDischargeSummaryByDoctor = async (req, res) => {
     if (uploadToDriveFlag) {
       const folderId =
         process.env.DISCHARGE_SUMMARY_FOLDER_ID ||
-        "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+        "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
       try {
         driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
         console.log(

@@ -2147,7 +2147,7 @@ export const getDoctorAdvic1 = async (req, res) => {
     const driveLink = await uploadToDrive(
       pdfBuffer,
       `DoctorAdvice_${req.params.patientId}.pdf`,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts" // Folder ID
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy" // Folder ID
     );
 
     try {
@@ -2924,7 +2924,7 @@ export const generateOPDBill = async (req, res) => {
     let driveLink = null;
     if (uploadToDriveFlag) {
       const folderId =
-        process.env.OPD_BILLS_FOLDER_ID || "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+        process.env.OPD_BILLS_FOLDER_ID || "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
       try {
         driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
         console.log(`OPD bill uploaded to Drive: ${driveLink}`);
@@ -5250,7 +5250,7 @@ export const generateDischargeSummary = async (req, res) => {
     const fileName = `Discharge_Summary_${sanitizedName}_${timestamp}.pdf`;
 
     // Upload to Google Drive (optional)
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     let driveLink = null;
 
     if (folderId) {
@@ -5390,7 +5390,7 @@ export const generateIpdBill = async (req, res) => {
     }_${timestamp}.pdf`;
 
     // Upload to Google Drive (optional)
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"; // Replace with your folder ID
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"; // Replace with your folder ID
     let driveLink = null;
 
     if (folderId) {
@@ -6107,7 +6107,7 @@ export const generateManualDischargeSummary = async (req, res) => {
     if (uploadToDriveFlag) {
       const folderId =
         process.env.DISCHARGE_SUMMARY_FOLDER_ID ||
-        "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+        "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
       try {
         driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
         await DischargeSummary.create({
@@ -7933,7 +7933,7 @@ export const generate2HrFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive (optional - configure folderId as needed)
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({
@@ -8039,7 +8039,7 @@ export const generate4HrFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({
@@ -8148,7 +8148,7 @@ export const generateCombinedFollowUpPDF = async (req, res) => {
     }_${new Date().toISOString().split("T")[0]}.pdf`;
 
     // Upload to Google Drive
-    const folderId = "1MKYZ4fIUzERPyYzL_8I101agWemxVXts";
+    const folderId = "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy";
     const driveLink = await uploadToDrive(pdfBuffer, fileName, folderId);
 
     res.status(200).json({

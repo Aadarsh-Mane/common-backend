@@ -72,7 +72,7 @@ export const registerDialysisPatient = async (req, res) => {
     const driveLink = await uploadToDrive(
       pdfBuffer,
       fileName,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"
     );
 
     res.status(201).json({
@@ -276,7 +276,7 @@ export const endDialysisSession = async (req, res) => {
     const driveLink = await uploadToDrive(
       pdfBuffer,
       fileName,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"
     );
 
     res.status(200).json({
@@ -449,7 +449,7 @@ export const getDialysisHistory = async (req, res) => {
     const driveLink = await uploadToDrive(
       pdfBuffer,
       fileName,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"
     );
 
     res.status(200).json({
@@ -506,7 +506,7 @@ export const generateBilling = async (req, res) => {
     const driveLink = await uploadToDrive(
       pdfBuffer,
       fileName,
-      "1MKYZ4fIUzERPyYzL_8I101agWemxVXts"
+      "1DhWCwHricZoJ8TeQ_muG6J3pnv49C7cy"
     );
 
     res.status(201).json({
